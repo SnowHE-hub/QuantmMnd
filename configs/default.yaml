@@ -1,0 +1,129 @@
+# ============================================================================
+# QuantMind 默认配置
+# 用法：在 quantmind.core.config 中由 Settings 加载，可被 .env 覆盖
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# 数据层
+# ----------------------------------------------------------------------------
+data:
+  universe: csi300            # csi300 | csi500 | sp500 | nasdaq100 | custom
+  start_date: '2018-01-01'
+  end_date: '2024-12-31'
+  pit_strict: true            # 严格 Point-in-Time，禁止 look-ahead
+  primary_provider: akshare   # akshare | tushare | yfinance
+  fallback_providers: [tushare]
+  timezone: Asia/Shanghai
+  trading_calendar: SSE       # 上交所历史交易日历
+
+# ----------------------------------------------------------------------------
+# 特征工程
+# ----------------------------------------------------------------------------
+features:
+  lookback_days: 252          # 历史窗口（约 1 个交易年）
+  rebalance_freq: M           # D | W | M | Q
+  standardize: true           # cross-sectional zscore
+  neutralize:
+    industry: true            # 行业中性化
+    market_cap: true          # 市值中性化
+  winsorize: 3.0              # n sigma winsorize
+  fillna_strategy: industry_median
+
+# ----------------------------------------------------------------------------
+# 模型层
+# ----------------------------------------------------------------------------
+models:
+  factor_model: lgbm          # lgbm | xgb | linear
+  use_llm_rerank: true
+  llm_rerank_top_n: 50        # 粗排候选数
+  final_top_k: 10             # 最终选股数
+  holding_days: 20
+
+  lgbm:
+    objective: lambdarank
+    num_leaves: 63
+    learning_rate: 0.05
+    n_estimators: 500
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    lambda_l1: 0.1
+    lambda_l2: 0.1
+    early_stopping_rounds: 50
+
+# ----------------------------------------------------------------------------
+# 回测
+# ----------------------------------------------------------------------------
+backtest:
+  initial_capital: 1_000_000
+  commission_bps: 3           # 万 3
+  stamp_tax_bps: 10           # A 股印花税千 1（仅卖出）
+  slippage_bps: 5             # 滑点
+  benchmark: '000300.SH'
+  rebalance_at: open          # open | close | vwap
+  enable_t_plus_1: true       # A 股 T+1
+  max_position_pct: 0.05      # 单票最大仓位
+  max_volume_pct: 0.05        # 单笔不超过当日成交额比例
+
+# ----------------------------------------------------------------------------
+# Walk-Forward 验证
+# ----------------------------------------------------------------------------
+walk_forward:
+  train_window_months: 36
+  val_window_months: 6
+  test_window_months: 3
+  step_months: 3
+
+# ----------------------------------------------------------------------------
+# LLM
+# ----------------------------------------------------------------------------
+llm:
+  provider: ${DEFAULT_LLM_PROVIDER}
+  model: ${DEFAULT_LLM_MODEL}
+  temperature: 0.1
+  max_tokens: 4096
+  timeout_s: 120
+  retry_attempts: 3
+  retry_min_wait: 1
+  retry_max_wait: 30
+
+# ----------------------------------------------------------------------------
+# Agent 系统
+# ----------------------------------------------------------------------------
+agents:
+  max_iterations: 3           # Critic 最大反思轮数
+  enable_streaming: true
+  enable_checkpointing: true
+  checkpoint_dir: ./.cache/agent_checkpoints
+  parallel_data_agents: 4
+  parallel_analysis: 3        # fundamental/technical/sentiment 并行
+
+# ----------------------------------------------------------------------------
+# 知识库 / RAG
+# ----------------------------------------------------------------------------
+kb:
+  vector_store: chroma
+  vector_store_dir: ./data/kb/chroma
+  embedding_model: ${EMBEDDING_MODEL}
+  embedding_device: ${EMBEDDING_DEVICE}
+  chunk_size: 1000
+  chunk_overlap: 200
+  retriever:
+    dense_top_k: 20
+    sparse_top_k: 20
+    rerank_top_k: 10
+    use_reranker: true
+    reranker_model: BAAI/bge-reranker-v2-m3
+
+# ----------------------------------------------------------------------------
+# 日志与缓存
+# ----------------------------------------------------------------------------
+logging:
+  level: ${LOG_LEVEL:-INFO}
+  rotation: '1 day'
+  retention: '7 days'
+  format: '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
+
+cache:
+  default_ttl_hours: 24
+  max_size_gb: 10

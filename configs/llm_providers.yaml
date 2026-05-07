@@ -1,0 +1,124 @@
+# ============================================================================
+# LLM Provider 配置
+# 用于 quantmind.core.llm_router 中的 LLMRouter 选择 provider
+# ============================================================================
+
+providers:
+  # ----------------------------------------------------------------------------
+  # Ollama（本地，开发期推荐）
+  # ----------------------------------------------------------------------------
+  ollama:
+    type: ollama
+    base_url: ${OLLAMA_BASE_URL}
+    api_key: not_required
+    models:
+      - name: qwen2.5:7b
+        context_length: 32768
+        cost_per_1k_input: 0.0
+        cost_per_1k_output: 0.0
+        recommended_for: [development, draft_reasoning]
+      - name: glm-4.7-flash:latest
+        context_length: 128000
+        cost_per_1k_input: 0.0
+        cost_per_1k_output: 0.0
+        recommended_for: [long_context, kb_summary]
+
+  # ----------------------------------------------------------------------------
+  # DeepSeek（生产推荐，最便宜）
+  # ----------------------------------------------------------------------------
+  deepseek:
+    type: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key: ${DEEPSEEK_API_KEY}
+    models:
+      - name: deepseek-chat
+        context_length: 64000
+        cost_per_1k_input: 0.0014    # 单位：CNY，缓存命中价
+        cost_per_1k_output: 0.0028
+        recommended_for: [agent, critic, default]
+      - name: deepseek-reasoner
+        context_length: 64000
+        cost_per_1k_input: 0.0040
+        cost_per_1k_output: 0.0160
+        recommended_for: [reasoning, planning, dpo_data_gen]
+
+  # ----------------------------------------------------------------------------
+  # 阿里通义千问（对标 Qwen Agent JD）
+  # ----------------------------------------------------------------------------
+  qwen:
+    type: dashscope
+    base_url: https://dashscope.aliyuncs.com/api/v1
+    api_key: ${DASHSCOPE_API_KEY}
+    models:
+      - name: qwen-max
+        context_length: 32768
+        cost_per_1k_input: 0.020
+        cost_per_1k_output: 0.060
+        recommended_for: [strong_reasoning, structured_output]
+      - name: qwen-plus
+        context_length: 131072
+        cost_per_1k_input: 0.0008
+        cost_per_1k_output: 0.0020
+        recommended_for: [agent, default]
+      - name: qwen-turbo
+        context_length: 8192
+        cost_per_1k_input: 0.0003
+        cost_per_1k_output: 0.0006
+        recommended_for: [batch, cheap_tasks]
+
+  # ----------------------------------------------------------------------------
+  # OpenAI（DPO 数据生成 / 高质量 Critic）
+  # ----------------------------------------------------------------------------
+  openai:
+    type: openai
+    base_url: https://api.openai.com/v1
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - name: gpt-4o
+        context_length: 128000
+        cost_per_1k_input: 0.018
+        cost_per_1k_output: 0.072
+        recommended_for: [dpo_chosen_label, judge]
+      - name: gpt-4o-mini
+        context_length: 128000
+        cost_per_1k_input: 0.0011
+        cost_per_1k_output: 0.0043
+        recommended_for: [batch_judge]
+
+  # ----------------------------------------------------------------------------
+  # Anthropic（可选）
+  # ----------------------------------------------------------------------------
+  anthropic:
+    type: anthropic
+    base_url: https://api.anthropic.com
+    api_key: ${ANTHROPIC_API_KEY}
+    models:
+      - name: claude-3-5-sonnet-20241022
+        context_length: 200000
+        cost_per_1k_input: 0.022
+        cost_per_1k_output: 0.108
+        recommended_for: [judge, critical_reasoning]
+
+# ============================================================================
+# Fallback 链：主 provider 失败时按顺序切换
+# ============================================================================
+fallback_chain:
+  default: [ollama, deepseek, qwen]
+  reasoning: [deepseek, qwen, openai]
+  judge: [openai, anthropic, deepseek]
+  cheap: [ollama, qwen, deepseek]
+
+# ============================================================================
+# 任务-默认 provider 映射
+# ============================================================================
+task_routing:
+  planner: deepseek           # 规划任务，需要稳定可靠
+  data_agent: ollama          # 数据 agent 不需强推理
+  fundamental_agent: deepseek
+  technical_agent: ollama
+  sentiment_agent: ollama
+  critic_agent: deepseek      # Critic 需要严格判断
+  report_agent: deepseek
+  llm_reranker: deepseek      # 核心模型，质量优先
+  llm_judge: openai           # 评估时用更强模型
+  feature_extractor: ollama   # 批量任务，本地
