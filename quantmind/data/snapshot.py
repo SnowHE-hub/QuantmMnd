@@ -76,7 +76,7 @@ def build_snapshot(
     as_of: date,
     *,
     universe_name: str = "csi300",
-    price_lookback_days: int = 252,
+    price_lookback_days: int = 280,  # 252 + 28d 缓冲，方便 momentum_12m_skip_1m
     include_financials: bool = True,
     include_indicators: bool = True,
     max_tickers: int | None = None,
@@ -190,8 +190,23 @@ def build_snapshot(
             if failed_ind:
                 failures["financial_indicators"] = failed_ind
 
-        # 5. north bound (market-level)
-        log.info("[snapshot] step 5/5: north bound flow")
+        # 5. daily_basic (market-wide PE/PB/市值，单次调用)
+        log.info("[snapshot] step 5/6: daily_basic (market-wide)")
+        try:
+            db_df = tushare.get_daily_basic_market(trade_date=as_of, as_of=as_of)
+            if not db_df.empty:
+                # 仅保留 universe 内的票
+                db_df = db_df[db_df["ticker"].isin(set(tickers))].reset_index(drop=True)
+                db_path = out_dir / "daily_basic.parquet"
+                db_df.to_parquet(db_path, index=False)
+                rows["daily_basic"] = len(db_df)
+                files.append(db_path.name)
+                log.info(f"  daily_basic: {len(db_df)} rows ({len(db_df.columns)} cols)")
+        except Exception as e:  # noqa: BLE001
+            log.warning(f"daily_basic fetch failed: {e}")
+
+        # 6. north bound (market-level)
+        log.info("[snapshot] step 6/6: north bound flow")
         try:
             nb_start = (pd.Timestamp(as_of) - pd.Timedelta(days=90)).date()
             nb_df = tushare.get_north_bound_flow(start=nb_start, end=as_of, as_of=as_of)
@@ -366,6 +381,30 @@ def validate_snapshot(as_of: date, *, strict: bool = False) -> dict:
                 "n_tickers": int(fin["ticker"].nunique()),
                 "n_columns": len(fin.columns),
             }
+
+    # 4b. daily_basic PIT
+    if "daily_basic" in snap:
+        db = snap["daily_basic"]
+        assert isinstance(db, pd.DataFrame)
+        if "trade_date" in db.columns:
+            max_dt = pd.to_datetime(db["trade_date"]).max()
+            ok = max_dt <= cutoff
+            checks.append((
+                "daily_basic.trade_date_pit",
+                ok,
+                f"max={max_dt.date()}, as_of={as_of}",
+            ))
+        ticker_cov = len(set(db["ticker"]) & universe_set) / max(len(universe_set), 1)
+        checks.append((
+            "daily_basic.ticker_coverage",
+            ticker_cov >= 0.7,
+            f"coverage={ticker_cov:.0%}",
+        ))
+        stats["daily_basic"] = {
+            "rows": len(db),
+            "n_tickers": int(db["ticker"].nunique()),
+            "n_columns": len(db.columns),
+        }
 
     # 5. financial_indicators PIT
     if "financial_indicators" in snap:

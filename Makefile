@@ -101,7 +101,7 @@ probe-tushare:
 	python scripts/probe_tushare.py
 
 build-features:
-	python scripts/build_features.py --universe csi300
+	python scripts/build_features.py --as-of 2024-06-30 --universe csi300_top20
 
 run-backtest:
 	python scripts/run_backtest.py --strategy lgbm_factor --start 2022-01-01 --end 2024-12-31

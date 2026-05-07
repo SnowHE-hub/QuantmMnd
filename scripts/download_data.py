@@ -53,7 +53,7 @@ def main() -> int:
         default="csi300",
         choices=["csi300", "csi500", "csi800", "csi1000", "sse50"],
     )
-    parser.add_argument("--lookback-days", type=int, default=252)
+    parser.add_argument("--lookback-days", type=int, default=280)
     parser.add_argument("--max-tickers", type=int, default=None,
                         help="只拉前 N 只权重最大股（验证用）")
     parser.add_argument("--no-financials", action="store_true")

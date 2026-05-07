@@ -147,6 +147,20 @@ def _raw_daily_basic(ts_code: str, start: str, end: str) -> pd.DataFrame:
 
 
 @cached(ttl_hours=24)
+def _raw_daily_basic_history(ts_code: str, start: str, end: str) -> pd.DataFrame:
+    """daily_basic 历史 — 含 turnover_rate / pe / pb / total_mv 时间序列."""
+    log.info(f"[tushare] fetch daily_basic history {ts_code} {start}~{end}")
+    return _call("daily_basic", ts_code=ts_code, start_date=start, end_date=end)
+
+
+@cached(ttl_hours=24)
+def _raw_daily_basic_market(trade_date: str) -> pd.DataFrame:
+    """单日全市场 daily_basic（一次拉所有股票，比逐只快 1000x）."""
+    log.info(f"[tushare] fetch daily_basic full market trade_date={trade_date}")
+    return _call("daily_basic", trade_date=trade_date)
+
+
+@cached(ttl_hours=24)
 def _raw_adj_factor(ts_code: str, start: str, end: str) -> pd.DataFrame:
     log.info(f"[tushare] fetch adj_factor {ts_code} {start}~{end}")
     return _call("adj_factor", ts_code=ts_code, start_date=start, end_date=end)
@@ -260,7 +274,9 @@ class TushareProvider(DataProvider):
         as_of: date | None = None,
         freq: Frequency = "D",
         adjust: Adjustment = "qfq",
+        with_basic: bool = True,
     ) -> pd.DataFrame:
+        """日线行情，可选 ``with_basic=True`` 合并 ``turnover_rate / pe / pb / total_mv``."""
         if freq != "D":
             raise NotImplementedError("tushare only D supported here")
         ts_code = to_tushare_code(ticker)
@@ -281,6 +297,26 @@ class TushareProvider(DataProvider):
                                 raw[col] = raw[col] * raw["adj_factor"] / last_factor
                             else:  # hfq
                                 raw[col] = raw[col] * raw["adj_factor"]
+            # 合并 daily_basic 时间序列
+            if with_basic:
+                try:
+                    db = _raw_daily_basic_history(ts_code, start_str, end_str)
+                    if db is not None and not db.empty:
+                        keep_cols = [
+                            "trade_date",
+                            "turnover_rate",
+                            "turnover_rate_f",
+                            "pe",
+                            "pe_ttm",
+                            "pb",
+                            "ps_ttm",
+                            "total_mv",
+                            "circ_mv",
+                        ]
+                        keep_cols = [c for c in keep_cols if c in db.columns]
+                        raw = raw.merge(db[keep_cols], on="trade_date", how="left")
+                except Exception as e:  # noqa: BLE001
+                    log.warning(f"daily_basic merge skipped for {ticker}: {e}")
 
         if raw is None or raw.empty:
             return pd.DataFrame()
@@ -300,6 +336,15 @@ class TushareProvider(DataProvider):
             "volume",
             "amount",
             "pct_change",
+            # daily_basic 字段
+            "turnover_rate",
+            "turnover_rate_f",
+            "pe",
+            "pe_ttm",
+            "pb",
+            "ps_ttm",
+            "total_mv",
+            "circ_mv",
         ]
         df = df[[c for c in keep if c in df.columns]].sort_values("trade_date").reset_index(drop=True)
         self._assert_pit(df, as_of, "trade_date")
@@ -560,6 +605,65 @@ class TushareProvider(DataProvider):
                 df[col] = pd.to_datetime(df[col], errors="coerce")
         df = self._filter_pit(df, as_of, "ann_date")
         return self._stamp(df, as_of, ticker)
+
+    # ---------- 估值/市值（daily_basic）----------
+
+    def get_daily_basic_market(
+        self,
+        trade_date: date,
+        as_of: date | None = None,
+    ) -> pd.DataFrame:
+        """单日**全市场** daily_basic（pe / pb / ps / 市值 / 换手率 等 18 列）.
+
+        如果 ``trade_date`` 当日非交易日（周末/节假日），会自动回退到上一个交易日。
+        """
+        # 防御：as_of 不能小于 trade_date
+        if as_of is not None and trade_date > as_of:
+            raise ValueError(f"trade_date {trade_date} > as_of {as_of} is forbidden by PIT")
+
+        with operation_logger("tushare.daily_basic_market", trade_date=str(trade_date)):
+            # 自动回退到最近交易日（最多回退 7 天）
+            for offset in range(8):
+                candidate = (pd.Timestamp(trade_date) - pd.Timedelta(days=offset)).date()
+                date_str = self._to_yyyymmdd(candidate)
+                raw = _raw_daily_basic_market(date_str)
+                if raw is not None and not raw.empty:
+                    log.info(
+                        f"daily_basic_market: requested={trade_date} actual={candidate} rows={len(raw)}"
+                    )
+                    break
+            else:
+                return pd.DataFrame()
+
+        df = raw.copy()
+        df["ticker"] = df["ts_code"].apply(normalize_ticker)
+        df["trade_date"] = pd.to_datetime(df["trade_date"])
+        # 按 PIT 校验
+        if as_of is not None:
+            df = self._filter_pit(df, as_of, "trade_date")
+        self._assert_pit(df, as_of, "trade_date")
+        keep = [
+            "ticker",
+            "trade_date",
+            "close",
+            "turnover_rate",
+            "turnover_rate_f",
+            "volume_ratio",
+            "pe",
+            "pe_ttm",
+            "pb",
+            "ps",
+            "ps_ttm",
+            "dv_ratio",
+            "dv_ttm",
+            "total_share",
+            "float_share",
+            "free_share",
+            "total_mv",  # 总市值（万元）
+            "circ_mv",   # 流通市值（万元）
+        ]
+        df = df[[c for c in keep if c in df.columns]]
+        return self._stamp(df, as_of, None)
 
     # ---------- 股票基本信息（list_date, delist_date）----------
 
