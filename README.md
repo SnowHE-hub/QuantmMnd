@@ -25,9 +25,9 @@
 
 | Phase | 任务 | 状态 |
 |---|---|---|
-| 0 | 环境与基础设施 | 🚧 进行中 |
-| 1 | 数据层（PIT 严格） | ⏳ 待开始 |
-| 2 | 特征工程 | ⏳ |
+| 0 | 环境与基础设施 | ✅ 完成（87/87 单元测试通过） |
+| 1 | 数据层（PIT 严格） | ✅ 完成（10/10 PIT 测试通过） |
+| 2 | 特征工程 | ⏳ 待开始 |
 | 3 | 量化模型（LightGBM + LLM Rerank + DPO） | ⏳ |
 | 4 | Agent 系统 | ⏳ |
 | 5 | 知识库与 RAG | ⏳ |
@@ -107,6 +107,39 @@ make run-agent
 # 启动 UI
 make run-ui
 ```
+
+### 数据层（已完成）
+
+双 Provider 架构（akshare 主 + tushare 补，PIT 严格）：
+
+```bash
+# 跑 PIT 严格性测试（10 个，约 4 分钟）
+make test-pit
+
+# 探针测试（确认 API 可用性）
+make probe-akshare
+make probe-tushare
+
+# 构建 PIT 快照（在指定时点冻结全市场数据）
+python scripts/download_data.py --as-of 2024-06-30 --universe csi300
+```
+
+**核心保证：**
+- 行情用 `trade_date <= as_of` 过滤
+- 财报用 `f_ann_date <= as_of`（实际公告日，含修订）
+- 指数成分股按 `as_of` 时点的真实历史成分（反 survivorship bias）
+- 双源交叉校验：tushare ↔ akshare 当前 csi300 100% 匹配
+
+数据源分工：
+
+| 数据 | 主源 | 备源 |
+|---|---|---|
+| 日线行情 | akshare | tushare |
+| 三大报表 + 披露日 | tushare (`f_ann_date`) | akshare (`NOTICE_DATE`) |
+| 财务比率 (ROE TTM) | tushare `fina_indicator` | 自算 |
+| 历史指数成分股 | tushare `index_weight` | akshare (current only) |
+| 北向资金 | tushare | akshare |
+| 新闻 / 研报 | akshare | — |
 
 ---
 

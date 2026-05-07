@@ -53,6 +53,7 @@ class DataConfig(BaseModel):
     fallback_providers: list[str] = Field(default_factory=lambda: ["tushare"])
     timezone: str = "Asia/Shanghai"
     trading_calendar: str = "SSE"
+    dir: str = "data"  # 项目数据根目录（snapshots / cache / models 都在下面）
 
 
 class NeutralizeConfig(BaseModel):

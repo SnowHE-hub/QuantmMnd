@@ -92,7 +92,13 @@ run-ui:
 	streamlit run quantmind/ui/streamlit_app.py
 
 download-data:
-	python scripts/download_data.py --universe csi300 --start 2018-01-01 --end 2024-12-31
+	python scripts/download_data.py --as-of 2024-06-30 --universe csi300
+
+probe-akshare:
+	python scripts/probe_akshare.py
+
+probe-tushare:
+	python scripts/probe_tushare.py
 
 build-features:
 	python scripts/build_features.py --universe csi300

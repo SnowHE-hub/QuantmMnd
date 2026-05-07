@@ -8,6 +8,14 @@ from pathlib import Path
 
 import pytest
 
+# 测试启动时即加载 .env 让 TUSHARE_TOKEN / DEEPSEEK_API_KEY 等可用
+try:
+    from dotenv import load_dotenv as _load_dotenv
+
+    _load_dotenv()
+except ImportError:
+    pass
+
 from quantmind.core.state import (
     AgentState,
     InvestmentQuery,
