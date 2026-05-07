@@ -1,14 +1,77 @@
 """quantmind.core: 项目基础设施.
 
-模块（部分将在后续 Task 0.2 实现）：
-    smoke      - Phase 0 烟雾测试（已实现）
-    config     - pydantic-settings 配置加载（Task 0.2）
-    logger     - loguru 日志（Task 0.2）
-    cache      - joblib + diskcache（Task 0.2）
-    llm_router - 多 LLM provider 统一路由（Task 0.2）
-    state      - LangGraph 全局 State Pydantic Schema（Task 0.2）
+公共 API：
+
+    from quantmind.core import (
+        get_settings, load_config,        # 配置
+        get_logger, operation_logger,     # 日志
+        cached, clear_cache,              # 缓存
+        LLMRouter, get_router,            # LLM 路由
+        AgentState, InvestmentQuery,      # 状态
+    )
 """
 
+from quantmind.core.cache import cache_stats, cached, cached_invalidate, clear_cache
+from quantmind.core.config import (
+    PROJECT_ROOT,
+    Settings,
+    get_settings,
+    load_config,
+)
+from quantmind.core.llm_router import (
+    LLMResponse,
+    LLMRouter,
+    Message,
+    TokenUsage,
+    TokenUsageTracker,
+    get_router,
+)
+from quantmind.core.logger import get_logger, operation_logger, setup_logger
+from quantmind.core.state import (
+    AgentState,
+    AgentType,
+    CriticFeedback,
+    DataSnapshot,
+    FundamentalAnalysis,
+    InvestmentQuery,
+    InvestmentReport,
+    QueryIntent,
+    Recommendation,
+    SentimentAnalysis,
+    TaskNode,
+    TaskPlan,
+    TechnicalAnalysis,
+)
+
 __all__ = [
-    "smoke",
+    "PROJECT_ROOT",
+    "AgentState",
+    "AgentType",
+    "CriticFeedback",
+    "DataSnapshot",
+    "FundamentalAnalysis",
+    "InvestmentQuery",
+    "InvestmentReport",
+    "LLMResponse",
+    "LLMRouter",
+    "Message",
+    "QueryIntent",
+    "Recommendation",
+    "SentimentAnalysis",
+    "Settings",
+    "TaskNode",
+    "TaskPlan",
+    "TechnicalAnalysis",
+    "TokenUsage",
+    "TokenUsageTracker",
+    "cache_stats",
+    "cached",
+    "cached_invalidate",
+    "clear_cache",
+    "get_logger",
+    "get_router",
+    "get_settings",
+    "load_config",
+    "operation_logger",
+    "setup_logger",
 ]

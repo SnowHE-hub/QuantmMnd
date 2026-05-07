@@ -180,7 +180,9 @@ def check_ollama() -> bool:
             _ok(f"Ollama 可访问 ({base_url})，已安装模型: {models}")
             default = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5:7b")
             if default not in models:
-                _warn(f"OLLAMA_DEFAULT_MODEL={default} 未在已安装列表，可执行：ollama pull {default}")
+                _warn(
+                    f"OLLAMA_DEFAULT_MODEL={default} 未在已安装列表，可执行：ollama pull {default}"
+                )
             return True
         _warn(f"Ollama HTTP {r.status_code}")
         return False
@@ -212,6 +214,72 @@ def check_gpu() -> bool:
     except Exception as e:
         _warn(f"GPU 检测异常：{e}")
         return False
+
+
+def check_core_modules() -> bool:
+    """端到端验证 core 模块都能加载并互相工作."""
+    _section("Core Modules")
+    try:
+        from quantmind.core import (
+            AgentState,
+            InvestmentQuery,
+            LLMRouter,
+            cached,
+            get_logger,
+            get_settings,
+        )
+    except Exception as e:  # noqa: BLE001
+        _fail(f"core 模块导入失败：{e}")
+        return False
+    _ok("quantmind.core 公共 API 全部可导入")
+
+    try:
+        s = get_settings()
+        _ok(f"get_settings() OK: llm.provider={s.llm.provider}, data.universe={s.data.universe}")
+    except Exception as e:  # noqa: BLE001
+        _fail(f"Settings 加载失败：{e}")
+        return False
+
+    try:
+        log = get_logger("smoke")
+        log.debug("smoke debug message")
+        _ok("logger 可用")
+    except Exception as e:  # noqa: BLE001
+        _fail(f"logger 失败：{e}")
+        return False
+
+    try:
+        @cached(ttl_hours=1)
+        def _add(a: int, b: int) -> int:
+            return a + b
+
+        assert _add(1, 2) == 3
+        assert _add(1, 2) == 3  # cached
+        _ok("@cached 装饰器可用")
+    except Exception as e:  # noqa: BLE001
+        _fail(f"cache 失败：{e}")
+        return False
+
+    try:
+        from datetime import date
+
+        q = InvestmentQuery(raw_query="test", as_of=date(2024, 1, 1))
+        st = AgentState(query=q)
+        assert st.iteration_count == 0
+        _ok("AgentState / InvestmentQuery schema 可构造")
+    except Exception as e:  # noqa: BLE001
+        _fail(f"state 失败：{e}")
+        return False
+
+    try:
+        router = LLMRouter()
+        avail = router.available_providers()
+        _ok(f"LLMRouter 初始化 OK；可用 providers: {avail}")
+    except Exception as e:  # noqa: BLE001
+        _fail(f"LLMRouter 失败：{e}")
+        return False
+
+    return True
 
 
 def check_directories() -> bool:
@@ -262,6 +330,7 @@ def main() -> int:
         "dotenv": check_dotenv(),
         "config": check_config(),
         "directories": check_directories(),
+        "core_modules": check_core_modules(),
     }
     # 这两个非关键，失败不影响整体 exit code
     check_ollama()
