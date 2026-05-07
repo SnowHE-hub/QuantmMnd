@@ -132,25 +132,86 @@ def _call(api_name: str, max_attempts: int = 4, **kwargs):
 # ============================================================================
 # Raw fetchers (cached)
 # ============================================================================
+#
+# 设计原则
+# --------
+# 为了让多时点（月度/季度 panel 构建）能共享 cache，
+# 每个 ``_raw_*_full(ts_code)`` 都按 **固定宽范围** 取数（含 ts_code 全历史），
+# 然后由上层 ``get_*`` 在内存里切窗。
+#
+# 兼容性：保留原 ``_raw_*(ts_code, start, end)`` 接口，但内部直接调 _full 后切片，
+# 已经写好的代码无需改动；旧 cache 会被新 cache 替代（首次调用各自 ticker 时
+# 会重新拉一次全历史，之后所有时点共享）。
+
+# 全市场最早日期（A 股深市起步是 1990 年，作为兜底起点）
+_FULL_START = "19900101"
+# 远未来日期，Tushare 接受任何此类大日期，等价于 “直到当前为止”
+_FULL_END = "20991231"
 
 
 @cached(ttl_hours=24)
+def _raw_daily_full(ts_code: str) -> pd.DataFrame:
+    """日线全历史，由上层切片。Tushare daily 单次最多 6000 行，足够 24+ 年."""
+    log.info(f"[tushare] fetch daily FULL {ts_code}")
+    return _call("daily", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=24)
+def _raw_adj_factor_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch adj_factor FULL {ts_code}")
+    return _call("adj_factor", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=24)
+def _raw_daily_basic_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch daily_basic FULL {ts_code}")
+    return _call("daily_basic", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=72)
+def _raw_income_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch income FULL {ts_code}")
+    return _call("income", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=72)
+def _raw_balancesheet_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch balancesheet FULL {ts_code}")
+    return _call("balancesheet", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=72)
+def _raw_cashflow_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch cashflow FULL {ts_code}")
+    return _call("cashflow", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+@cached(ttl_hours=72)
+def _raw_fina_indicator_full(ts_code: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch fina_indicator FULL {ts_code}")
+    return _call("fina_indicator", ts_code=ts_code, start_date=_FULL_START, end_date=_FULL_END)
+
+
+# ----- 兼容层（旧接口，调 _full 后切片）-----
+
+
+def _slice_by_date(df: pd.DataFrame, col: str, start: str, end: str) -> pd.DataFrame:
+    if df is None or df.empty or col not in df.columns:
+        return df
+    s = df[col].astype(str)
+    return df[(s >= start) & (s <= end)].reset_index(drop=True)
+
+
 def _raw_daily(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch daily {ts_code} {start}~{end}")
-    return _call("daily", ts_code=ts_code, start_date=start, end_date=end)
+    return _slice_by_date(_raw_daily_full(ts_code), "trade_date", start, end)
 
 
-@cached(ttl_hours=24)
 def _raw_daily_basic(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch daily_basic {ts_code} {start}~{end}")
-    return _call("daily_basic", ts_code=ts_code, start_date=start, end_date=end)
+    return _slice_by_date(_raw_daily_basic_full(ts_code), "trade_date", start, end)
 
 
-@cached(ttl_hours=24)
 def _raw_daily_basic_history(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    """daily_basic 历史 — 含 turnover_rate / pe / pb / total_mv 时间序列."""
-    log.info(f"[tushare] fetch daily_basic history {ts_code} {start}~{end}")
-    return _call("daily_basic", ts_code=ts_code, start_date=start, end_date=end)
+    return _slice_by_date(_raw_daily_basic_full(ts_code), "trade_date", start, end)
 
 
 @cached(ttl_hours=24)
@@ -160,34 +221,49 @@ def _raw_daily_basic_market(trade_date: str) -> pd.DataFrame:
     return _call("daily_basic", trade_date=trade_date)
 
 
-@cached(ttl_hours=24)
 def _raw_adj_factor(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch adj_factor {ts_code} {start}~{end}")
-    return _call("adj_factor", ts_code=ts_code, start_date=start, end_date=end)
+    return _slice_by_date(_raw_adj_factor_full(ts_code), "trade_date", start, end)
 
 
-@cached(ttl_hours=72)
 def _raw_income(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch income {ts_code} {start}~{end}")
-    return _call("income", ts_code=ts_code, start_date=start, end_date=end)
+    df = _raw_income_full(ts_code)
+    if df is None or df.empty:
+        return df
+    # 财报按 ann_date 切（PIT 对齐）
+    if "ann_date" in df.columns:
+        s = df["ann_date"].astype(str)
+        return df[(s >= start) & (s <= end)].reset_index(drop=True)
+    return df
 
 
-@cached(ttl_hours=72)
 def _raw_balancesheet(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch balancesheet {ts_code} {start}~{end}")
-    return _call("balancesheet", ts_code=ts_code, start_date=start, end_date=end)
+    df = _raw_balancesheet_full(ts_code)
+    if df is None or df.empty:
+        return df
+    if "ann_date" in df.columns:
+        s = df["ann_date"].astype(str)
+        return df[(s >= start) & (s <= end)].reset_index(drop=True)
+    return df
 
 
-@cached(ttl_hours=72)
 def _raw_cashflow(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch cashflow {ts_code} {start}~{end}")
-    return _call("cashflow", ts_code=ts_code, start_date=start, end_date=end)
+    df = _raw_cashflow_full(ts_code)
+    if df is None or df.empty:
+        return df
+    if "ann_date" in df.columns:
+        s = df["ann_date"].astype(str)
+        return df[(s >= start) & (s <= end)].reset_index(drop=True)
+    return df
 
 
-@cached(ttl_hours=72)
 def _raw_fina_indicator(ts_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch fina_indicator {ts_code} {start}~{end}")
-    return _call("fina_indicator", ts_code=ts_code, start_date=start, end_date=end)
+    df = _raw_fina_indicator_full(ts_code)
+    if df is None or df.empty:
+        return df
+    if "ann_date" in df.columns:
+        s = df["ann_date"].astype(str)
+        return df[(s >= start) & (s <= end)].reset_index(drop=True)
+    return df
 
 
 @cached(ttl_hours=24)
@@ -197,9 +273,29 @@ def _raw_disclosure_date(period_end: str) -> pd.DataFrame:
 
 
 @cached(ttl_hours=72)
-def _raw_index_weight(index_code: str, start: str, end: str) -> pd.DataFrame:
-    log.info(f"[tushare] fetch index_weight {index_code} {start}~{end}")
+def _raw_index_weight_year(index_code: str, year: int) -> pd.DataFrame:
+    """按年缓存 index_weight，多个 as_of 共享缓存."""
+    start = f"{year}0101"
+    end = f"{year}1231"
+    log.info(f"[tushare] fetch index_weight {index_code} year={year}")
     return _call("index_weight", index_code=index_code, start_date=start, end_date=end)
+
+
+def _raw_index_weight(index_code: str, start: str, end: str) -> pd.DataFrame:
+    """按起止年份分片调用 ``_raw_index_weight_year`` 后合并."""
+    sy, ey = int(start[:4]), int(end[:4])
+    parts = []
+    for y in range(sy, ey + 1):
+        df = _raw_index_weight_year(index_code, y)
+        if df is not None and not df.empty:
+            parts.append(df)
+    if not parts:
+        return pd.DataFrame()
+    full = pd.concat(parts, ignore_index=True)
+    if "trade_date" in full.columns:
+        s = full["trade_date"].astype(str)
+        full = full[(s >= start) & (s <= end)].reset_index(drop=True)
+    return full
 
 
 @cached(ttl_hours=24)

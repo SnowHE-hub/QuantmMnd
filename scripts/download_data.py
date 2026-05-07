@@ -19,6 +19,9 @@
 
     # 5. 强制覆盖 + 校验
     python scripts/download_data.py --as-of 2024-06-30 --overwrite --validate
+
+    # 6. CSI300 全市场 + 多时点的月线末 SSE 交易日（约 300 票 × N 月，耗时长；可配合 nohup）
+    python scripts/download_data.py --rebalance-monthly-range 2023-06-01 2024-06-01 --universe csi300
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from datetime import date
 
 from quantmind.core.logger import get_logger, setup_logger
 from quantmind.data import build_snapshot, list_snapshots, validate_snapshot
+from quantmind.data.sse_calendar import monthly_last_trade_days
 
 log = get_logger(__name__)
 
@@ -43,10 +47,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="QuantMind data download / snapshot builder")
     parser.add_argument(
         "--as-of",
-        nargs="+",
+        nargs="*",
         type=_parse_date,
-        required=True,
-        help="一个或多个 ISO 日期 (YYYY-MM-DD)",
+        default=[],
+        help="一个或多个 ISO 日期；与 --rebalance-monthly-range 二选一必填其一",
+    )
+    parser.add_argument(
+        "--rebalance-monthly-range",
+        nargs=2,
+        metavar=("START", "END"),
+        type=str,
+        help="月线末交易日列表：自动展开区间内每月最后一个 SSE 交易日，再逐项 build_snapshot",
     )
     parser.add_argument(
         "--universe",
@@ -64,6 +75,18 @@ def main() -> int:
     parser.add_argument("--no-validate", dest="validate", action="store_false")
     parser.set_defaults(validate=True)
     args = parser.parse_args()
+
+    if args.rebalance_monthly_range:
+        s = _parse_date(args.rebalance_monthly_range[0])
+        e = _parse_date(args.rebalance_monthly_range[1])
+        args.as_of = monthly_last_trade_days(s, e)
+        log.info(
+            f"--rebalance-monthly-range expanded to {len(args.as_of)} dates "
+            f"({args.as_of[0]} … {args.as_of[-1]})"
+        )
+
+    if not args.as_of:
+        parser.error("必须提供 --as-of … 和/或 --rebalance-monthly-range START END")
 
     print(f"既有 snapshots: {[d.isoformat() for d in list_snapshots()]}")
 

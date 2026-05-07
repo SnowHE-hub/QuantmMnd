@@ -214,7 +214,7 @@ class DataProvider(ABC):
             PITViolationError: strict=True 且发现 date > as_of
         """
         if as_of is None:
-            log.warning("_assert_pit called with as_of=None — skipping check")
+            log.debug("_assert_pit skipped (as_of=None, full-history slice)")
             return
         if df is None or df.empty:
             return

@@ -36,6 +36,7 @@ from quantmind.data.snapshot import (
     load_snapshot,
     validate_snapshot,
 )
+from quantmind.data.sse_calendar import list_sse_trade_dates, monthly_last_trade_days
 from quantmind.data.tushare_provider import TushareProvider
 from quantmind.data.universe import (
     INDEX_ALIASES,
@@ -59,7 +60,9 @@ __all__ = [
     "get_universe",
     "get_universe_with_weights",
     "list_snapshots",
+    "list_sse_trade_dates",
     "load_snapshot",
+    "monthly_last_trade_days",
     "validate_snapshot",
     "normalize_ticker",
     "to_akshare_em_symbol",

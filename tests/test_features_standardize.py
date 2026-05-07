@@ -32,7 +32,7 @@ class TestWinsorize:
         assert out["x"].max() < 600
         assert out["x"].min() > -600
         # 正常值（绝对值 < 5）保持不变
-        normal_count = ((out["x"].abs() < 5)).sum()
+        normal_count = (out["x"].abs() < 5).sum()
         assert normal_count >= 95  # 几乎所有正常值都未受影响
 
     def test_pct_method_clips_quantiles(self) -> None:

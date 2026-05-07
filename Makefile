@@ -4,8 +4,7 @@
 # 假设你已激活 conda 环境 quantmind
 # ============================================================================
 
-.PHONY: help install install-dev install-all test lint format typecheck clean \
-        run-ui build-features run-backtest run-agent download-data smoke
+.PHONY: help install install-dev install-all test lint format typecheck clean run-ui build-features build-training-panel run-backtest run-agent download-data download-monthly-range smoke
 
 # 默认显示帮助
 help:
@@ -27,8 +26,10 @@ help:
 	@echo "  运行："
 	@echo "    smoke           Smoke test：环境 + 配置 + LLM 调用"
 	@echo "    run-ui          启动 Streamlit UI"
-	@echo "    download-data   下载 csi300 历史数据"
-	@echo "    build-features  构建因子特征"
+	@echo "    download-data            单次 CSI300 snapshot（见目标内默认日期）"
+	@echo "    download-monthly-range   月线末交易日多时点 snapshot（RANGE_START/RANGE_END）"
+	@echo "    build-training-panel     MultiIndex(as_of,ticker) parquet + fwd_ret 标签"
+	@echo "    build-features           单日因子矩阵"
 	@echo "    run-backtest    跑量化策略回测"
 	@echo "    run-agent       跑 Agent 单股票分析"
 	@echo ""
@@ -82,9 +83,10 @@ test-cov:
 	pytest --cov=quantmind --cov-report=html
 	@echo "Coverage report: htmlcov/index.html"
 
-# ----------------------------------------------------------------------------
-# 运行
-# ----------------------------------------------------------------------------
+# 多时点快照 / 训练面板（可覆盖）： make download-monthly-range RANGE_START=2022-01-01 RANGE_END=2024-06-30
+RANGE_START ?= 2023-06-01
+RANGE_END ?= 2024-06-30
+
 smoke:
 	python -m quantmind.core.smoke
 
@@ -93,6 +95,17 @@ run-ui:
 
 download-data:
 	python scripts/download_data.py --as-of 2024-06-30 --universe csi300
+
+download-monthly-range:
+	python scripts/download_data.py \
+		--rebalance-monthly-range $(RANGE_START) $(RANGE_END) \
+		--universe csi300 --lookback-days 280
+
+build-training-panel:
+	python scripts/build_panel.py \
+		--start $(RANGE_START) --end $(RANGE_END) --freq M \
+		--universe csi300 --horizons 21 63 \
+		--name panel_csi300_monthly_train
 
 probe-akshare:
 	python scripts/probe_akshare.py
