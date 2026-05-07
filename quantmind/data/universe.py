@@ -166,9 +166,9 @@ def get_universe_with_weights(
         as_of = date.today()
     code = _resolve_index(name)
     end_str = TushareProvider._to_yyyymmdd(as_of)
-    start_str = TushareProvider._to_yyyymmdd(
-        (pd.Timestamp(as_of) - pd.Timedelta(days=60)).date()
-    )
+    # index_weight 仅在指数调样后才有新 trade_date；60 日窗口在季初常为空（如 2020-03）
+    lookback_start = date(as_of.year - 1, 1, 1)
+    start_str = TushareProvider._to_yyyymmdd(lookback_start)
 
     with operation_logger("universe.with_weights", index=code, as_of=str(as_of)):
         raw = _raw_index_weight(code, start_str, end_str)

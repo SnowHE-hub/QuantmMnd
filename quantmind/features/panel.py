@@ -49,7 +49,7 @@ from tqdm import tqdm
 from quantmind.core.config import get_settings
 from quantmind.core.logger import get_logger, operation_logger
 from quantmind.data.snapshot import build_snapshot, list_snapshots
-from quantmind.data.sse_calendar import monthly_last_trade_days
+from quantmind.data.sse_calendar import monthly_last_trade_days, quarterly_last_trade_days
 from quantmind.data.tushare_provider import TushareProvider
 from quantmind.features.pipeline import FeaturePipeline
 
@@ -62,12 +62,8 @@ log = get_logger(__name__)
 
 
 def quarter_end_dates(start: date, end: date) -> list[date]:
-    """生成 [start, end] 区间内每个季度末的日历日期（3-31 / 6-30 / 9-30 / 12-31）."""
-    out = []
-    rng = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="QE")
-    for ts in rng:
-        out.append(ts.date())
-    return out
+    """季线：每季最后一个 **SSE 交易日**（不超过 3/31、6/30、9/30、12/31 日历末日）。"""
+    return quarterly_last_trade_days(start, end)
 
 
 def month_end_dates(start: date, end: date) -> list[date]:

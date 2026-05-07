@@ -44,7 +44,7 @@ def main() -> int:
         "--freq",
         choices=["Q", "M"],
         default="Q",
-        help="再平衡频率：Q=季度末 / M=月末",
+        help="再平衡频率：Q=每季末 SSE 最后交易日 / M=每月末 SSE 最后交易日",
     )
     parser.add_argument(
         "--universe",

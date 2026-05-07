@@ -7,7 +7,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from quantmind.data.sse_calendar import monthly_last_trade_days
+from quantmind.data.sse_calendar import monthly_last_trade_days, quarterly_last_trade_days
 from quantmind.features.labels import attach_forward_returns, forward_return_n_bars
 
 
@@ -33,6 +33,25 @@ def test_forward_return_n_bars_insufficient_future() -> None:
     )
     r = forward_return_n_bars(px, ticker="B", anchor_trade_date=date(2024, 1, 2), n_bars=5)
     assert pd.isna(r)
+
+
+def test_quarterly_last_trade_days_monkeypatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_trade_days(s: date, e: date) -> list[date]:  # noqa: ARG001
+        return [
+            date(2024, 3, 28),
+            date(2024, 3, 29),
+            date(2024, 6, 27),
+            date(2024, 6, 28),
+        ]
+
+    monkeypatch.setattr(
+        "quantmind.data.sse_calendar.list_sse_trade_dates",
+        fake_trade_days,
+    )
+    got = quarterly_last_trade_days(date(2024, 3, 1), date(2024, 6, 30))
+    assert got == [date(2024, 3, 29), date(2024, 6, 28)]
 
 
 def test_monthly_last_trade_days_monkeypatch(

@@ -1,6 +1,6 @@
 """quantmind.data.sse_calendar — SSE 交易日历（Tushare trade_cal）。
 
-用于生成月度调仓日、回看窗口等训练集编排逻辑。
+用于生成**月/季**调仓日（末交易日）、回看窗口等编排逻辑。
 """
 
 from __future__ import annotations
@@ -75,4 +75,38 @@ def monthly_last_trade_days(start: date, end: date) -> list[date]:
     return uniq
 
 
-__all__ = ["list_sse_trade_dates", "monthly_last_trade_days"]
+def quarterly_last_trade_days(start: date, end: date) -> list[date]:
+    """每个自然季选取「不超过该季最后日历日」的最后一笔 SSE 交易日（季频调仓）.
+
+    季度末按公历 3/31、6/30、9/30、12/31；与 ``monthly_last_trade_days`` 同逻辑。
+    """
+    if end < start:
+        return []
+    buf_start = start - timedelta(days=14)
+    buf_end = end + timedelta(days=14)
+    days = list_sse_trade_dates(buf_start, buf_end)
+    if not days:
+        return []
+
+    quarters = pd.period_range(start=start, end=end, freq="Q-DEC")
+    out: list[date] = []
+    for pq in quarters:
+        qe = pq.to_timestamp(how="end").date()
+        candidates = [x for x in days if start <= x <= end and x <= qe]
+        if not candidates:
+            continue
+        out.append(max(candidates))
+    seen: set[date] = set()
+    uniq: list[date] = []
+    for d in sorted(set(out)):
+        if d not in seen:
+            seen.add(d)
+            uniq.append(d)
+    return uniq
+
+
+__all__ = [
+    "list_sse_trade_dates",
+    "monthly_last_trade_days",
+    "quarterly_last_trade_days",
+]
