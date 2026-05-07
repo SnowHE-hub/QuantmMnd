@@ -30,7 +30,12 @@ from quantmind.data.base import (
     to_akshare_symbol,
     to_tushare_code,
 )
-from quantmind.data.snapshot import build_snapshot, list_snapshots, load_snapshot
+from quantmind.data.snapshot import (
+    build_snapshot,
+    list_snapshots,
+    load_snapshot,
+    validate_snapshot,
+)
 from quantmind.data.tushare_provider import TushareProvider
 from quantmind.data.universe import (
     INDEX_ALIASES,
@@ -55,6 +60,7 @@ __all__ = [
     "get_universe_with_weights",
     "list_snapshots",
     "load_snapshot",
+    "validate_snapshot",
     "normalize_ticker",
     "to_akshare_em_symbol",
     "to_akshare_symbol",

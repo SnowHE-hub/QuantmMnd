@@ -5,27 +5,31 @@
 
 ::
 
-    # 1. 拉沪深 300 当前快照（含财报，慢，~30 分钟）
+    # 1. 快速验证（前 20 只权重最大股，~5 分钟）
+    python scripts/download_data.py --as-of 2024-06-30 --max-tickers 20
+
+    # 2. 拉沪深 300 当前快照（含财报，~30-45 分钟）
     python scripts/download_data.py --as-of 2024-06-30 --universe csi300
 
-    # 2. 仅价格（快，~10 分钟）
-    python scripts/download_data.py --as-of 2024-06-30 --no-financials
+    # 3. 仅价格（快，~5-10 分钟）
+    python scripts/download_data.py --as-of 2024-06-30 --no-financials --no-indicators
 
-    # 3. 多个时点连续构建
+    # 4. 多个时点连续构建
     python scripts/download_data.py --as-of 2023-06-30 2023-12-31 2024-06-30
 
-    # 4. 强制覆盖
-    python scripts/download_data.py --as-of 2024-06-30 --overwrite
+    # 5. 强制覆盖 + 校验
+    python scripts/download_data.py --as-of 2024-06-30 --overwrite --validate
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import date
 
 from quantmind.core.logger import get_logger, setup_logger
-from quantmind.data import build_snapshot, list_snapshots
+from quantmind.data import build_snapshot, list_snapshots, validate_snapshot
 
 log = get_logger(__name__)
 
@@ -50,9 +54,15 @@ def main() -> int:
         choices=["csi300", "csi500", "csi800", "csi1000", "sse50"],
     )
     parser.add_argument("--lookback-days", type=int, default=252)
+    parser.add_argument("--max-tickers", type=int, default=None,
+                        help="只拉前 N 只权重最大股（验证用）")
     parser.add_argument("--no-financials", action="store_true")
     parser.add_argument("--no-indicators", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--validate", action="store_true",
+                        help="构建后立即跑 validate_snapshot 检查")
+    parser.add_argument("--no-validate", dest="validate", action="store_false")
+    parser.set_defaults(validate=True)
     args = parser.parse_args()
 
     print(f"既有 snapshots: {[d.isoformat() for d in list_snapshots()]}")
@@ -67,9 +77,17 @@ def main() -> int:
                 price_lookback_days=args.lookback_days,
                 include_financials=not args.no_financials,
                 include_indicators=not args.no_indicators,
+                max_tickers=args.max_tickers,
                 overwrite=args.overwrite,
             )
             log.info(f"OK: {meta['snapshot_dir']}  rows={meta['rows_per_table']}")
+
+            if args.validate:
+                log.info(f"---- validating snapshot {as_of} ----")
+                report = validate_snapshot(as_of, strict=False)
+                print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+                if not report["ok"]:
+                    failures.append((as_of, f"validation failed: {report['failed_checks']}"))
         except Exception as e:  # noqa: BLE001
             log.error(f"FAILED for {as_of}: {e}")
             failures.append((as_of, str(e)))
