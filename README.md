@@ -1,278 +1,240 @@
-# QuantMind
+# QuantMind — AI-Enhanced Quantitative Investment System
 
-> **AI Agent-Driven Quantitative Investment Research System**
->
-> 多 Agent 协作 × 生成式量化选股 × 严格 PIT 回测
+> 基于 LightGBM 因子模型 + 6 Agent 投资研究 + RAG 知识库的 A 股量化投资平台。  
+> Alpha 1374 宇宙 · 季度调仓 Top-30 · Regime-Aware 集成模型 · HRP/Kelly 仓位优化 · 端到端日更管道。
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
-[![Tests](https://img.shields.io/badge/tests-pending-lightgrey)]()
-[![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)]()
-
----
-
-## TL;DR
-
-**QuantMind 不是一个 LLM 投资问答 demo**，而是一个端到端的 Agent 量化研究系统，包含三个相互验证的子系统：
-
-1. **Multi-Agent Research** — 6 个专业 Agent（Planner/Data/Fundamental/Technical/Sentiment/Critic/Report）协作做深度个股研究，基于 LangGraph 状态机 + Self-Reflection 循环
-2. **Generative Alpha** — 把"生成式推荐"思想迁移到量化选股：传统多因子粗排 → LLM Listwise Rerank → DPO 偏好对齐
-3. **Rigorous Backtest** — 严格 Point-in-Time 数据隔离、Walk-Forward 验证、Deflated Sharpe Ratio 多重检验修正
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
+[![LightGBM](https://img.shields.io/badge/LightGBM-Factor_Model-orange)](https://lightgbm.readthedocs.io)
+[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-red)](https://streamlit.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
 
-## 当前状态
+## 📊 核心性能（日频真实持仓 NAV，2020-03 → 2026-05）
 
-| Phase | 任务 | 状态 |
-|---|---|---|
-| 0 | 环境与基础设施 | ✅ 完成（87/87 单元测试通过） |
-| 1 | 数据层（PIT 严格） | ✅ 完成（10/10 PIT 测试通过） |
-| 2 | 特征工程 | ⏳ 待开始 |
-| 3 | 量化模型（LightGBM + LLM Rerank + DPO） | ⏳ |
-| 4 | Agent 系统 | ⏳ |
-| 5 | 知识库与 RAG | ⏳ |
-| 6 | 回测引擎 | ⏳ |
-| 7 | 风险与组合管理 | ⏳ |
-| 8 | UI（Streamlit） | ⏳ |
-| 9 | 文档与博客 | ⏳ |
+| 指标 | 策略（Top-30 等权） | CSI300 基准 | 超额 |
+|------|-------------------|------------|------|
+| **年化收益** | **+10.36%** | +1.13% | **+9.23%** |
+| **Sharpe 比率** | **0.301** | −0.112 | — |
+| **最大回撤** | −48.5% | −45.6% | — |
+| **月度胜率** | ~57% | — | — |
+
+> 因子模型（`lgbm_v3_top18`）OOS IC 均值 = **+0.036**，ICIR = **+0.444**（2020–2024）  
+> 上述为**日频真实价格**驱动的持仓 NAV（非面板期望收益），含完整路径依赖与持仓波动。  
+> 未扣除交易成本（季度换手约 35–50%）。
 
 ---
 
-## Quick Start
-
-### Prerequisites
-
-- **Python 3.11**（推荐 conda 管理；3.13 与部分金融库不兼容）
-- **NVIDIA GPU**（可选，DPO 训练 / Embedding 推理用，≥8GB 显存）
-- **Ollama**（可选，开发期本地 LLM 节省 API 成本）
-- **API Keys**（至少需要其一）：
-  - DeepSeek（推荐主力）
-  - DashScope / 通义千问
-  - OpenAI / Anthropic
-
-### Installation
-
-```bash
-# 1. 克隆仓库
-git clone <repo-url> quantmind && cd quantmind
-
-# 2. 创建并激活 conda 环境
-conda create -n quantmind python=3.11 -y
-conda activate quantmind
-
-# 3. 装 uv（10x 快于 pip）
-pip install uv
-
-# 4. 装依赖（最小核心）
-uv pip install -e .
-
-# 或一键全装（推荐开发机）
-uv pip install -e ".[all]"
-```
-
-### Configuration
-
-```bash
-# 1. 复制环境变量模板
-cp .env.example .env
-
-# 2. 编辑 .env，填入你的 API Keys
-#    必须：DEEPSEEK_API_KEY 或 DASHSCOPE_API_KEY
-#    必须：TUSHARE_TOKEN（A 股财报披露日 PIT）
-#    可选：OPENAI_API_KEY, ANTHROPIC_API_KEY
-
-# 3. （可选）启动 ollama 跑本地模型
-ollama pull qwen2.5:7b
-ollama serve
-```
-
-### Run
-
-```bash
-# Smoke test：验证环境
-make smoke
-
-# 下载数据（沪深 300，约 4-8 小时）
-make download-data
-
-# 构建因子特征
-make build-features
-
-# 跑量化策略回测
-make run-backtest
-
-# 跑 Agent 单股票分析
-make run-agent
-
-# 启动 UI
-make run-ui
-```
-
-### 数据层（已完成）
-
-双 Provider 架构（akshare 主 + tushare 补，PIT 严格）：
-
-```bash
-# 跑 PIT 严格性测试（10 个，约 4 分钟）
-make test-pit
-
-# 探针测试（确认 API 可用性）
-make probe-akshare
-make probe-tushare
-
-# 构建 PIT 快照（在指定时点冻结全市场数据）
-python scripts/download_data.py --as-of 2024-06-30 --universe csi300
-```
-
-**核心保证：**
-- 行情用 `trade_date <= as_of` 过滤
-- 财报用 `f_ann_date <= as_of`（实际公告日，含修订）
-- 指数成分股按 `as_of` 时点的真实历史成分（反 survivorship bias）
-- 双源交叉校验：tushare ↔ akshare 当前 csi300 100% 匹配
-
-数据源分工：
-
-| 数据 | 主源 | 备源 |
-|---|---|---|
-| 日线行情 | akshare | tushare |
-| 三大报表 + 披露日 | tushare (`f_ann_date`) | akshare (`NOTICE_DATE`) |
-| 财务比率 (ROE TTM) | tushare `fina_indicator` | 自算 |
-| 历史指数成分股 | tushare `index_weight` | akshare (current only) |
-| 北向资金 | tushare | akshare |
-| 新闻 / 研报 | akshare | — |
-
----
-
-## Architecture
+## 🏗️ 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Streamlit UI                              │
-└──────────────┬──────────────────────────────────────┬───────────┘
-               │                                      │
-               ▼                                      ▼
-   ┌─────────────────────┐              ┌────────────────────────┐
-   │   Multi-Agent       │              │   Generative Quant     │
-   │   Orchestrator      │              │   Selection            │
-   │   (LangGraph)       │              │                        │
-   │                     │              │  LightGBM (粗排)        │
-   │  Planner → Data →   │              │       ↓                │
-   │  Fund/Tech/Sent →   │              │  LLM Listwise Rerank    │
-   │  Critic ⟲ Report    │              │       ↓                │
-   │                     │              │  DPO-aligned Qwen3-4B   │
-   └──────┬──────────────┘              └─────┬──────────────────┘
-          │                                   │
-          └─────────────┬─────────────────────┘
-                        ▼
-            ┌──────────────────────────────┐
-            │   Rigorous Backtest Engine   │
-            │   - PIT-strict snapshot      │
-            │   - Walk-Forward CV          │
-            │   - Deflated Sharpe / DSR    │
-            │   - Agent Decision Backtest  │
-            └──────────┬───────────────────┘
-                       ▼
-            ┌──────────────────────────────┐
-            │   Data Layer (PIT)           │
-            │   akshare / tushare / SEC    │
-            └──────────────────────────────┘
+Alpha 1374 宇宙（1374 只 A 股）
+      │
+      ▼ ── 因子工厂 ──────────────────────────────────────────────
+      71 个横截面因子（基本面 18 + 技术 22 + 扩展 34）
+      IC 筛选 → Top-18 高 ICIR 因子 → LightGBM LambdaRanker
+      │
+      ▼ ── Regime-Aware 排名引擎 ─────────────────────────────────
+      market_hmm 状态检测（bull_low_vol / normal / bear_crisis）
+        bull_low_vol → lgbm_ensemble_large（39 特征）
+        bear_crisis  → lgbm_ensemble_small（38 特征）
+        default      → lgbm_v3_top18（18 特征）
+      → Top-50 候选
+      │
+      ▼ ── HRP/Kelly 仓位优化（step5b）────────────────────────────
+      分层风险平价 / 分数 Kelly / 混合 → position_weights.json
+      │
+      ▼ ── LLM 精排（可选，step6）────────────────────────────────
+      Qwen/DeepSeek Listwise Reranker → Top-10
+      │
+      ▼ ── 6 Agent 投资分析（step7a）─────────────────────────────
+      ① ValuationAgent   lgbm_v3（22特征，截面分位映射）
+      ② MomentumAgent    PatchTST v4（63日OHLCV序列，二分类）
+      ③ QualityAgent     Piotroski F-Score（9 信号）
+      ④ SentimentAgent   TF-IDF 语义中心向量
+      ⑤ RiskAgent        HMM v3（EWMA波动 + OLS Beta + CVaR）
+      ⑥ StrategyAgent    LLM 综合策略（目标价/止损/仓位）
+      │
+      ▼ ── 输出 ──────────────────────────────────────────────────
+      strategies.json / final_recommendations.md / position_weights.json
+      daily_report.html / Streamlit Dashboard（6 页）
 ```
 
 ---
 
-## Project Structure
+## 📁 项目结构
 
 ```
 quantmind/
-├── configs/              # YAML 配置（universe、模型超参、LLM provider）
-├── data/                 # 数据目录
-│   ├── raw/              # 原始下载
-│   ├── processed/        # 清洗后
-│   ├── features/         # 因子库
-│   ├── snapshots/        # PIT 快照（按日期）
-│   └── kb/               # RAG 知识库（向量索引）
-├── docs/                 # 方法论文档
-├── notebooks/            # 探索性分析
-├── scripts/              # 命令行工具
-├── tests/                # 测试套件（含 PIT 正确性测试）
-└── quantmind/            # 主代码包
-    ├── core/             # 配置 / 日志 / 缓存 / LLM 路由 / 状态
-    ├── data/             # DataProvider / Snapshot / Universe
-    ├── features/         # 基本面 / 技术 / 情绪 / LLM 因子
-    ├── models/           # LightGBM / LLM Reranker / DPO
-    ├── agents/           # 各 Agent + LangGraph Orchestrator
-    ├── analysis/         # 财务比率 / DCF / 同业对比
-    ├── kb/               # 知识库构建 / 检索器
-    ├── backtest/         # 回测引擎 / 指标 / Walk-Forward / 统计检验
-    ├── risk/             # 因子风险 / 仓位 / 回撤控制
-    └── ui/               # Streamlit 应用
+├── data/
+│   ├── snapshots/          # PIT 季末快照（2019Q1 → 2026Q2）
+│   ├── panel/              # 因子面板（alpha_panel_v3.parquet）
+│   ├── raw/                # 合并价格面板（alpha_prices_panel.parquet）
+│   └── alpha_universe/     # Alpha 1374 股票列表
+├── models/
+│   ├── lgbm_v3_top18.pkl           # 全局模型（18特征，ICIR=0.444）
+│   ├── lgbm_ensemble_large.pkl     # 大盘 Regime 子模型
+│   ├── lgbm_ensemble_small.pkl     # 小盘 Regime 子模型
+│   └── agents/
+│       ├── risk_hmm_v3.pkl         # Risk Agent（HMM+Beta+CVaR）
+│       ├── valuation_lgbm_v3.pkl   # Valuation Agent（LGBM+截面分位）
+│       └── momentum_patchtst_v4.pkl # Momentum Agent（PatchTST）
+├── quantmind/
+│   ├── data/               # Tushare/AkShare 数据提供者
+│   ├── features/           # 因子计算（fundamental/technical/expansion）
+│   ├── models/             # FactorModel / LGBMRankerModel / PatchTST
+│   ├── agents/             # 6 个 Investment Agents
+│   └── portfolio/          # HRP/Kelly 仓位优化
+├── scripts/
+│   ├── download_data.py         # 快照批量下载
+│   ├── build_full_panel.py      # 因子面板构建
+│   ├── train_factor_model.py    # LightGBM 训练
+│   ├── train_regime_ensemble.py # Regime 集成模型训练
+│   ├── train_risk_agent_v3.py   # Risk HMM v3 训练
+│   ├── train_valuation_agent_v3.py # Valuation LGBM v3 训练
+│   ├── train_momentum_patchtst.py  # Momentum PatchTST v4 训练
+│   ├── run_nav_backtest.py      # 日频真实 NAV 回测 ← 核心报告
+│   ├── run_alpha_report.py      # 季度面板回测 HTML 报告
+│   ├── run_investment_pipeline.py # 6-Agent 完整投资分析
+│   ├── daily_update.py          # 端到端日更管道
+│   └── setup_cron.sh            # Cron 定时任务配置
+├── app/                     # Streamlit Dashboard（6 页）
+├── reports/
+│   ├── alpha_final/         # NAV 报告（nav_report.html）
+│   └── investment_pipeline/ # 每日 Agent 分析结果
+├── METHODOLOGY.md           # 工程方法论文档
+└── README.md
 ```
 
 ---
 
-## Methodology Highlights
+## 🚀 快速开始
 
-### Point-in-Time（项目灵魂）
+### 环境准备
 
-PIT 是项目区别于 99% 个人量化项目的根本。在 T 时刻，Agent / 模型只能看到 T 时刻市场上真实可获得的数据。
+```bash
+conda create -n quantmind python=3.11
+conda activate quantmind
+pip install -r requirements.txt
 
-具体防御：
-- 财报数据用**披露日**（`f_ann_date`）而非报告期
-- Universe 用**历史成分股**而非当前
-- 知识库检索强制 `as_of` 过滤
-- 专门的 `tests/test_pit_correctness.py` 十几个测试 case
+# 配置 API Keys
+cp .env.example .env
+# 编辑 .env，填入 TUSHARE_TOKEN、DASHSCOPE_API_KEY 等
+```
 
-### Critic + Self-Reflection
+### 一键日更（生产模式）
 
-Critic Agent 不是装饰，会真正打回重做：
-- `max_iterations=3` 硬上限
-- 每轮迭代必须减少 issue 数量
-- Severity 分级（critical/major/minor）
+```bash
+python scripts/daily_update.py \
+  --universe alpha \
+  --auto-regime \               # Regime-Aware 模型自动切换
+  --position-sizing hrp \       # HRP 仓位优化
+  --no-llm \                    # 不调 LLM（可改为 --provider dashscope）
+  --agent-top 10 \              # Top-10 做 6-Agent 分析
+  --agent-provider none         # 仅 ML+Rules
+```
 
-### Agent Decision Backtest（核武器）
+### 日频 NAV 回测
 
-让 Agent 对历史每个时点的"当时数据"做投资建议，再用真实未来数据验证 alpha：
-- 严格用 snapshot
-- 多 baseline 对比（Random / Single ReAct / Pure LightGBM / Analyst Consensus）
-- 配对 t-test + Calibration
+```bash
+python scripts/run_nav_backtest.py \
+  --panel  data/panel/alpha_panel_v3.parquet \
+  --prices data/raw/alpha_prices_panel.parquet \
+  --model  models/lgbm_v3_top18.pkl \
+  --top 30 --weight-method equal \
+  --out reports/alpha_final/
+# 输出：nav_report.html（含 CSI300 基准对比）
+```
 
----
+### 启动 Dashboard
 
-## Roadmap
+```bash
+streamlit run app/主页.py
+# 访问 http://localhost:8501
+```
 
-- [x] 项目骨架（pyproject.toml / configs / Makefile / .env.example）
-- [ ] Core 模块（config / logger / cache / llm_router / state）
-- [ ] 数据层（akshare / tushare / snapshot / universe）
-- [ ] PIT 测试套件
-- [ ] 特征工程（传统因子 + LLM 因子）
-- [ ] LightGBM 因子模型
-- [ ] LLM Listwise Reranker
-- [ ] DPO 偏好对齐
-- [ ] 6-Agent 系统 + LangGraph 编排
-- [ ] 知识库 / RAG
-- [ ] 回测引擎 + 统计检验
-- [ ] Agent 决策回测
-- [ ] Streamlit UI
-- [ ] 技术博客 × 3
+### 重建快照（增量更新）
 
----
+```bash
+# 下载最新季度快照
+python scripts/download_data.py \
+  --rebalance-quarterly-range 2026-04-01 2026-06-30 \
+  --tickers-file data/alpha_universe/alpha_universe.txt \
+  --tickers-override-policy replace
 
-## Contributing
-
-施工中，欢迎 issue 和 PR。
-
-## License
-
-MIT
-
-## Acknowledgements
-
-本项目大量借鉴了以下开源项目的设计：
-- [LangGraph](https://github.com/langchain-ai/langgraph)
-- [vectorbt](https://github.com/polakowo/vectorbt)
-- [empyrical-reloaded](https://github.com/stefan-jansen/empyrical-reloaded)
-- [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding)
+# 重建因子面板
+python scripts/build_full_panel.py \
+  --snapshots-dir data/snapshots \
+  --out data/panel/alpha_panel_v3.parquet
+```
 
 ---
 
-*"May your Sharpe be high and your drawdown shallow."*
+## 📈 主要脚本说明
+
+| 脚本 | 功能 | 耗时 |
+|------|------|------|
+| `download_data.py` | 批量下载 PIT 快照（1374只 × 1季度） | ~14h（Token A 限速） |
+| `build_full_panel.py` | 构建 71 因子面板 | ~20min |
+| `train_factor_model.py` | 训练 LightGBM LambdaRanker | ~5min |
+| `train_regime_ensemble.py` | 训练 Regime 大/小盘集成模型 | ~10min |
+| `train_risk_agent_v3.py` | 训练 Risk HMM v3 | ~15min（需 GPU） |
+| `train_valuation_agent_v3.py` | 训练 Valuation LGBM v3 | ~10min |
+| `train_momentum_patchtst.py` | 训练 Momentum PatchTST v4 | ~30min（GPU 推荐） |
+| `run_nav_backtest.py` | 日频真实 NAV 回测 | ~10s |
+| `daily_update.py` | 端到端日更 | ~5-30min |
+
+---
+
+## ⚙️ 关键 CLI 参数速查
+
+### `daily_update.py`
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--universe` | `alpha` | Alpha 1374 宇宙 |
+| `--lgbm-model` | `lgbm_v3_top18.pkl` | LGBM 粗排模型 |
+| `--lgbm-top` | `50` | LGBM 取 Top-N |
+| `--auto-regime` | 关 | 自动切换 Regime 子模型 |
+| `--position-sizing` | `equal` | `equal/hrp/kelly/blend` |
+| `--kelly-fraction` | `0.5` | Kelly 分数（0.25~0.5） |
+| `--no-llm` | 关 | 跳过 LLM 精排 |
+| `--agent-top` | `10` | 6-Agent 分析只数 |
+| `--agent-provider` | `none` | LLM 提供商 |
+| `--stop-after` | — | 调试用：在指定步骤后停止 |
+
+---
+
+## 📚 文档
+
+- **[METHODOLOGY.md](METHODOLOGY.md)** — 数据源、因子体系、模型架构、回测规范完整方法论
+- **[reports/alpha_final/nav_report.html](reports/alpha_final/nav_report.html)** — 日频真实 NAV 交互式报告
+- **[reports/alpha_final/nav_metrics.json](reports/alpha_final/nav_metrics.json)** — 汇总绩效指标 JSON
+
+---
+
+## 🗺️ 路线图
+
+### 已完成 ✅
+- Alpha 1374 宇宙 PIT 快照（2019–2026Q1）
+- 71 因子面板 + IC 自动筛选
+- LightGBM LambdaRanker（ICIR=0.444）
+- Regime-Aware 集成模型（大/小盘自动切换）
+- Risk HMM v3 / Valuation LGBM v3 / Momentum PatchTST v4
+- 6-Agent 投资分析系统 + StrategyValidator
+- 端到端 `daily_update.py`（Regime + HRP/Kelly + 6-Agent）
+- 日频真实 NAV 回测（vs CSI300 基准）
+- METHODOLOGY.md + 完整 Dashboard
+
+### 进行中 🔄
+- 2026Q2 快照增量更新（后台下载中）
+
+### 下一步优先级 📌
+1. **扣除交易成本**：冲击成本模型（`0.1% × 换手率`）+ 印花税
+2. **Barra 风险归因**：因子暴露分解（市场/行业/风格）
+3. **实盘对接**：XTP / 海通 API Paper Trading
+4. **CI 自动化**：GitHub Actions，IC 不允许跌破阈值
+
+---
+
+*最后更新：2026-05-15 | [METHODOLOGY.md](METHODOLOGY.md)*

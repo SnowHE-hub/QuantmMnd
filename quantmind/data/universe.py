@@ -58,11 +58,37 @@ INDEX_ALIASES: dict[str, str] = {
 }
 
 
+_ALPHA_UNIVERSE_FILE = (
+    __import__("pathlib").Path(__file__).resolve().parents[2]
+    / "data"
+    / "alpha_universe"
+    / "alpha_universe.txt"
+)
+
+_ALPHA_UNIVERSE_NAMES = {"alpha", "alpha1374", "full_alpha"}
+
+
+def _load_alpha_universe() -> list[str]:
+    """从 alpha_universe.txt 读取 1374 只股票代码列表。"""
+    if not _ALPHA_UNIVERSE_FILE.is_file():
+        log.warning(f"alpha universe 文件不存在：{_ALPHA_UNIVERSE_FILE}")
+        return []
+    tickers = [
+        line.strip()
+        for line in _ALPHA_UNIVERSE_FILE.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    log.info(f"加载 alpha universe：{len(tickers)} 只股票")
+    return tickers
+
+
 def _resolve_index(name: str) -> str:
-    """把别名 / 短名解析为 tushare 标准代码."""
+    """把别名 / 短名解析为 tushare 标准代码。alpha 宇宙返回特殊标识。"""
     key = name.strip().lower()
     if key in INDEX_ALIASES:
         return INDEX_ALIASES[key]
+    if key in _ALPHA_UNIVERSE_NAMES:
+        return "_ALPHA_"
     return TushareProvider._normalize_index_code(name)
 
 
@@ -121,6 +147,15 @@ def get_universe(
     if as_of is None:
         as_of = date.today()
     code = _resolve_index(name)
+
+    # alpha 宇宙：直接读文件，不走 Tushare
+    if code == "_ALPHA_":
+        tickers = _load_alpha_universe()
+        if drop_inactive and tickers:
+            before = len(tickers)
+            tickers = _filter_active(tickers, as_of)
+            log.info(f"alpha universe filter: {before} -> {len(tickers)} active")
+        return sorted(set(tickers))
 
     with operation_logger("universe.get_universe", index=code, as_of=str(as_of)):
         # 主源：tushare index_weight

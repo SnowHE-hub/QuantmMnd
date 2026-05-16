@@ -65,12 +65,17 @@ def test_tushare_price_pit_strict() -> None:
 
 @pytest.mark.pit
 @pytest.mark.slow
+@pytest.mark.integration
 def test_akshare_price_pit_strict() -> None:
     from quantmind.data import AkshareProvider
+    from quantmind.data.base import DataProviderError
 
     p = AkshareProvider()
     as_of = date(2024, 6, 30)
-    df = p.get_price("300750.SZ", "2024-01-01", "2024-12-31", as_of=as_of)
+    try:
+        df = p.get_price("300750.SZ", "2024-01-01", "2024-12-31", as_of=as_of)
+    except DataProviderError as e:
+        pytest.skip(f"AkShare 网络/数据源不可用（非 PIT 逻辑失败）：{e}")
     assert not df.empty
     assert df["trade_date"].max() <= pd.Timestamp(as_of)
 

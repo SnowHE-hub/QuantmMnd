@@ -9,8 +9,8 @@
 可用接口（2000 分内）：
     stock_basic, trade_cal, daily, daily_basic, income, balancesheet, cashflow,
     fina_indicator, fina_audit, disclosure_date, index_weight, index_basic,
-    index_daily, moneyflow_hsgt, hsgt_top10, top_list, adj_factor, suspend_d,
-    namechange, stk_holdernumber, forecast, express
+    index_daily, hk_hold, margin_detail, moneyflow_hsgt, hsgt_top10, top_list,
+    adj_factor, suspend_d, namechange, stk_holdernumber, forecast, express
 """
 
 from __future__ import annotations
@@ -59,12 +59,20 @@ def _get_tushare_pro():
         if not token:
             raise DataProviderError("TUSHARE_TOKEN env var is empty")
         try:
-            import tushare as ts  # type: ignore[import-untyped]
+            from tushare.pro.client import DataApi  # type: ignore[import-untyped]
         except ImportError as e:
             raise DataProviderError("tushare not installed; pip install tushare") from e
-        ts.set_token(token)
-        _tushare_pro = ts.pro_api()
-        log.info("tushare pro_api initialized")
+        # 直接用 DataApi(token=token) 而非 ts.pro_api()：
+        # ts.pro_api() 内部调用 get_token()，会优先读 TUSHARE_TOKEN 环境变量，
+        # 在双 Token 场景中可能取到错误的 token。
+        _tushare_pro = DataApi(token=token, timeout=120)
+        # 若设置了 TUSHARE_HI_URL，切换到高频代理（Token B 专用）
+        hi_url = os.getenv("TUSHARE_HI_URL", "").strip()
+        if hi_url:
+            _tushare_pro._DataApi__http_url = hi_url  # type: ignore[attr-defined]
+            log.info(f"tushare pro_api initialized (proxy={hi_url}, token={token[:8]}...)")
+        else:
+            log.info(f"tushare pro_api initialized (official, token={token[:8]}...)")
         return _tushare_pro
 
 
@@ -308,6 +316,18 @@ def _raw_index_daily(ts_code: str, start: str, end: str) -> pd.DataFrame:
 def _raw_moneyflow_hsgt(start: str, end: str) -> pd.DataFrame:
     log.info(f"[tushare] fetch moneyflow_hsgt {start}~{end}")
     return _call("moneyflow_hsgt", start_date=start, end_date=end)
+
+
+@cached(ttl_hours=24)
+def _raw_hk_hold(ts_code: str, start: str, end: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch hk_hold {ts_code} {start}~{end}")
+    return _call("hk_hold", ts_code=ts_code, start_date=start, end_date=end)
+
+
+@cached(ttl_hours=24)
+def _raw_margin_detail(ts_code: str, start: str, end: str) -> pd.DataFrame:
+    log.info(f"[tushare] fetch margin_detail {ts_code} {start}~{end}")
+    return _call("margin_detail", ts_code=ts_code, start_date=start, end_date=end)
 
 
 @cached(ttl_hours=72)
@@ -663,6 +683,96 @@ class TushareProvider(DataProvider):
         df = self._filter_pit(df, as_of, "trade_date")
         self._assert_pit(df, as_of, "trade_date")
         return self._stamp(df, as_of, None)
+
+    # ---------- 沪深股通持股（个股）----------
+
+    def get_hk_hold(
+        self,
+        ticker: str,
+        start: str | date,
+        end: str | date,
+        as_of: date | None = None,
+    ) -> pd.DataFrame:
+        """港股通 / 股通持股明细，按交易日 PIT."""
+        ts_code = to_tushare_code(ticker)
+        start_str = self._to_yyyymmdd(start)
+        end_str = self._to_yyyymmdd(end)
+        with operation_logger("tushare.hk_hold", ticker=ticker):
+            raw = _raw_hk_hold(ts_code, start_str, end_str)
+        if raw is None or raw.empty:
+            return pd.DataFrame()
+        df = raw.copy()
+        # 与文档对齐的常用别名（列存在才重命名）
+        alias = {"vol": "hold_vol", "ratio": "hold_ratio"}
+        for a, b in alias.items():
+            if a in df.columns and b not in df.columns:
+                df = df.rename(columns={a: b})
+        if "hold_amount" not in df.columns and "amount" in df.columns:
+            df = df.rename(columns={"amount": "hold_amount"})
+        if "trade_date" in df.columns:
+            df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+        if "ts_code" in df.columns:
+            df["ticker"] = df["ts_code"].apply(normalize_ticker)
+        df = df.sort_values("trade_date", na_position="last").reset_index(drop=True) if "trade_date" in df.columns else df
+        df = self._filter_pit(df, as_of, "trade_date")
+        if "trade_date" in df.columns:
+            self._assert_pit(df, as_of, "trade_date")
+        return self._stamp(df, as_of, ticker)
+
+    # ---------- 融资融券明细（个股）----------
+
+    def get_margin_detail(
+        self,
+        ticker: str,
+        start: str | date,
+        end: str | date,
+        as_of: date | None = None,
+    ) -> pd.DataFrame:
+        ts_code = to_tushare_code(ticker)
+        start_str = self._to_yyyymmdd(start)
+        end_str = self._to_yyyymmdd(end)
+        with operation_logger("tushare.margin_detail", ticker=ticker):
+            raw = _raw_margin_detail(ts_code, start_str, end_str)
+        if raw is None or raw.empty:
+            return pd.DataFrame()
+        df = raw.copy()
+        if "trade_date" in df.columns:
+            df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+        if "ts_code" in df.columns:
+            df["ticker"] = df["ts_code"].apply(normalize_ticker)
+        df = (
+            df.sort_values("trade_date", na_position="last").reset_index(drop=True)
+            if "trade_date" in df.columns
+            else df
+        )
+        df = self._filter_pit(df, as_of, "trade_date")
+        if "trade_date" in df.columns:
+            self._assert_pit(df, as_of, "trade_date")
+        return self._stamp(df, as_of, ticker)
+
+    # ---------- 指数日线 ----------
+
+    def get_index_daily(
+        self,
+        index_code: str,
+        start: str | date,
+        end: str | date,
+        as_of: date | None = None,
+    ) -> pd.DataFrame:
+        ts_code = self._normalize_index_code(index_code)
+        start_str = self._to_yyyymmdd(start)
+        end_str = self._to_yyyymmdd(end)
+        with operation_logger("tushare.index_daily", ticker=ts_code):
+            raw = _raw_index_daily(ts_code, start_str, end_str)
+        if raw is None or raw.empty:
+            return pd.DataFrame()
+        df = raw.copy()
+        if "trade_date" in df.columns:
+            df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+        df = df.sort_values("trade_date").reset_index(drop=True)
+        df = self._filter_pit(df, as_of, "trade_date")
+        self._assert_pit(df, as_of, "trade_date")
+        return self._stamp(df, as_of, None, extra={"index_code": ts_code})
 
     # ---------- 复权因子 ----------
 

@@ -51,7 +51,7 @@ def main() -> int:
         "--groups",
         nargs="+",
         default=None,
-        choices=["fundamental", "technical", "sentiment"],
+        choices=["fundamental", "technical", "sentiment", "expansion"],
         help="只计算指定组（默认全部）",
     )
     parser.add_argument("--winsorize-sigma", type=float, default=3.0)

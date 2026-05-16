@@ -16,6 +16,21 @@ data:
   timezone: Asia/Shanghai
   trading_calendar: SSE       # 上交所历史交易日历
 
+  # Data Expansion v1（结构化 snapshot 扩展）
+  snapshot_strict: false
+  include_stock_basic: true
+  include_hk_hold: true
+  include_margin: true
+  include_index_daily: true
+  index_daily_codes:
+    - "000300.SH"
+    - "000905.SH"
+    - "399006.SZ"
+    - "000001.SH"
+  hk_hold_lookback_calendar_days: 120
+  margin_lookback_calendar_days: 120
+  index_daily_lookback_calendar_days: 400
+
 # ----------------------------------------------------------------------------
 # 特征工程
 # ----------------------------------------------------------------------------

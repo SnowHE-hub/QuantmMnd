@@ -16,7 +16,7 @@
         compute_factors()       ── 41 因子
             │
             ▼
-    concat → panel[(as_of, ticker)] = factors
+    concat → panel[(as_of, ticker)] = factors (全部已启用因子组)
             │
             ▼
     fetch future prices    [pivot]
@@ -33,7 +33,7 @@
 
 - PIT：因子层 ``_assert_pit`` 已保证；label 是「未来收益」，不应出现在 features 里
 - Forward returns 用 ``adjust='qfq'`` 复权后的 close 计算
-- panel 的 columns = 41 因子 + forward_return_21d / forward_return_63d
+- panel 的 columns = 全部因子列 + forward_return_{h}d
 """
 
 from __future__ import annotations
@@ -96,8 +96,13 @@ def build_features_for_date(
     do_standardize: bool = True,
     skip_if_snapshot_missing: bool = False,
     rebuild_snapshot: bool = False,
+    groups: list[str] | None = None,
 ) -> pd.DataFrame:
-    """为单个 as_of 构建 snapshot 并计算因子，返回 DataFrame(index=ticker)."""
+    """为单个 as_of 构建 snapshot 并计算因子，返回 DataFrame(index=ticker).
+
+    Args:
+        groups: 传给 ``FeaturePipeline`` 的因子组；``None`` 表示全部（含 ``expansion``）。
+    """
     # 是否需要建 snapshot —— 用 meta.json 判定「构建完成」
     snapshot_dir = Path(get_settings().data.dir) / "snapshots" / as_of.isoformat()
     snapshot_complete = (snapshot_dir / "meta.json").exists()
@@ -111,7 +116,9 @@ def build_features_for_date(
             overwrite=rebuild_snapshot,
         )
 
-    pipe = FeaturePipeline(do_standardize=do_standardize)
+    pipe = FeaturePipeline(
+        groups=groups, do_standardize=do_standardize
+    )
     df = pipe.run_single(as_of) if do_standardize else pipe.compute_raw(as_of)
     return df
 
@@ -205,6 +212,7 @@ def build_panel(
     rebuild_snapshot: bool = False,
     save: bool = True,
     panel_name: str | None = None,
+    groups: list[str] | None = None,
 ) -> pd.DataFrame:
     """端到端 panel 构建。
 
@@ -217,9 +225,10 @@ def build_panel(
         rebuild_snapshot: 是否强制重建 snapshot（默认复用已存在的）
         save: 是否保存到 ``data/features/panel_*.parquet``
         panel_name: 自定义文件名（默认 ``{universe}_{first}_{last}``）
+        groups: ``FeaturePipeline`` 因子组；``None`` 表示全部
 
     Returns:
-        DataFrame，MultiIndex=[as_of, ticker]，columns=[41 因子 + forward_return_*]
+        DataFrame，MultiIndex=[as_of, ticker]，columns=[因子列 + forward_return_*]
     """
     rebalance_dates = sorted(set(rebalance_dates))
     if not rebalance_dates:
@@ -242,6 +251,7 @@ def build_panel(
                     max_tickers=max_tickers,
                     do_standardize=do_standardize,
                     rebuild_snapshot=rebuild_snapshot,
+                    groups=groups,
                 )
                 df = df.reset_index()
                 df["as_of"] = pd.Timestamp(as_of)

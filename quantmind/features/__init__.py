@@ -16,6 +16,12 @@
     )
 """
 
+from quantmind.features.expansion import (
+    CATEGORICAL_EXPOSURE_FIELDS,
+    EXPANSION_FACTORS,
+    MARKET_LEVEL_FEATURES,
+    compute_all_expansion_factors,
+)
 from quantmind.features.fundamental import (
     FUNDAMENTAL_FACTORS,
     compute_all_fundamental_factors,
@@ -60,13 +66,17 @@ from quantmind.features.utils import (
 
 __all__ = [
     "ALL_FACTOR_GROUPS",
+    "CATEGORICAL_EXPOSURE_FIELDS",
+    "EXPANSION_FACTORS",
     "FUNDAMENTAL_FACTORS",
     "FeaturePipeline",
+    "MARKET_LEVEL_FEATURES",
     "SENTIMENT_FACTORS",
     "TECHNICAL_FACTORS",
     "build_features_for_date",
     "build_panel",
     "cagr",
+    "compute_all_expansion_factors",
     "compute_all_fundamental_factors",
     "compute_all_sentiment_factors",
     "compute_all_technical_factors",

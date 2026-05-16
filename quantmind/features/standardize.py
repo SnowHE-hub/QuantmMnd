@@ -30,6 +30,7 @@ def winsorize(
     method: str = "sigma",
     sigma: float = 3.0,
     pct: float = 0.01,
+    exclude_cols: set[str] | None = None,
 ) -> pd.DataFrame:
     """剔除极端值，每列独立处理.
 
@@ -37,9 +38,15 @@ def winsorize(
         method: 'sigma' (mean ± sigma·std) 或 'pct' (上下截断分位数)
         sigma: sigma 法的倍数
         pct: 分位数法的截断比例（如 0.01 = 1%~99%）
+        exclude_cols: 不参与 winsorize 的列名（原样保留）
     """
     df = df.copy()
+    skip = exclude_cols or set()
     for col in df.columns:
+        if col in skip:
+            continue
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            continue
         s = df[col].astype("float64")
         if s.dropna().empty:
             continue
@@ -177,10 +184,23 @@ def neutralize(
 _ZSCORE_STD_EPS = 1e-9
 
 
-def cross_section_zscore(df: pd.DataFrame) -> pd.DataFrame:
-    """每列减均值除标准差（横截面标准化）；常数 / 近常数列置 0."""
+def cross_section_zscore(
+    df: pd.DataFrame,
+    *,
+    exclude_cols: set[str] | None = None,
+) -> pd.DataFrame:
+    """每列减均值除标准差（横截面标准化）；常数 / 近常数列置 0.
+
+    Args:
+        exclude_cols: 不参与 z-score 的列（常用于市场同值因子，保留原始数值）
+    """
     df = df.copy()
+    skip = exclude_cols or set()
     for col in df.columns:
+        if col in skip:
+            continue
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            continue
         s = df[col].astype("float64")
         mu, sd = s.mean(), s.std()
         if pd.isna(sd) or sd < _ZSCORE_STD_EPS:
@@ -213,25 +233,51 @@ def standardize(
     winsorize_sigma: float = 3.0,
     do_neutralize: bool = True,
     neutralize_exclude: set[str] | None = None,
+    zscore_winsorize_exclude: set[str] | None = None,
+    categorical_columns: set[str] | None = None,
 ) -> pd.DataFrame:
     """一站式：winsorize → 初始 zscore（填 0）→ 中性化 → 最终 zscore.
 
     - ``log_market_cap`` 不应被自己中性化（残差恒为 0），默认从中性化列中排除
-    - 常数因子列（如市场级情绪）在 zscore 后归 0，不会污染最终值
+    - ``zscore_winsorize_exclude``：市场级等同值横截面因子，不参与 winsorize / 两轮 z-score，
+      以免常数列被置 0 或与训练不一致
+    - ``categorical_columns``：字符串暴露列，全程不参与数值变换（行业中性化仍用
+      ``industry`` Series，而非暴露列上的 zscore）
     """
-    out = winsorize(df, method=winsorize_method, sigma=winsorize_sigma)
-    out = cross_section_zscore(out).fillna(0.0)
+    zw_excl = zscore_winsorize_exclude or set()
+    ccat = categorical_columns or set()
+
+    numeric_cols = [
+        c
+        for c in df.columns
+        if c not in zw_excl
+        and c not in ccat
+        and pd.api.types.is_numeric_dtype(df[c])
+    ]
+
+    out = df.copy()
+    if not numeric_cols:
+        return out
+
+    sub = winsorize(
+        out[numeric_cols],
+        method=winsorize_method,
+        sigma=winsorize_sigma,
+    )
+    sub = cross_section_zscore(sub).fillna(0.0)
+    out[numeric_cols] = sub
 
     if do_neutralize:
-        exclude = neutralize_exclude or _DEFAULT_NEUTRALIZE_EXCLUDE
-        cols_to_neutralize = [c for c in out.columns if c not in exclude]
+        exclude = set(neutralize_exclude or _DEFAULT_NEUTRALIZE_EXCLUDE) | zw_excl | ccat
+        cols_to_neutralize = [c for c in numeric_cols if c not in exclude]
         out = neutralize(
             out,
             industry=industry,
             log_market_cap=log_market_cap,
             cols=cols_to_neutralize,
         )
-        out = cross_section_zscore(out).fillna(0.0)
+        sub2 = cross_section_zscore(out[numeric_cols]).fillna(0.0)
+        out[numeric_cols] = sub2
     return out
 
 
@@ -258,12 +304,96 @@ def information_coefficient(
     return float(rho) if not np.isnan(rho) else float("nan")
 
 
+# ============================================================================
+# 时序标准化（市场级因子专用）
+# ============================================================================
+
+
+def timeseries_zscore(
+    value: float,
+    hist_values: "np.ndarray",
+    *,
+    min_periods: int = 10,
+) -> float:
+    """对标量 ``value`` 做时序 z-score.
+
+    用于市场级因子（如北向资金），在单截面内所有股票共享同一值，
+    不能做横截面 z-score（标准差=0），改用历史 252 个交易日的均值和标准差。
+
+    Args:
+        value:        当前期的因子值
+        hist_values:  过去 N 期的历史值（含 NaN）
+        min_periods:  最少需要多少个有效历史值，否则返回原始值
+
+    Returns:
+        z-score 值；若历史不足或当前值为 NaN 则返回原始值
+    """
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return value  # type: ignore[return-value]
+    valid = np.asarray(hist_values, dtype=float)
+    valid = valid[~np.isnan(valid)]
+    if len(valid) < min_periods:
+        return float(value)  # 历史不足，保留原始值
+    mean = float(np.mean(valid))
+    std = float(np.std(valid, ddof=1))
+    if std < 1e-9:
+        return 0.0  # 历史全为常数（如 API 数据缺失），归零
+    return float((float(value) - mean) / std)
+
+
+def compute_market_factor_stats(
+    panel_df: "pd.DataFrame",
+    factor_names: list[str],
+    *,
+    lookback: int = 252,
+) -> dict[str, tuple[float, float]]:
+    """从历史面板计算市场级因子的 (均值, 标准差).
+
+    Args:
+        panel_df:     历史面板，支持：
+                      - MultiIndex (as_of, ticker) 的宽表
+                      - 单索引 ticker 的截面表（忽略 lookback）
+        factor_names: 要统计的因子名称列表
+        lookback:     最多回溯多少个时间点（默认 252 个交易日）
+
+    Returns:
+        {factor_name: (mean, std)}，不包含缺失列
+    """
+    stats_: dict[str, tuple[float, float]] = {}
+    for col in factor_names:
+        if col not in panel_df.columns:
+            continue
+        if isinstance(panel_df.index, pd.MultiIndex):
+            # 每个时间点取第一只股票的值（市场级因子所有股票相同）
+            dates = sorted(panel_df.index.get_level_values(0).unique())
+            if len(dates) > lookback:
+                dates = dates[-lookback:]
+            vals = [
+                float(panel_df.xs(d, level=0)[col].iloc[0])
+                for d in dates
+                if col in panel_df.xs(d, level=0).columns
+                and not panel_df.xs(d, level=0).empty
+            ]
+        else:
+            # 单截面面板，直接取列（不同股票的行实际是同一值）
+            vals = panel_df[col].dropna().tolist()
+
+        arr = np.array(vals, dtype=float)
+        arr = arr[~np.isnan(arr)]
+        if len(arr) < 2:
+            continue
+        stats_[col] = (float(np.mean(arr)), float(np.std(arr, ddof=1)))
+    return stats_
+
+
 __all__ = [
+    "compute_market_factor_stats",
     "cross_section_rank",
     "cross_section_zscore",
     "fillna_cross_section",
     "information_coefficient",
     "neutralize",
     "standardize",
+    "timeseries_zscore",
     "winsorize",
 ]

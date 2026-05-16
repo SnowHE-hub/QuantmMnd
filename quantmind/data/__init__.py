@@ -34,6 +34,7 @@ from quantmind.data.snapshot import (
     build_snapshot,
     list_snapshots,
     load_snapshot,
+    patch_v1_modules,
     validate_snapshot,
 )
 from quantmind.data.sse_calendar import (
@@ -67,6 +68,7 @@ __all__ = [
     "list_sse_trade_dates",
     "load_snapshot",
     "monthly_last_trade_days",
+    "patch_v1_modules",
     "quarterly_last_trade_days",
     "validate_snapshot",
     "normalize_ticker",

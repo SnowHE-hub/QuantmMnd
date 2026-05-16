@@ -58,6 +58,15 @@ data/processed/*
 data/features/*
 data/snapshots/*
 data/kb/*
+data/panel/*
+data/prices/*
+data/alpha_universe/*.parquet
+data/alpha_universe/*.csv
+data/agent_models/*
+data/cache/*
+data/dpo/*
+data/tmp/*
+data/recommendations/*
 !data/**/.gitkeep
 *.parquet
 *.feather
@@ -68,9 +77,22 @@ data/kb/*
 # Logs & Cache
 # ============================================================================
 .cache/
+.streamlit_llm_cache/
+.claude/
 logs/
 *.log
 *.log.*
+
+# ============================================================================
+# Reports (HTML/large outputs, regenerable)
+# ============================================================================
+reports/
+
+# ============================================================================
+# Node
+# ============================================================================
+package-lock.json
+tsconfig.json
 
 # ============================================================================
 # Models & Experiments
@@ -121,6 +143,11 @@ coverage.xml
 # Streamlit
 # ============================================================================
 .streamlit/secrets.toml
+
+# ============================================================================
+# Node (Canvas `.tsx` typecheck only)
+# ============================================================================
+node_modules/
 
 # ============================================================================
 # uv / poetry

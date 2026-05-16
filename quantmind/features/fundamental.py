@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from quantmind.features.utils import (
@@ -279,6 +280,77 @@ def ocf_to_revenue_ttm(snapshot: dict, as_of: date) -> pd.Series:
 
 
 # ============================================================================
+# 小盘专属因子（small-cap alpha）
+# ============================================================================
+
+
+def size_rank(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """流通市值在 Alpha 宇宙内的百分位排名（0=最小盘，1=最大盘）.
+
+    与 log_circ_market_cap 高度相关，但排名更稳健；小盘期（regime=1）
+    该因子与收益负相关（小市值跑赢）。
+    """
+    db = snapshot.get("daily_basic")
+    if db is None or db.empty or "circ_mv" not in db.columns:
+        return pd.Series(dtype="float64")
+    s = db.set_index("ticker")["circ_mv"].dropna()
+    return s.rank(pct=True).rename("size_rank")
+
+
+def fcf_yield(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """自由现金流收益率 = FCFF / 总市值.
+
+    来源：financial_indicators.fcff（最新报告期）+ daily_basic.total_mv。
+    小盘期高 FCF 公司被市场低估，是重要的价值质量复合信号。
+    """
+    fi = snapshot.get("financial_indicators")
+    db = snapshot.get("daily_basic")
+    if fi is None or fi.empty or db is None or db.empty:
+        return pd.Series(dtype="float64")
+    fi_l = latest_report_per_ticker(fi, date_col="ann_date", report_col="report_date")
+    fcff = fi_l.get("fcff", pd.Series(dtype="float64"))
+    mv = db.set_index("ticker")["total_mv"].dropna()
+    # total_mv 单位：万元 → 转换为与 fcff（万元）一致
+    common = fcff.index.intersection(mv.index)
+    return safe_divide(fcff.loc[common], mv.loc[common]).rename("fcf_yield")
+
+
+def earnings_accel_q(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """单季度营业利润同比增速（q_op_qoq）—— 盈利加速信号.
+
+    来源：financial_indicators.q_op_qoq（最新报告期单季同比）。
+    加速上升表明公司基本面边际改善，在小盘公司中尤为有效。
+    """
+    fi = snapshot.get("financial_indicators")
+    if fi is None or fi.empty:
+        return pd.Series(dtype="float64")
+    fi_l = latest_report_per_ticker(fi, date_col="ann_date", report_col="report_date")
+    col = "q_op_qoq"
+    if col not in fi_l.columns:
+        return pd.Series(dtype="float64")
+    out = fi_l[col].replace([np.inf, -np.inf], np.nan)
+    return out.rename("earnings_accel_q")
+
+
+def revenue_accel_q(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """单季度营收同比增速（q_sales_yoy）—— 收入增长加速.
+
+    来源：financial_indicators.q_sales_yoy（最新报告期单季同比）。
+    与 quarterly_revenue_yoy（YTD）不同，这里是纯单季度视角，
+    对小盘成长股更敏感。
+    """
+    fi = snapshot.get("financial_indicators")
+    if fi is None or fi.empty:
+        return pd.Series(dtype="float64")
+    fi_l = latest_report_per_ticker(fi, date_col="ann_date", report_col="report_date")
+    col = "q_sales_yoy"
+    if col not in fi_l.columns:
+        return pd.Series(dtype="float64")
+    out = fi_l[col].replace([np.inf, -np.inf], np.nan)
+    return out.rename("revenue_accel_q")
+
+
+# ============================================================================
 # 公开 API：批量计算所有基本面因子
 # ============================================================================
 
@@ -312,6 +384,11 @@ FUNDAMENTAL_FACTORS = [
     # 现金流质量 (2)
     ("accruals", accruals),
     ("ocf_to_revenue_ttm", ocf_to_revenue_ttm),
+    # 小盘专属 (4)
+    ("size_rank", size_rank),
+    ("fcf_yield", fcf_yield),
+    ("earnings_accel_q", earnings_accel_q),
+    ("revenue_accel_q", revenue_accel_q),
 ]
 
 
@@ -340,8 +417,10 @@ __all__ = [
     "current_ratio",
     "debt_to_assets",
     "dividend_yield_ttm",
+    "earnings_accel_q",
     "earnings_yield",
     "equity_multiplier",
+    "fcf_yield",
     "gross_margin",
     "log_circ_market_cap",
     "log_market_cap",
@@ -353,7 +432,9 @@ __all__ = [
     "pe_ttm",
     "ps_ttm",
     "quarterly_revenue_yoy",
+    "revenue_accel_q",
     "revenue_yoy",
     "roa_ttm",
     "roe_ttm",
+    "size_rank",
 ]

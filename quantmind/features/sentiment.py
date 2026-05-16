@@ -107,19 +107,29 @@ def free_float_ratio(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
 # ============================================================================
 
 
+# 个股横截面情绪因子（做横截面 z-score）
 SENTIMENT_FACTORS = [
-    ("north_bound_30d_net_inflow", north_bound_30d_net_inflow),
     ("turnover_rate_quantile", turnover_rate_quantile),
     ("amplitude_quantile", amplitude_quantile),
     ("free_float_ratio", free_float_ratio),
+]
+
+# 市场级情绪因子（同一天所有股票共享同一数值，应做时序 z-score 而非横截面）
+MARKET_LEVEL_SENTIMENT_FACTORS = [
+    ("north_bound_30d_net_inflow", north_bound_30d_net_inflow),
 ]
 
 
 def compute_all_sentiment_factors(
     snapshot: dict, as_of: date
 ) -> pd.DataFrame:
+    """计算所有情绪因子（个股 + 市场级）.
+
+    市场级因子（north_bound_30d_net_inflow）保留原始值，
+    pipeline 层会对其单独做时序 z-score。
+    """
     out = {}
-    for name, fn in SENTIMENT_FACTORS:
+    for name, fn in SENTIMENT_FACTORS + MARKET_LEVEL_SENTIMENT_FACTORS:
         try:
             s = fn(snapshot, as_of)
         except Exception:  # noqa: BLE001
@@ -131,6 +141,7 @@ def compute_all_sentiment_factors(
 
 
 __all__ = [
+    "MARKET_LEVEL_SENTIMENT_FACTORS",
     "SENTIMENT_FACTORS",
     "amplitude_quantile",
     "compute_all_sentiment_factors",

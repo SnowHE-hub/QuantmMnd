@@ -25,6 +25,15 @@
 
     # 7. 月线末 SSE（期数多、耗时长）
     python scripts/download_data.py --rebalance-monthly-range 2023-06-01 2024-06-01 --universe csi300
+
+    # 8. Alpha 全市场（~1374 只每期都要有因子）：用 replace 把 universe 完全替换为列表，
+    #    不按 CSI300 求交。耗时长，建议 nohup + --overwrite 重建各季末日。
+    python scripts/download_data.py \\
+        --rebalance-quarterly-range 2020-01-01 2024-12-31 \\
+        --universe csi300 \\
+        --tickers-file data/alpha_universe/alpha_universe.txt \\
+        --tickers-override-policy replace \\
+        --overwrite
 """
 
 from __future__ import annotations
@@ -32,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from datetime import date
 
 from quantmind.core.logger import get_logger, setup_logger
@@ -43,6 +53,17 @@ log = get_logger(__name__)
 
 def _parse_date(s: str) -> date:
     return date.fromisoformat(s)
+
+
+def _load_tickers_file(path: Path) -> list[str]:
+    lines: list[str] = []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    for raw in text.splitlines():
+        s = raw.strip()
+        if not s or s.startswith("#"):
+            continue
+        lines.append(s)
+    return lines
 
 
 def main() -> int:
@@ -83,8 +104,40 @@ def main() -> int:
     parser.add_argument("--validate", action="store_true",
                         help="构建后立即跑 validate_snapshot 检查")
     parser.add_argument("--no-validate", dest="validate", action="store_false")
+    parser.add_argument(
+        "--reverse",
+        action="store_true",
+        help="逆序处理日期（从最近季度往最远跑）。Token B 从末端倒跑时使用，与 Token A 正向进程自然收敛于中间。",
+    )
+    parser.add_argument(
+        "--tickers-file",
+        type=Path,
+        default=None,
+        help="每行一只 ts_code；与 --tickers-override-policy 配合：filter=与指数求交，replace=完全替换 universe",
+    )
+    parser.add_argument(
+        "--tickers-override-policy",
+        choices=["filter", "replace"],
+        default="filter",
+        help="filter：universe∩列表（默认）；replace：列表即 universe（Alpha 全市场用 replace）",
+    )
     parser.set_defaults(validate=True)
     args = parser.parse_args()
+
+    tickers_override: list[str] | None = None
+    if args.tickers_file is not None:
+        p = args.tickers_file.resolve()
+        if not p.is_file():
+            parser.error(f"--tickers-file 不是文件: {p}")
+        tickers_override = _load_tickers_file(p)
+        if not tickers_override:
+            parser.error(f"--tickers-file 读完为空: {p}")
+        log.info(
+            "loaded %s tickers from %s (policy=%s)",
+            len(tickers_override),
+            p,
+            args.tickers_override_policy,
+        )
 
     if args.rebalance_monthly_range and args.rebalance_quarterly_range:
         parser.error("--rebalance-monthly-range 与 --rebalance-quarterly-range 只能二选一")
@@ -111,6 +164,10 @@ def main() -> int:
             "必须提供 --as-of … 和/或 --rebalance-monthly-range 或 --rebalance-quarterly-range"
         )
 
+    if args.reverse:
+        args.as_of = list(reversed(args.as_of))
+        log.info(f"--reverse: 日期已逆序，从 {args.as_of[0]} 往前跑")
+
     print(f"既有 snapshots: {[d.isoformat() for d in list_snapshots()]}")
 
     failures = []
@@ -124,6 +181,8 @@ def main() -> int:
                 include_financials=not args.no_financials,
                 include_indicators=not args.no_indicators,
                 max_tickers=args.max_tickers,
+                tickers_override=tickers_override,
+                tickers_override_policy=args.tickers_override_policy,
                 overwrite=args.overwrite,
             )
             log.info(f"OK: {meta['snapshot_dir']}  rows={meta['rows_per_table']}")

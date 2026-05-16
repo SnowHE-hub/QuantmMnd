@@ -89,7 +89,7 @@ def reversal_1w(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
 
 
 def _daily_returns(close: pd.DataFrame) -> pd.DataFrame:
-    return close.pct_change()
+    return close.pct_change(fill_method=None)
 
 
 def volatility_3m(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
@@ -224,6 +224,42 @@ def distance_to_52w_high(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG
     return ((cur - high_52w) / high_52w).rename("distance_to_52w_high")
 
 
+def price_to_52w_low(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """当前价距 52 周最低价的距离 = (close - 52w_low) / 52w_low.
+
+    与 distance_to_52w_high 互补：
+    - 小值（接近 0）= 股价仍在底部区域，尚未反弹
+    - 大值 = 已大幅离开底部，反弹充分
+    在小盘 regime 中，底部反弹信号（低 price_to_52w_low + 上涨动量）更有效。
+    """
+    close = pivot_prices(snapshot.get("prices", pd.DataFrame()))
+    if close.empty or len(close) < 252:
+        return pd.Series(dtype="float64")
+    low_52w = close.iloc[-252:].min()
+    cur = close.iloc[-1]
+    denom = low_52w.where(low_52w > 0)
+    return ((cur - low_52w) / denom).rename("price_to_52w_low")
+
+
+def turnover_acceleration(snapshot: dict, as_of: date) -> pd.Series:  # noqa: ARG001
+    """换手率加速度 = 近 20 日均换手率 / 近 60 日均换手率 - 1.
+
+    正值 = 近期交投明显活跃（注意力/资金关注度提升）。
+    小盘股被关注度驱动更强，换手加速往往领先价格上涨。
+    """
+    px = snapshot.get("prices")
+    if px is None or px.empty or "turnover_rate" not in px.columns:
+        return pd.Series(dtype="float64")
+    tr = pivot_prices(px, value_col="turnover_rate")
+    if len(tr) < 60:
+        return pd.Series(dtype="float64")
+    recent20 = tr.iloc[-20:].mean()
+    hist60 = tr.iloc[-60:].mean()
+    denom = hist60.where(hist60 > 1e-8)
+    out = (recent20 / denom - 1.0).replace([float("inf"), float("-inf")], float("nan"))
+    return out.rename("turnover_acceleration")
+
+
 # ============================================================================
 # 公开 API
 # ============================================================================
@@ -250,6 +286,9 @@ TECHNICAL_FACTORS = [
     ("rsi_14", rsi_14),
     ("bollinger_position", bollinger_position),
     ("distance_to_52w_high", distance_to_52w_high),
+    # 小盘专属 (2)
+    ("price_to_52w_low", price_to_52w_low),
+    ("turnover_acceleration", turnover_acceleration),
 ]
 
 
@@ -283,7 +322,9 @@ __all__ = [
     "momentum_6m",
     "reversal_1w",
     "rsi_14",
+    "price_to_52w_low",
     "turnover_3m_avg",
+    "turnover_acceleration",
     "volatility_1y",
     "volatility_3m",
     "volume_spike_5_30",

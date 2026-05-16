@@ -55,6 +55,19 @@ class DataConfig(BaseModel):
     trading_calendar: str = "SSE"
     dir: str = "data"  # 项目数据根目录（snapshots / cache / models 都在下面）
 
+    # --- Data Expansion v1：snapshot 可选模块（详见 quantmind.data.snapshot） ---
+    snapshot_strict: bool = False
+    include_stock_basic: bool = True
+    include_hk_hold: bool = True
+    include_margin: bool = True
+    include_index_daily: bool = True
+    index_daily_codes: list[str] = Field(
+        default_factory=lambda: ["000300.SH", "000905.SH", "399006.SZ", "000001.SH"]
+    )
+    hk_hold_lookback_calendar_days: int = 120
+    margin_lookback_calendar_days: int = 120
+    index_daily_lookback_calendar_days: int = 400
+
 
 class NeutralizeConfig(BaseModel):
     industry: bool = True

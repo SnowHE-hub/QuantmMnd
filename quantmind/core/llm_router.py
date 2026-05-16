@@ -551,6 +551,8 @@ class LLMRouter:
 
     # ----- Provider 管理 -----
     def get_provider(self, name: str) -> BaseLLMProvider:
+        if name == "dashscope":
+            name = "qwen"
         if name in self._providers:
             return self._providers[name]
         cfg = self.providers_yaml.get("providers", {}).get(name)
