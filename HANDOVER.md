@@ -58,11 +58,29 @@
 | ValuationAgent | LGBM v3 | `quantmind/agents/investment_agents/valuation_agent.py` |
 | MomentumAgent | PatchTST v4 | `quantmind/agents/investment_agents/momentum_agent.py` |
 | RiskAgent | HMM v3 | `quantmind/agents/investment_agents/risk_agent.py` |
-| QualityAgent | 规则/Piotroski | `quantmind/agents/investment_agents/quality_agent.py` |
-| SentimentAgent | FinBERT+TF-IDF | `quantmind/agents/investment_agents/sentiment_agent.py` |
+| QualityAgent | **LGBM v2**（20 财务因子；标签为截面 IC 加权质量合成后的 top/bottom 30%）+ **Piotroski** 兜底 + **rules_v1** | `quantmind/agents/investment_agents/quality_agent.py` |
+| SentimentAgent | **finbert_llm_v4**（FinBERT 批量打分 → Top-K → LLM `chat` 合成）；降级 **bert_v3**（TF-IDF 正负语义中心）→ **rules_v1** | `quantmind/agents/investment_agents/sentiment_agent.py` |
 | StrategyAgent | LLM（DashScope qwen-plus） | `quantmind/agents/investment_agents/strategy_agent.py` |
 
 **重要修复**（刚完成）：`StrategyAgent` 现在要求 LLM 输出 JSON `{"thesis": "...", "confidence": 0.xx}`，`confidence_score` 属性已加为别名；此前全部输出 0.00，现已正常（0.58–0.78）。
+
+**Quality / Sentiment 升级**（2026-05-16）：原先 README 仍写 Piotroski / TF-IDF，实为 Phase C 未优先迭代这两条链路；现已补齐训练脚本与注册流程。**`models/agents/` 下 `.pkl` 已 gitignore**，换机需本地训练或拷贝权重后再执行注册。
+
+```bash
+conda activate quantmind
+cd /home/lenovo/projects/quantmind
+
+# Quality LGBM v2（默认 alpha_panel_v3；panel v4 落盘后改路径重训）
+python scripts/train_quality_agent_v2.py \
+  --panel data/panel/alpha_panel_v3.parquet \
+  --out models/agents/quality_lgbm_v2.pkl
+
+# Sentiment bert_v3 bundle（正负种子语料 → TF-IDF 中心向量，供 finbert_llm_v4 降级）
+python scripts/train_sentiment_agent_v3.py --out models/agents/sentiment_bert_v3.pkl
+
+# 写入 registry 并设为 active（Quality 须 model_type=ml，已由脚本写好）
+python scripts/register_upgraded_agents.py --all
+```
 
 **调用入口**：
 ```bash
@@ -164,6 +182,9 @@ quantmind/
 │   ├── daily_update.py
 │   ├── download_data.py
 │   ├── run_2025q1_full_demo.py   # ← 三系统端到端演示
+│   ├── register_upgraded_agents.py  # Quality/Sentiment 注册 active
+│   ├── train_quality_agent_v2.py
+│   ├── train_sentiment_agent_v3.py
 │   ├── run_investment_pipeline.py
 │   ├── run_nav_backtest.py
 │   ├── train_*.py          # 各 Agent 训练脚本
@@ -231,6 +252,15 @@ python scripts/train_valuation_agent_v3.py \
 
 # Momentum PatchTST v4 — 2025 牛市正样本比例改善
 python scripts/train_momentum_patchtst.py
+
+# Quality LGBM v2 — 建议 panel v4 重建后重训
+python scripts/train_quality_agent_v2.py \
+  --panel data/panel/alpha_panel_v4.parquet \
+  --out models/agents/quality_lgbm_v2.pkl
+
+# Sentiment bert_v3 bundle（FinBERT 不可用时兜底）
+python scripts/train_sentiment_agent_v3.py --out models/agents/sentiment_bert_v3.pkl
+python scripts/register_upgraded_agents.py --sentiment
 ```
 
 ---
@@ -294,6 +324,9 @@ daily_return -= turnover_cost / holding_days
 | `alpha_prices_panel.parquet` 截至 2026-05-11 | 🟡 中 | 每周更新一次 |
 | `validate_strategies` AVOID 过多（仅"积极关注"才回测） | 🟡 中 | 放宽阈值或加更多信号 |
 | `StrategyAgent` `confidence_score` 曾全为 0 | 🟢 已修复 | 已改为 JSON 结构化输出 |
+| Quality LGBM v2 标签为自监督合成（非直接预测收益） | 🟡 中 | E1.1 后用 `alpha_panel_v4` 重训；关注与 `forward_return_63d` 的截面 IC 是否稳定 |
+| Sentiment `finbert_llm_v4` 依赖 transformers + 可选 GPU | 🟡 中 | 失败时自动降级 bert_v3 / rules_v1 |
+| Registry 中 `model_type` 非 `ml` 时不会加载 pickle | 🟢 已规避 | `register_upgraded_agents.py` 使用 `model_type="ml"` |
 | Streamlit 页面 5/6 未接线 | 🟡 中 | E2 后补 |
 | 日更流水线未上线 cron | 🟡 中 | `scripts/setup_cron.sh` |
 | `alpha_universe.txt` 实际 1373 行（比名字少1） | 🟢 低 | 确认是否有重复/删除 |
@@ -326,42 +359,15 @@ streamlit run app/main.py
 
 ---
 
-## 八、文件变更清单（本次提交 vs 仓库 HEAD）
+## 八、本轮提交摘要（Quality / Sentiment 升级）
 
-相比上次 commit（`13ca607`），新增/修改的核心文件（`*.parquet/pkl/pt` 均 gitignored）：
+相对于仓库上一版 `main`，本批变更主要为 **QualityAgent LGBM v2** 与 **SentimentAgent finbert_llm_v4 接线**，不含 `models/` 权重（目录仍 gitignore）。
 
-**新增（量化选股）**
-- `quantmind/portfolio/__init__.py` + `position_sizing.py` — HRP/Kelly
-- `scripts/build_regime_features.py` + `build_regime_panel.py` — Regime 特征
-- `scripts/train_regime_ensemble.py` — Regime 集成模型训练
-- `scripts/train_risk_agent_v3.py` + `train_valuation_agent_v3.py` + `train_momentum_patchtst.py`
+| 类型 | 路径 |
+|------|------|
+| Agent 逻辑 | `quantmind/agents/investment_agents/quality_agent.py` — `quality_lgbm_v2` 推理路径 |
+| LLM 调用修复 | `quantmind/agents/investment_agents/sentiment_agent.py` — `_get_llm_synthesis` 使用 `llm_client.chat` |
+| 训练 / 注册 CLI | `scripts/train_quality_agent_v2.py`，`scripts/train_sentiment_agent_v3.py`（原有），`scripts/register_upgraded_agents.py` |
+| 文档 | `README.md`，`HANDOVER.md` |
 
-**新增（Agent 系统）**
-- `quantmind/agents/investment_agents/*.py` — 6 个 Agent 完整实现
-- `quantmind/agents/llm_client.py` — 多 provider LLM 客户端
-- `quantmind/agents/investment_agents/agent_registry.py` — 模型注册表
-- `scripts/run_investment_pipeline.py` — 6-Agent 运行入口
-- `scripts/validate_strategies.py` — 历史回测验证
-
-**新增（展示端）**
-- `app/main.py` + `app/pages/*.py` — Streamlit 6 页面
-- `app/utils/data_loader.py` — 数据加载工具
-
-**新增（CLI 脚本）**
-- `scripts/daily_update.py` — 日更流水线（含 Regime 感知 + HRP）
-- `scripts/run_nav_backtest.py` — 日频 NAV 回测
-- `scripts/run_alpha_report.py` — Alpha HTML 报告
-- `scripts/run_2025q1_full_demo.py` — 三系统端到端演示
-- `scripts/run_full_system_demo.py` — 旧版演示（被上者取代）
-- `scripts/setup_cron.sh` — cron 示例
-
-**修改**
-- `quantmind/agents/investment_agents/strategy_agent.py` — JSON confidence 解析修复
-- `quantmind/features/fundamental.py` — 8 个小盘扩展因子
-- `scripts/daily_update.py` — Regime 感知 + HRP + step7a Agent 分析
-- `scripts/download_data.py` — `--reverse` 参数
-
-**文档**
-- `METHODOLOGY.md` — 工程方法论（数据/因子/模型/回测规范）
-- `README.md` — 项目概览更新
-- `HANDOVER.md` — 本文档
+更早的大规模变更（HRP、daily_update、Streamlit、Risk/Valuation/Momentum 训练脚本等）已在先前 commit（如 `d5481f4`）中。

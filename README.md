@@ -50,8 +50,8 @@ Alpha 1374 宇宙（1374 只 A 股）
       ▼ ── 6 Agent 投资分析（step7a）─────────────────────────────
       ① ValuationAgent   lgbm_v3（22特征，截面分位映射）
       ② MomentumAgent    PatchTST v4（63日OHLCV序列，二分类）
-      ③ QualityAgent     Piotroski F-Score（9 信号）
-      ④ SentimentAgent   TF-IDF 语义中心向量
+      ③ QualityAgent     LGBM v2（20财务因子，IC加权自监督质量标签；见 train_quality_agent_v2.py）
+      ④ SentimentAgent   FinBERT v4（批量扫描 + LLM深度合成，降级: bert_v3）
       ⑤ RiskAgent        HMM v3（EWMA波动 + OLS Beta + CVaR）
       ⑥ StrategyAgent    LLM 综合策略（目标价/止损/仓位）
       │

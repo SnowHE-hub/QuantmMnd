@@ -1,18 +1,42 @@
-"""quantmind.agents.investment_agents.quality_agent — 财务质量分析 Agent（规则 + Piotroski F-Score）."""
+"""quantmind.agents.investment_agents.quality_agent — 财务质量分析 Agent.
+
+版本层级（最新优先）：
+  quality_lgbm_v2 : LGBM 二分类（20个财务因子，IC加权自监督质量标签）
+  piotroski_v2    : Piotroski F-Score（9信号）
+  rules_v1        : 规则基线（兜底）
+"""
 
 from __future__ import annotations
 
 import re
 
+import numpy as np
+
 from quantmind.agents.investment_agents.base_agent import AgentSignal, BaseInvestmentAgent
+
+_QUALITY_FEATURES = [
+    "roe_ttm", "roa_ttm", "gross_margin", "net_margin",
+    "revenue_yoy", "operating_profit_yoy", "net_profit_yoy",
+    "quarterly_revenue_yoy", "earnings_accel_q", "revenue_accel_q",
+    "accruals", "ocf_to_revenue_ttm", "fcf_yield",
+    "debt_to_assets", "current_ratio", "asset_turnover", "equity_multiplier",
+    "free_float_ratio", "list_age_years", "is_recent_ipo",
+]
 
 
 class QualityAgent(BaseInvestmentAgent):
-    """财务质量分析 Agent — Piotroski v2 或规则基线."""
+    """财务质量分析 Agent — LGBM v2 / Piotroski v2 / 规则基线."""
 
     def analyze(self) -> AgentSignal:
         rec = self._model_record
-        if rec is not None and rec.model_version == "piotroski_v2":
+        version = rec.model_version if rec is not None else "rules_v1"
+
+        if version == "quality_lgbm_v2" and self._ml_model is not None:
+            sig = self._analyze_lgbm_v2()
+            if sig is not None:
+                return sig
+
+        if version in ("piotroski_v2", "quality_lgbm_v2"):
             return self._analyze_piotroski()
 
         evidence: dict = {}
@@ -154,6 +178,69 @@ class QualityAgent(BaseInvestmentAgent):
             },
             warnings=[],
         )
+
+    def _analyze_lgbm_v2(self) -> AgentSignal | None:
+        """LGBM v2：从 context 或快照文本提取财务特征，输出质量概率 → 映射为 signal。"""
+        bundle = self._ml_model
+        if not isinstance(bundle, dict) or "model" not in bundle:
+            return None
+
+        model = bundle["model"]
+        feature_names: list[str] = bundle.get("feature_names", _QUALITY_FEATURES)
+        fill_values: dict = bundle.get("fill_values", {})
+
+        # 从 context 中提取特征值
+        ctx = self.context
+        feat_vec: list[float] = []
+        present = 0
+        for fname in feature_names:
+            val = ctx.get(fname)
+            if val is None:
+                # 尝试从快照文本中解析
+                for src_key in ("snapshot_financial_indicator_summary", "snapshot_latest_market_metrics"):
+                    text = self._get_snapshot_text(src_key)
+                    val = self._parse_numeric(text, [fname])
+                    if val is not None:
+                        break
+            if val is not None:
+                try:
+                    feat_vec.append(float(val))
+                    present += 1
+                except (TypeError, ValueError):
+                    feat_vec.append(fill_values.get(fname, 0.0))
+            else:
+                feat_vec.append(fill_values.get(fname, 0.0))
+
+        # 特征太少时不可信，降级
+        if present < 4:
+            return None
+
+        try:
+            X = np.array(feat_vec).reshape(1, -1)
+            proba = float(model.predict_proba(X)[0, 1])
+            signal = self._clamp((proba - 0.5) * 2.0)  # [0,1] → [-1,+1]
+
+            quality = "高质量" if proba > 0.65 else ("中性" if proba > 0.40 else "低质量")
+            summary = f"LGBM质量评分={proba:.2f}，{quality}"
+
+            confidence = min(0.88, 0.50 + present * 0.02)
+            return AgentSignal(
+                agent_name="QualityAgent",
+                ticker=self.ticker,
+                signal=round(signal, 4),
+                confidence=confidence,
+                summary=summary[:50],
+                evidence={
+                    "proba": round(proba, 4),
+                    "features_present": present,
+                    "method": "quality_lgbm_v2",
+                },
+                warnings=["质量偏低，财务恶化风险"] if proba < 0.35 else [],
+            )
+        except Exception as e:
+            from loguru import logger
+            logger.warning(f"[QualityAgent/lgbm_v2] 推理失败: {e}")
+            return None
 
     def _analyze_fallback_rules(self) -> AgentSignal:
         """有效 Piotroski 信号不足 3 个时，回退到规则基线打分."""

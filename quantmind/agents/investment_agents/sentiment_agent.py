@@ -345,7 +345,13 @@ class SentimentAgent(BaseInvestmentAgent):
                 f'{{\"score\": <-1到1的小数>, \"reason\": \"<50字内的核心原因>\"}}\n'
                 f"score含义：-1=极度利空，0=中性，1=极度利好。只返回JSON，不要其他内容。"
             )
-            resp = client.complete(prompt)
+            resp_obj = client.chat(
+                system="你是专业A股分析师，只返回合法JSON，不输出其他内容。",
+                user=prompt,
+                max_tokens=128,
+                temperature=0.1,
+            )
+            resp = resp_obj.content if resp_obj else None
             if resp:
                 # 提取 JSON
                 json_match = re.search(r'\{[^{}]*"score"\s*:\s*(-?\d+\.?\d*)[^{}]*\}', resp, re.DOTALL)
