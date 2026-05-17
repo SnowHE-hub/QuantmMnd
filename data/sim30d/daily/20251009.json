@@ -1,0 +1,447 @@
+{
+  "date": "20251009",
+  "day_index": 1,
+  "system1_candidates": [
+    {
+      "rank": 1,
+      "ticker": "300917.SZ",
+      "name": "特发服务",
+      "industry": "房产服务",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 2,
+      "ticker": "300918.SZ",
+      "name": "南山智尚",
+      "industry": "纺织",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 3,
+      "ticker": "688122.SH",
+      "name": "西部超导",
+      "industry": "小金属",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 4,
+      "ticker": "300019.SZ",
+      "name": "硅宝科技",
+      "industry": "化工原料",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 5,
+      "ticker": "688432.SH",
+      "name": "有研硅",
+      "industry": "半导体",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 6,
+      "ticker": "300018.SZ",
+      "name": "中元股份",
+      "industry": "电气设备",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 7,
+      "ticker": "603650.SH",
+      "name": "彤程新材",
+      "industry": "化工原料",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 8,
+      "ticker": "300975.SZ",
+      "name": "商络电子",
+      "industry": "元器件",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 9,
+      "ticker": "600171.SH",
+      "name": "上海贝岭",
+      "industry": "半导体",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 10,
+      "ticker": "002192.SZ",
+      "name": "融捷股份",
+      "industry": "小金属",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 11,
+      "ticker": "003026.SZ",
+      "name": "中晶科技",
+      "industry": "半导体",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 12,
+      "ticker": "600120.SH",
+      "name": "浙江东方",
+      "industry": "多元金融",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 13,
+      "ticker": "300820.SZ",
+      "name": "英杰电气",
+      "industry": "电气设备",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 14,
+      "ticker": "300012.SZ",
+      "name": "华测检测",
+      "industry": "电器仪表",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 15,
+      "ticker": "300004.SZ",
+      "name": "南风股份",
+      "industry": "电气设备",
+      "lgbm_score": 0.9507204610951009,
+      "lgbm_score_raw": 0.018592241429878625
+    }
+  ],
+  "system2_analysis": {
+    "603650.SH": {
+      "composite_score": 76.22222222222223,
+      "value_score": 60.0,
+      "momentum_score": 82.22222222222223,
+      "quality_score": 100.0,
+      "technical_score": 63.333333333333336,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w"
+    },
+    "688122.SH": {
+      "composite_score": 74.96825396825396,
+      "value_score": 55.07936507936508,
+      "momentum_score": 91.1111111111111,
+      "quality_score": 93.33333333333333,
+      "technical_score": 61.666666666666664,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w"
+    },
+    "300012.SZ": {
+      "composite_score": 65.47619047619048,
+      "value_score": 81.58730158730158,
+      "momentum_score": 46.666666666666664,
+      "quality_score": 86.66666666666667,
+      "technical_score": 38.33333333333333,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "300820.SZ": {
+      "composite_score": 62.71428571428571,
+      "value_score": 52.38095238095238,
+      "momentum_score": 79.99999999999999,
+      "quality_score": 66.66666666666666,
+      "technical_score": 51.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "300019.SZ": {
+      "composite_score": 61.174603174603185,
+      "value_score": 84.28571428571429,
+      "momentum_score": 22.222222222222225,
+      "quality_score": 80.0,
+      "technical_score": 51.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "300018.SZ": {
+      "composite_score": 56.65079365079366,
+      "value_score": 70.31746031746032,
+      "momentum_score": 55.555555555555564,
+      "quality_score": 53.333333333333336,
+      "technical_score": 41.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "300004.SZ": {
+      "composite_score": 55.77777777777778,
+      "value_score": 40.0,
+      "momentum_score": 97.77777777777777,
+      "quality_score": 13.333333333333334,
+      "technical_score": 80.0,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "600120.SH": {
+      "composite_score": 51.79365079365079,
+      "value_score": 95.23809523809524,
+      "momentum_score": 22.222222222222225,
+      "quality_score": 46.666666666666664,
+      "technical_score": 30.0,
+      "rating": "持有",
+      "suggested_horizon": "3m"
+    },
+    "300918.SZ": {
+      "composite_score": 50.39682539682539,
+      "value_score": 60.952380952380956,
+      "momentum_score": 51.11111111111111,
+      "quality_score": 26.666666666666668,
+      "technical_score": 63.333333333333336,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "002192.SZ": {
+      "composite_score": 46.14285714285714,
+      "value_score": 44.92063492063492,
+      "momentum_score": 80.0,
+      "quality_score": 6.666666666666667,
+      "technical_score": 55.0,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "600171.SH": {
+      "composite_score": 43.12698412698413,
+      "value_score": 36.34920634920635,
+      "momentum_score": 35.55555555555556,
+      "quality_score": 60.0,
+      "technical_score": 41.66666666666667,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "688432.SH": {
+      "composite_score": 41.63492063492063,
+      "value_score": 31.746031746031747,
+      "momentum_score": 64.44444444444444,
+      "quality_score": 20.0,
+      "technical_score": 54.99999999999999,
+      "rating": "持有",
+      "suggested_horizon": "2w"
+    },
+    "300917.SZ": {
+      "composite_score": 40.66666666666667,
+      "value_score": 43.333333333333336,
+      "momentum_score": 6.666666666666667,
+      "quality_score": 73.33333333333333,
+      "technical_score": 38.333333333333336,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300975.SZ": {
+      "composite_score": 35.38095238095238,
+      "value_score": 29.047619047619047,
+      "momentum_score": 39.99999999999999,
+      "quality_score": 33.33333333333333,
+      "technical_score": 41.666666666666664,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "003026.SZ": {
+      "composite_score": 26.87301587301587,
+      "value_score": 11.428571428571429,
+      "momentum_score": 24.444444444444443,
+      "quality_score": 40.0,
+      "technical_score": 36.666666666666664,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    }
+  },
+  "system3_final_list": [
+    {
+      "rank": 1,
+      "ticker": "603650.SH",
+      "name": "彤程新材",
+      "industry": "化工原料",
+      "composite_score": 76.22222222222223,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.8214285714285714,
+      "hist_sharpe": 3.830310298814655,
+      "hist_maxdd": -0.10988142292490122,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 2,
+      "ticker": "688122.SH",
+      "name": "西部超导",
+      "industry": "小金属",
+      "composite_score": 74.96825396825396,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.6428571428571429,
+      "hist_sharpe": 3.598980517608157,
+      "hist_maxdd": -0.11447654551102826,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 3,
+      "ticker": "300012.SZ",
+      "name": "华测检测",
+      "industry": "电器仪表",
+      "composite_score": 65.47619047619048,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5535714285714286,
+      "hist_sharpe": 2.0428562206122622,
+      "hist_maxdd": -0.09957325746799428,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 4,
+      "ticker": "300820.SZ",
+      "name": "英杰电气",
+      "industry": "电气设备",
+      "composite_score": 62.71428571428571,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5178571428571429,
+      "hist_sharpe": 2.2540275174123283,
+      "hist_maxdd": -0.1020681731137495,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 5,
+      "ticker": "300019.SZ",
+      "name": "硅宝科技",
+      "industry": "化工原料",
+      "composite_score": 61.174603174603185,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": 0.8684293727061794,
+      "hist_maxdd": -0.15049342105263164,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 6,
+      "ticker": "300018.SZ",
+      "name": "中元股份",
+      "industry": "电气设备",
+      "composite_score": 56.65079365079366,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5892857142857143,
+      "hist_sharpe": 1.8927051930956875,
+      "hist_maxdd": -0.14629049111807735,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 7,
+      "ticker": "300004.SZ",
+      "name": "南风股份",
+      "industry": "电气设备",
+      "composite_score": 55.77777777777778,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5178571428571429,
+      "hist_sharpe": 2.422336062821994,
+      "hist_maxdd": -0.19000819000819003,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 8,
+      "ticker": "600120.SH",
+      "name": "浙江东方",
+      "industry": "多元金融",
+      "composite_score": 51.79365079365079,
+      "rating": "持有",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5535714285714286,
+      "hist_sharpe": 0.5482981180774822,
+      "hist_maxdd": -0.10029498525073755,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 9,
+      "ticker": "300918.SZ",
+      "name": "南山智尚",
+      "industry": "纺织",
+      "composite_score": 50.39682539682539,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.5178571428571429,
+      "hist_sharpe": 1.9642261117429984,
+      "hist_maxdd": -0.16259541984732817,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 10,
+      "ticker": "002192.SZ",
+      "name": "融捷股份",
+      "industry": "小金属",
+      "composite_score": 46.14285714285714,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5178571428571429,
+      "hist_sharpe": 2.6303213196405215,
+      "hist_maxdd": -0.12673521850899738,
+      "risk_level": "低",
+      "investable": true
+    }
+  ],
+  "returns": {
+    "1w": {
+      "mean": -0.05067347819172894,
+      "median": -0.06567653535791483,
+      "win_rate": 0.3,
+      "max": 0.053676470588235325,
+      "min": -0.1280644608263329,
+      "n": 10,
+      "entry_date": "2025-10-10",
+      "exit_date": "2025-10-17"
+    },
+    "2w": {
+      "mean": 0.0037220751224895862,
+      "median": -0.020598344141190862,
+      "win_rate": 0.5,
+      "max": 0.22051282051282056,
+      "min": -0.11537802160123431,
+      "n": 10,
+      "entry_date": "2025-10-10",
+      "exit_date": "2025-10-24"
+    },
+    "21d": {
+      "mean": 0.022262101947036088,
+      "median": -0.005700518528868433,
+      "win_rate": 0.5,
+      "max": 0.23489425981873108,
+      "min": -0.12807881773399013,
+      "n": 10,
+      "entry_date": "2025-10-10",
+      "exit_date": "2025-11-10"
+    },
+    "3m": {
+      "mean": 0.14084100419561224,
+      "median": 0.11382507463325378,
+      "win_rate": 0.8,
+      "max": 0.40911379657603225,
+      "min": -0.1321092700403045,
+      "n": 10,
+      "entry_date": "2025-10-10",
+      "exit_date": "2026-01-09"
+    }
+  }
+}

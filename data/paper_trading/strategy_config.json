@@ -1,0 +1,138 @@
+{
+  "version": "v1_sim_driven",
+  "updated_at": "2026-05-16T23:20:04.054250",
+  "data_source": "paper_trading_sim_v4_9periods",
+  "holding_period": {
+    "recommended": "3m",
+    "rationale": "IR=+0.621, 期胜率=62.5%",
+    "all_horizons": {
+      "1w": {
+        "ir": 0.124,
+        "win_rate": 0.444,
+        "cumulative_nav": 1.0455
+      },
+      "2w": {
+        "ir": 0.332,
+        "win_rate": 0.556,
+        "cumulative_nav": 1.114
+      },
+      "21d": {
+        "ir": 0.543,
+        "win_rate": 0.556,
+        "cumulative_nav": 1.3037
+      },
+      "3m": {
+        "ir": 0.621,
+        "win_rate": 0.625,
+        "cumulative_nav": 1.4769
+      }
+    }
+  },
+  "position_sizing": {
+    "top_n": 5,
+    "equal_weight": true,
+    "rationale": "Top3 premium over Top10: +0.0314 (concentrate)"
+  },
+  "factor_signals": {
+    "reversed_factors": [
+      {
+        "factor": "revenue_yoy",
+        "ic": -0.3358,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "net_profit_yoy",
+        "ic": -0.3231,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "roa_ttm",
+        "ic": -0.2854,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "asset_turnover",
+        "ic": -0.2723,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "momentum_6m",
+        "ic": -0.2584,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "relative_strength_vs_csi300_120d",
+        "ic": -0.2543,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "roe_ttm",
+        "ic": -0.2539,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "quarterly_revenue_yoy",
+        "ic": -0.2463,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "revenue_accel_q",
+        "ic": -0.2463,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "net_margin",
+        "ic": -0.2339,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "operating_profit_yoy",
+        "ic": -0.2272,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      },
+      {
+        "factor": "momentum_12m_skip_1m",
+        "ic": -0.2254,
+        "action": "DOWNWEIGHT_OR_FLIP"
+      }
+    ],
+    "positive_factors": [
+      {
+        "factor": "forward_return_21d",
+        "ic": 0.7011,
+        "action": "UPWEIGHT"
+      },
+      {
+        "factor": "forward_return_63d",
+        "ic": 0.3837,
+        "action": "UPWEIGHT"
+      },
+      {
+        "factor": "ps_ttm",
+        "ic": 0.1977,
+        "action": "UPWEIGHT"
+      },
+      {
+        "factor": "amihud_illiquidity",
+        "ic": 0.1843,
+        "action": "UPWEIGHT"
+      },
+      {
+        "factor": "turnover_acceleration",
+        "ic": 0.1764,
+        "action": "UPWEIGHT"
+      }
+    ],
+    "regime_note": "当前市场（2024Q2-2026Q1）质量因子反转（roe_ttm IC=-0.39**），动量因子弱反转（momentum_6m IC=-0.19*），应权衡 bull-regime 风格偏移"
+  },
+  "risk_controls": {
+    "stop_loss_threshold": -0.15,
+    "max_single_stock_weight": 0.25,
+    "review_frequency": "3m"
+  },
+  "optimization_triggers": {
+    "retrain_lgbm_if": "连续 2 期 21d IC < -0.05",
+    "factor_review_if": "任一主因子 rolling_IC_3period < -0.15",
+    "horizon_review_if": "21d IR < 0.15 连续 3 期"
+  }
+}

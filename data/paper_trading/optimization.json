@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-05-16T23:18:08.449805",
+  "n_positions": 90,
+  "n_dates": 9,
+  "key_metrics": {
+    "1w": {
+      "ic": 0.09992383296076374,
+      "mean_return": 0.005954376511944204,
+      "win_rate": 0.4777777777777778
+    },
+    "2w": {
+      "ic": 0.13446499794563402,
+      "mean_return": 0.012686597411313547,
+      "win_rate": 0.45555555555555555
+    },
+    "21d": {
+      "ic": 0.08246373548868835,
+      "mean_return": 0.03128582803620533,
+      "win_rate": 0.4222222222222222
+    },
+    "3m": {
+      "ic": -0.1487149451141683,
+      "mean_return": 0.052842605067562,
+      "win_rate": 0.475
+    }
+  },
+  "signals": {
+    "alpha_quality": {
+      "status": "CRITICAL",
+      "ic_3m": -0.1487149451141683,
+      "msg": "3m IC <= 0，需检查模型"
+    },
+    "ic_decay_pattern": {
+      "ic_1w": 0.09992383296076374,
+      "ic_3m": -0.1487149451141683,
+      "msg": "短期 IC 高于长期"
+    },
+    "win_rate_3m": {
+      "value": 0.475,
+      "status": "BELOW_50PCT",
+      "msg": "3m 胜率 47.5%，偏低（尾部收益驱动）"
+    },
+    "tail_dependency": {
+      "mean_3m": 0.052842605067562,
+      "median_3m": -0.010132204840780751,
+      "tail_ratio": 6.21,
+      "status": "HIGH_TAIL",
+      "msg": "收益高度依赖尾部牛股，需增加分散度"
+    }
+  },
+  "optimization_recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "RETRAIN_LGBM",
+      "reason": "3m IC=-0.1487，需重训 LGBM 或调整特征集"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "INCREASE_TOP_N",
+      "reason": "尾部依赖 ratio=6.2，建议扩大持仓数至 15-20 只增加分散"
+    },
+    {
+      "priority": "LOW",
+      "action": "ADD_STOP_LOSS",
+      "reason": "3m 胜率47.5% < 50%，考虑加入止损条件（如跌破-15%平仓）"
+    },
+    {
+      "priority": "LOW",
+      "action": "SHORTEN_HORIZON",
+      "reason": "短期 IC 高于长期 IC，系统偏向动量/技术类信号，建议缩短持仓期"
+    }
+  ],
+  "next_review_date": "下一个季末面板更新后（预计 2026Q3，约 2026-10-31）重新评估"
+}

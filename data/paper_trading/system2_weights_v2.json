@@ -1,0 +1,25 @@
+{
+  "version": "v2_ic_calibrated",
+  "updated_at": "2026-05-17T12:06:17.113704",
+  "source": "30day_sim_2025Q4",
+  "current": {
+    "value": 0.3,
+    "momentum": 0.25,
+    "quality": 0.25,
+    "technical": 0.2
+  },
+  "ic_implied": {
+    "value": 0.18392168495995254,
+    "momentum": 0.19578760011865914,
+    "quality": 0.4167902699495699,
+    "technical": 0.20350044497181843
+  },
+  "calibrated": {
+    "value": 0.242,
+    "momentum": 0.2229,
+    "quality": 0.3334,
+    "technical": 0.2018
+  },
+  "calibration_basis": "IC-abs 3m Spearman + 当前权重 50% 平滑",
+  "note": "3m 收益的 IC 决定方向：|IC|越大权重越高。质量因子 IC 为负→ 2024Q2-2026Q1 bull regime 下质量股跑输，应降权。"
+}

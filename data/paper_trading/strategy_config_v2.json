@@ -1,0 +1,125 @@
+{
+  "version": "v2_30day_sim_optimized",
+  "updated_at": "2026-05-17T12:06:17.115200",
+  "source": "30day_sim_2025Q4_全A股",
+  "holding_period": {
+    "recommended": "3m",
+    "rationale": "IR=+1.799, 期胜率=96.7%, 均值=+21.56%",
+    "short_term_warning": "1w/2w/21d 均为负收益，2025Q4 A股短期波动大，不建议短线交易"
+  },
+  "system1_updates": {
+    "lgbm_ic_3m": 0.0339,
+    "recommendation": "LGBM 3m IC 为正 → 模型在 bull regime 仍有效；可考虑提高 Top50→Top30 减少噪声"
+  },
+  "system2_updates": {
+    "weights_calibrated": {
+      "value": 0.242,
+      "momentum": 0.2229,
+      "quality": 0.3334,
+      "technical": 0.2018
+    },
+    "weights_previous": {
+      "value": 0.3,
+      "momentum": 0.25,
+      "quality": 0.25,
+      "technical": 0.2
+    },
+    "reversed_dim_factors": [
+      {
+        "factor": "value_score",
+        "ic_3m": -0.062,
+        "action": "DOWNWEIGHT"
+      }
+    ],
+    "best_predictor": "quality_score",
+    "ic_summary": {
+      "ic_1w": {
+        "composite_score": -0.0124,
+        "lgbm_score": -0.1481,
+        "value_score": -0.0394,
+        "momentum_score": -0.069,
+        "quality_score": 0.0681,
+        "technical_score": 0.0054
+      },
+      "ic_2w": {
+        "composite_score": 0.0499,
+        "lgbm_score": -0.1921,
+        "value_score": 0.0763,
+        "momentum_score": -0.0867,
+        "quality_score": 0.1275,
+        "technical_score": -0.0541
+      },
+      "ic_21d": {
+        "composite_score": 0.0117,
+        "lgbm_score": 0.1674,
+        "value_score": 0.0124,
+        "momentum_score": -0.0724,
+        "quality_score": 0.124,
+        "technical_score": -0.0625
+      },
+      "ic_3m": {
+        "composite_score": 0.0881,
+        "lgbm_score": 0.0339,
+        "value_score": -0.062,
+        "momentum_score": 0.066,
+        "quality_score": 0.1405,
+        "technical_score": 0.0686
+      }
+    }
+  },
+  "system3_updates": {
+    "hist_sharpe_ic_3m": 0.0153,
+    "hist_win_rate_ic_3m": 0.0486,
+    "recommendation": "历史 Sharpe 对 3m 收益 IC 为负 → 2025Q4 逆转效应显著；建议降低回测 Sharpe 的门槛权重，或在 bull regime 下取消该过滤"
+  },
+  "industry_regime": {
+    "top_performing": [
+      {
+        "industry": "装修装饰",
+        "ret_3m_mean": 2.5171,
+        "count": 1
+      },
+      {
+        "industry": "建筑工程",
+        "ret_3m_mean": 1.1896,
+        "count": 3
+      },
+      {
+        "industry": "机械基件",
+        "ret_3m_mean": 0.5828,
+        "count": 3
+      },
+      {
+        "industry": "铝",
+        "ret_3m_mean": 0.4687,
+        "count": 2
+      },
+      {
+        "industry": "小金属",
+        "ret_3m_mean": 0.4633,
+        "count": 23
+      },
+      {
+        "industry": "航空",
+        "ret_3m_mean": 0.3438,
+        "count": 3
+      },
+      {
+        "industry": "通信设备",
+        "ret_3m_mean": 0.3217,
+        "count": 12
+      },
+      {
+        "industry": "铅锌",
+        "ret_3m_mean": 0.3212,
+        "count": 11
+      }
+    ],
+    "recommendation": "家居/建筑/装修 sector 主导 3m 超额收益，建议行业偏向 weight 提升"
+  },
+  "meta_learner_update": {
+    "current_realized_pnl_size": "~80 条",
+    "after_expansion": "~380 条 (30天×10只)",
+    "action": "重训 meta-learner，预期 R² 显著提升"
+  }
+}
