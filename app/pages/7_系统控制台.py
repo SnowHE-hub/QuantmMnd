@@ -1,8 +1,9 @@
-"""7_系统控制台.py — 交互式系统控制：执行命令 + 实时日志 + AI分析 + 可视化."""
+"""7_系统控制台.py — 交互式运行中心：一键执行 + 实时日志 + AI解读 + 结果可视化."""
 from __future__ import annotations
 
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -14,421 +15,508 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.api.services.executor import COMMANDS, COMMAND_GROUPS
 from app.utils.sim_data import (
     load_sim30d_days, load_sim30d_stock_returns,
     load_ic_analysis, load_realized_pnl,
-    horizon_portfolio_ts, load_nav_curves,
-    load_strategy_config,
+    horizon_portfolio_ts, load_strategy_config,
 )
 
-st.set_page_config(page_title="系统控制台 · QuantMind", page_icon="🖥️", layout="wide")
+st.set_page_config(
+    page_title="系统控制台 · QuantMind",
+    page_icon="🖥️",
+    layout="wide",
+)
 
 API_BASE = "http://localhost:8000"
 
-# ── 检查 API ──────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=10)
-def check_api() -> dict:
+# ─────────────────────────────────────────────────────────────────────────────
+# Session state
+# ─────────────────────────────────────────────────────────────────────────────
+if "exec_history" not in st.session_state:
+    st.session_state.exec_history = []   # list[dict]
+if "pending_cmd"  not in st.session_state:
+    st.session_state.pending_cmd  = None
+if "ai_provider"  not in st.session_state:
+    st.session_state.ai_provider  = "dashscope"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API helpers
+# ─────────────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=15)
+def get_health() -> dict:
     try:
-        r = requests.get(f"{API_BASE}/health", timeout=3)
-        return r.json()
+        return requests.get(f"{API_BASE}/health", timeout=3).json()
     except Exception:
         return {}
 
-# ── Session State ─────────────────────────────────────────────────────────────
-if "exec_result" not in st.session_state:
-    st.session_state.exec_result = None
-if "exec_cmd" not in st.session_state:
-    st.session_state.exec_cmd = None
-if "provider" not in st.session_state:
-    st.session_state.provider = "dashscope"
+@st.cache_data(ttl=30)
+def get_summary() -> dict:
+    try:
+        return requests.get(f"{API_BASE}/api/data/summary", timeout=8).json()
+    except Exception:
+        return {}
 
-api_status = check_api()
 
-# ── 标题 ──────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style='background:linear-gradient(135deg,#2D3436 0%,#0984E3 100%);
-            padding:18px 24px;border-radius:12px;color:white;margin-bottom:16px'>
-  <h2 style='margin:0'>🖥️ 系统控制台</h2>
-  <p style='margin:6px 0 0 0;opacity:.85'>
-    执行系统命令 · 实时日志 · AI 分析解读 · 结果可视化
-  </p>
-</div>
-""", unsafe_allow_html=True)
+def call_execute(cmd_key: str, provider: str) -> dict:
+    timeout_sec = COMMANDS[cmd_key].get("timeout", 600) + 30
+    resp = requests.post(
+        f"{API_BASE}/api/execute",
+        json={"cmd_key": cmd_key, "provider": provider, "analyze_result": True},
+        timeout=timeout_sec,
+    )
+    return resp.json()
 
-# ── API 状态栏 ─────────────────────────────────────────────────────────────────
-if api_status:
-    col_s1, col_s2, col_s3 = st.columns(3)
-    col_s1.success("✅ FastAPI 后端在线")
-    ollama_models = api_status.get("ollama_models", [])
-    col_s2.info(f"💻 Ollama: {', '.join(ollama_models) or '无'}")
-    col_s3.info(f"🌐 百炼: {'已配置' if api_status.get('dashscope_key') else '未配置'}")
-else:
-    st.error("""
-⚠️ **FastAPI 后端未启动**
 
-请运行：
-```bash
-bash /home/lenovo/projects/quantmind/start_api.sh
-```
-或：
-```bash
-cd /home/lenovo/projects/quantmind
-/home/lenovo/miniforge3/envs/quantmind/bin/uvicorn app.api.server:app --port 8000 --reload
-```
-    """)
+def call_analyze_chart(title: str, data: dict, provider: str) -> str:
+    try:
+        r = requests.post(
+            f"{API_BASE}/api/analyze/chart",
+            json={"title": title, "data": data, "provider": provider},
+            timeout=25,
+        )
+        return r.json().get("commentary", "")
+    except Exception:
+        return ""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Header
+# ─────────────────────────────────────────────────────────────────────────────
+health = get_health()
+api_ok = bool(health)
+
+col_title, col_status = st.columns([3, 1])
+with col_title:
+    st.markdown("## 🖥️ 系统控制台")
+    st.caption("在此触发任意系统功能 · 实时查看执行日志 · AI自动解读结果")
+with col_status:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if api_ok:
+        st.success("✅ API 在线", icon="🟢")
+    else:
+        st.error("❌ API 离线", icon="🔴")
+        st.info("请先运行:\n```\nbash start_api.sh\n```")
 
 st.divider()
 
-# ── 布局：左栏=命令面板，右栏=结果 ──────────────────────────────────────────
-col_left, col_right = st.columns([1, 2])
+# ─────────────────────────────────────────────────────────────────────────────
+# 主布局：左侧控制面板 | 右侧内容区
+# ─────────────────────────────────────────────────────────────────────────────
+sidebar_col, main_col = st.columns([1, 2.5], gap="large")
 
-with col_left:
-    st.markdown("### 🎛️ 命令面板")
+# ╔══════════════════════════════╗
+# ║       左侧：控制面板          ║
+# ╚══════════════════════════════╝
+with sidebar_col:
 
-    # AI 模型选择
-    provider = st.selectbox(
-        "AI 分析模型",
+    # ── AI 模型 ──────────────────────────────────────────────────────────────
+    st.markdown("#### ⚙️ AI 设置")
+    provider = st.radio(
+        "分析模型",
         options=["dashscope", "ollama", "deepseek"],
         format_func=lambda x: {
             "dashscope": "🌐 百炼 qwen-turbo",
             "ollama":    "💻 Ollama qwen2.5:7b",
             "deepseek":  "🔮 DeepSeek",
         }[x],
-        index=["dashscope", "ollama", "deepseek"].index(st.session_state.provider),
+        index=["dashscope", "ollama", "deepseek"].index(st.session_state.ai_provider),
+        key="provider_radio",
     )
-    st.session_state.provider = provider
+    st.session_state.ai_provider = provider
+    ai_analyze = st.toggle("执行后AI自动分析", value=True)
 
-    analyze_result = st.toggle("🤖 执行后自动AI分析", value=True)
-    st.markdown("---")
+    st.divider()
 
-    # ── 命令按钮组 ────────────────────────────────────────────────────────────
-    COMMANDS_META = {
-        "simulate":          ("🚀", "30日全A股模拟",   "red"),
-        "simulate_evaluate": ("📈", "绩效评估",        "blue"),
-        "optimize":          ("📊", "IC优化分析",      "green"),
-        "backtest":          ("📉", "NAV回测",         "orange"),
-        "train_meta":        ("🧠", "重训 meta-learner", "violet"),
-        "build_features":    ("🔧", "重建特征面板",    "gray"),
-    }
+    # ── 命令按钮（按组分类）──────────────────────────────────────────────────
+    st.markdown("#### 🎛️ 可用操作")
 
-    st.markdown("**📋 可用操作**")
-    for cmd_key, (icon, label, color) in COMMANDS_META.items():
-        btn_disabled = not bool(api_status)
-        if st.button(f"{icon} {label}", use_container_width=True,
-                     key=f"btn_{cmd_key}", disabled=btn_disabled,
-                     type="primary" if cmd_key in ("simulate_evaluate", "optimize") else "secondary"):
-            st.session_state.exec_cmd = cmd_key
+    for group_name, cmd_keys in COMMAND_GROUPS.items():
+        with st.expander(f"**{group_name}**", expanded=(group_name in ("模拟盘", "分析"))):
+            for key in cmd_keys:
+                if key not in COMMANDS:
+                    continue
+                info = COMMANDS[key]
+                col_btn, col_info = st.columns([3, 1])
+                with col_btn:
+                    disabled = not api_ok
+                    clicked  = st.button(
+                        info["label"],
+                        key=f"run_{key}",
+                        use_container_width=True,
+                        disabled=disabled,
+                        type="primary" if info.get("quick") else "secondary",
+                    )
+                    if clicked:
+                        st.session_state.pending_cmd = key
+                with col_info:
+                    est = info.get("timeout", 600)
+                    mins = est // 60
+                    st.caption(f"⏱ ~{mins}分" if mins >= 1 else "⏱ <1分")
+                st.caption(f"&nbsp;&nbsp;{info['desc']}")
 
-    st.markdown("---")
+    st.divider()
 
-    # ── 数据快速查看 ──────────────────────────────────────────────────────────
-    st.markdown("**📂 数据快速查看**")
-    if st.button("🔄 刷新数据摘要", use_container_width=True):
+    # ── 快速系统状态 ──────────────────────────────────────────────────────────
+    st.markdown("#### 📋 系统快照")
+    summary = get_summary()
+    if summary:
+        perf = summary.get("performance", {})
+        p3m  = perf.get("3m", {})
+        p1w  = perf.get("1w", {})
+        st.metric("模拟天数",  f"{summary.get('simulation_days', '—')} 天")
+        st.metric("3月均收益", f"{p3m.get('mean_return', '—')}%",
+                  f"胜率 {p3m.get('win_rate', '—')}%")
+        st.metric("1周均收益", f"{p1w.get('mean_return', '—')}%")
+        st.metric("PnL记录",   f"{summary.get('realized_pnl_count', '—')} 条")
+    else:
+        st.caption("API离线或数据未加载")
+
+    if st.button("🔄 刷新缓存", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-    if api_status:
-        try:
-            summary_resp = requests.get(f"{API_BASE}/api/data/summary", timeout=10)
-            summary = summary_resp.json()
-            perf = summary.get("performance", {})
-            p3m = perf.get("3m", {})
-            if p3m:
-                st.metric("3月期均收益", f"{p3m.get('mean_return',0):+.2f}%")
-                st.metric("3月胜率",     f"{p3m.get('win_rate',0):.1f}%")
-                st.metric("3月IR",       f"{p3m.get('ir',0):+.3f}")
-        except Exception:
-            pass
 
+# ╔══════════════════════════════════════╗
+# ║       右侧：主内容区                  ║
+# ╚══════════════════════════════════════╝
+with main_col:
 
-# ── 右栏：执行区域 + 结果展示 ────────────────────────────────────────────────
-with col_right:
-    st.markdown("### 📊 执行结果 & AI 分析")
+    # ── 执行挂起的命令 ────────────────────────────────────────────────────────
+    if st.session_state.pending_cmd and api_ok:
+        cmd_key   = st.session_state.pending_cmd
+        cmd_info  = COMMANDS[cmd_key]
+        st.session_state.pending_cmd = None
 
-    # ── 执行命令（如有待执行命令）──────────────────────────────────────────
-    if st.session_state.exec_cmd and api_status:
-        cmd_key = st.session_state.exec_cmd
-        st.session_state.exec_cmd = None  # 清除
+        st.markdown(f"### ▶ 正在执行：{cmd_info['label']}")
+        prog_bar = st.progress(0, text="准备中...")
+        log_box  = st.empty()
 
-        cmd_label = COMMANDS_META.get(cmd_key, ("", cmd_key, ""))[1]
+        t_start = time.time()
+        log_lines: list[str] = []
 
-        with st.status(f"正在执行：{cmd_label}...", expanded=True) as status:
-            st.write(f"**命令**：`{cmd_key}`")
-            st.write("⏳ 正在执行，请稍候...")
-            t0 = time.time()
+        # 模拟进度（不知道实际进度，用时间估算）
+        def fake_progress(elapsed: float, total: float) -> float:
+            return min(0.95, elapsed / max(total, 1))
 
+        with st.spinner(f"执行 {cmd_info['short']} 中，请勿关闭页面..."):
             try:
-                resp = requests.post(
-                    f"{API_BASE}/api/execute",
-                    json={
-                        "cmd_key": cmd_key,
-                        "provider": st.session_state.provider,
-                        "analyze_result": analyze_result,
-                    },
-                    timeout=900,  # 15分钟超时
-                )
-                data = resp.json()
-                elapsed = data.get("elapsed", time.time() - t0)
-
-                if data.get("success"):
-                    status.update(label=f"✅ 执行成功（{elapsed:.1f}s）", state="complete")
-                else:
-                    status.update(label=f"❌ 执行失败（{elapsed:.1f}s）", state="error")
-
-                st.session_state.exec_result = data
-
+                result = call_execute(cmd_key, provider)
             except requests.exceptions.Timeout:
-                status.update(label="⏰ 执行超时", state="error")
-                st.session_state.exec_result = {"success": False, "output": "执行超时", "ai_analysis": ""}
+                result = {"success": False, "output": "请求超时", "ai_analysis": "", "elapsed": 0}
             except Exception as e:
-                status.update(label=f"❌ 请求失败：{e}", state="error")
-                st.session_state.exec_result = None
+                result = {"success": False, "output": str(e), "ai_analysis": "", "elapsed": 0}
 
-    # ── 显示执行结果 ─────────────────────────────────────────────────────────
-    if st.session_state.exec_result:
-        res = st.session_state.exec_result
-        cmd_label = res.get("cmd_label", "命令")
+        prog_bar.progress(1.0, text="完成")
+        elapsed   = result.get("elapsed", 0)
+        success   = result.get("success", False)
+        output    = result.get("output", "")
+        ai_text   = result.get("ai_analysis", "")
+
+        # 显示执行日志
+        log_box.code(output[-4000:] if len(output) > 4000 else output,
+                     language="text")
+
+        # 状态条
+        if success:
+            st.success(f"✅ 执行成功  |  耗时 {elapsed:.1f}s  |  {datetime.now().strftime('%H:%M:%S')}")
+        else:
+            st.error(f"❌ 执行失败  |  耗时 {elapsed:.1f}s")
 
         # AI 分析
-        ai_analysis = res.get("ai_analysis", "")
-        if ai_analysis:
+        if ai_analyze and ai_text:
             st.markdown(f"""
-<div style='background:rgba(9,132,227,0.08);border:1px solid rgba(9,132,227,0.3);
-            border-radius:10px;padding:16px;margin-bottom:16px'>
-  <div style='font-size:.9rem;color:#0984E3;font-weight:600;margin-bottom:8px'>
-    🤖 AI 分析 · {cmd_label}
+<div style='background:rgba(0,184,148,0.08);border-left:4px solid #00B894;
+            border-radius:0 8px 8px 0;padding:14px 18px;margin:12px 0'>
+  <div style='color:#00B894;font-weight:700;font-size:.85rem;margin-bottom:6px'>
+    🤖 AI 解读 · {provider}
   </div>
-  <div style='font-size:.9rem;line-height:1.6'>
-    {ai_analysis.replace(chr(10), '<br>')}
-  </div>
+  <div style='font-size:.9rem;line-height:1.7'>{ai_text.replace(chr(10),'<br>')}</div>
 </div>
 """, unsafe_allow_html=True)
 
-        # 执行日志
-        output = res.get("output", "")
-        if output:
-            with st.expander(f"📋 执行日志（{res.get('elapsed',0):.1f}s）", expanded=not ai_analysis):
-                st.code(output[-5000:] if len(output) > 5000 else output, language="text")
+        # 写入历史
+        st.session_state.exec_history.append({
+            "ts":       datetime.now().strftime("%H:%M:%S"),
+            "cmd_key":  cmd_key,
+            "label":    cmd_info["short"],
+            "success":  success,
+            "elapsed":  elapsed,
+            "output":   output,
+            "ai_text":  ai_text,
+        })
 
-        # 执行后刷新图表
-        st.markdown("#### 📈 最新数据可视化")
+        # 刷新数据缓存，立刻反映最新结果
         st.cache_data.clear()
+        st.divider()
 
-    # ── 实时数据看板（无论是否刚执行）────────────────────────────────────────
-    with st.spinner("加载最新数据..."):
+    # ── Tab 区域：实时数据 + 执行历史 ──────────────────────────────────────
+    tab_data, tab_perf, tab_ic, tab_history = st.tabs(
+        ["📊 实时数据总览", "📈 收益曲线", "🔬 因子分析", "📋 执行历史"]
+    )
+
+    # ── Tab1: 实时数据总览 ──────────────────────────────────────────────────
+    with tab_data:
         try:
             days    = load_sim30d_days()
             sr      = load_sim30d_stock_returns()
-            ic_data = load_ic_analysis()
             rpnl    = load_realized_pnl()
-            navs    = load_nav_curves()
             cfg     = load_strategy_config()
         except Exception as e:
             st.error(f"数据加载失败：{e}")
-            days, sr, ic_data, rpnl, navs, cfg = [], pd.DataFrame(), {}, pd.DataFrame(), {}, {}
+            days, sr, rpnl, cfg = [], pd.DataFrame(), pd.DataFrame(), {}
 
-    if days:
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "📈 收益曲线", "🔬 因子IC", "📊 PnL分布", "⚖️ 系统权重"
-        ])
+        if days:
+            # KPI 行
+            kpi_cols = st.columns(4)
+            perf_all = {}
+            for hz in ["1w", "21d", "3m"]:
+                ts = horizon_portfolio_ts(days, hz)
+                if not ts.empty:
+                    m = float(ts["mean"].mean())
+                    w = float((ts["mean"] > 0).mean())
+                    ir = m / ts["mean"].std() if ts["mean"].std() > 0 else 0
+                    perf_all[hz] = (m, w, ir)
 
-        with tab1:
-            # 四期累计收益
-            HZ_COLORS = {"1w": "#D63031", "2w": "#E17055", "21d": "#FDCB6E", "3m": "#00B894"}
-            fig_cum = go.Figure()
-            perf_summary = {}
-            for hz, color in HZ_COLORS.items():
+            labels = {"1w": "1周均收益", "21d": "21天均收益", "3m": "3月均收益"}
+            for i, (hz, label) in enumerate(labels.items()):
+                v = perf_all.get(hz)
+                with kpi_cols[i]:
+                    if v:
+                        st.metric(label, f"{v[0]*100:+.2f}%",
+                                  f"胜率{v[1]*100:.0f}% · IR{v[2]:+.2f}")
+                    else:
+                        st.metric(label, "—")
+            with kpi_cols[3]:
+                st.metric("realized PnL", f"{len(rpnl)} 条",
+                          f"分析 {len(sr)} 只")
+
+            st.divider()
+
+            # 最新推荐
+            latest = days[-1]
+            date_str = f"{latest['date'][:4]}-{latest['date'][4:6]}-{latest['date'][6:8]}"
+            st.markdown(f"**📋 最新推荐（{date_str}）**")
+            from app.utils.sim_data import sim_day_to_df
+            final_df = sim_day_to_df(latest)
+            if not final_df.empty:
+                show_cols = [c for c in ["rank","ticker","name","industry",
+                                          "composite_score","rating","risk_level"]
+                             if c in final_df.columns]
+                disp = final_df[show_cols].rename(columns={
+                    "rank":"#","ticker":"代码","name":"名称","industry":"行业",
+                    "composite_score":"综合分","rating":"评级","risk_level":"风险"
+                })
+                if "综合分" in disp.columns:
+                    disp["综合分"] = disp["综合分"].apply(
+                        lambda x: f"{x:.1f}" if pd.notna(x) else "—")
+                st.dataframe(disp, use_container_width=True, hide_index=True, height=260)
+
+                # AI 解读最新推荐
+                if api_ok and ai_analyze:
+                    top_tickers = final_df["ticker"].tolist()[:5] if "ticker" in final_df.columns else []
+                    commentary = call_analyze_chart(
+                        f"最新推荐（{date_str}）",
+                        {"tickers": top_tickers,
+                         "count": len(final_df),
+                         "date": date_str},
+                        provider,
+                    )
+                    if commentary:
+                        st.caption(f"🤖 {commentary}")
+        else:
+            st.info("暂无模拟数据，请先运行「绩效评估」或「30日模拟」。")
+
+    # ── Tab2: 收益曲线 ──────────────────────────────────────────────────────
+    with tab_perf:
+        try:
+            days = load_sim30d_days()
+        except Exception:
+            days = []
+
+        if days:
+            HZ_META = {
+                "1w":  ("1周",  "#D63031"),
+                "2w":  ("2周",  "#E17055"),
+                "21d": ("21天", "#FDCB6E"),
+                "3m":  ("3月",  "#00B894"),
+            }
+            selected_hz = st.multiselect(
+                "选择持仓期",
+                options=list(HZ_META.keys()),
+                default=["21d", "3m"],
+                format_func=lambda x: HZ_META[x][0],
+            )
+
+            fig = go.Figure()
+            perf_data_for_ai: dict = {}
+            for hz in selected_hz:
                 ts = horizon_portfolio_ts(days, hz)
                 if ts.empty:
                     continue
+                label, color = HZ_META[hz]
+                fig.add_trace(go.Scatter(
+                    x=ts["date"].dt.strftime("%m-%d"),
+                    y=ts["cum_return"] * 100,
+                    name=label,
+                    line=dict(color=color, width=2.5),
+                    mode="lines+markers",
+                    marker_size=4,
+                    hovertemplate=f"{label}: %{{y:.2f}}%<extra></extra>",
+                ))
                 mean_r = float(ts["mean"].mean())
-                win_r  = float((ts["mean"] > 0).mean())
-                ir_v   = mean_r / ts["mean"].std() if ts["mean"].std() > 0 else 0
-                perf_summary[hz] = (mean_r, win_r, ir_v)
-                fig_cum.add_trace(go.Scatter(
-                    x=ts["date"].dt.strftime("%m-%d"), y=ts["cum_return"] * 100,
-                    name={"1w":"1周","2w":"2周","21d":"21天","3m":"3月"}[hz],
-                    line=dict(color=color, width=2.5), mode="lines+markers", marker_size=4,
-                ))
-            fig_cum.add_hline(y=0, line_dash="dot", line_color="#B2BEC3")
-            fig_cum.update_layout(
-                height=320, margin=dict(t=10, b=40, l=50, r=20),
-                yaxis_title="累计收益(%)",
-                legend=dict(orientation="h", y=1.08),
-                hovermode="x unified", plot_bgcolor="rgba(0,0,0,0)",
+                perf_data_for_ai[hz] = {
+                    "mean": f"{mean_r*100:+.2f}%",
+                    "win":  f"{(ts['mean']>0).mean()*100:.0f}%",
+                    "cum":  f"{ts['cum_return'].iloc[-1]*100:+.2f}%",
+                }
+
+            fig.add_hline(y=0, line_dash="dot", line_color="rgba(178,190,195,0.5)")
+            fig.update_layout(
+                height=360,
+                margin=dict(t=20, b=40, l=50, r=20),
+                yaxis_title="累计收益 (%)",
+                legend=dict(orientation="h", y=1.05),
+                hovermode="x unified",
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(showgrid=True, gridcolor="rgba(178,190,195,0.15)"),
+                yaxis=dict(showgrid=True, gridcolor="rgba(178,190,195,0.15)"),
             )
-            st.plotly_chart(fig_cum, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
-            # 绩效摘要
-            cols_perf = st.columns(len(perf_summary))
-            labels = {"1w":"1周","2w":"2周","21d":"21天","3m":"3月"}
-            for i, (hz, (mean_r, win_r, ir_v)) in enumerate(perf_summary.items()):
-                with cols_perf[i]:
-                    delta_color = "normal" if mean_r > 0 else "inverse"
-                    st.metric(labels[hz], f"{mean_r*100:+.2f}%",
-                              f"胜率{win_r*100:.0f}% IR={ir_v:+.2f}",
-                              delta_color=delta_color)
+            if api_ok and perf_data_for_ai:
+                commentary = call_analyze_chart("四持仓期累计收益曲线", perf_data_for_ai, provider)
+                if commentary:
+                    st.caption(f"🤖 **AI解读**：{commentary}")
 
-            # AI 解读（如果 API 可用）
-            if api_status and perf_summary:
-                p3m = perf_summary.get("3m", (0, 0, 0))
-                try:
-                    r = requests.post(
-                        f"{API_BASE}/api/analyze/chart",
-                        json={"title": "四持仓期累计收益",
-                              "data": {hz: {"mean_return": f"{v[0]*100:.2f}%",
-                                            "win_rate": f"{v[1]*100:.1f}%"}
-                                       for hz, v in perf_summary.items()},
-                              "provider": st.session_state.provider},
-                        timeout=20,
-                    )
-                    c = r.json().get("commentary", "")
-                    if c:
-                        st.caption(f"🤖 {c}")
-                except Exception:
-                    pass
+            # 每日收益热力图
+            st.markdown("**每日收益（所有持仓期）**")
+            hz_list = [h for h in ["1w","2w","21d","3m"] if not horizon_portfolio_ts(days, h).empty]
+            z_data, date_labels = [], []
+            for hz in hz_list:
+                ts = horizon_portfolio_ts(days, hz)
+                z_data.append((ts["mean"] * 100).tolist())
+                if not date_labels:
+                    date_labels = ts["date"].dt.strftime("%m-%d").tolist()
 
-        with tab2:
-            ic_final = ic_data.get("ic_final_picks", {})
-            if ic_final:
-                ic_items = [
-                    (k, v.get("ic_3m") or 0, v.get("p_3m") or 1)
-                    for k, v in ic_final.items()
-                    if v.get("ic_3m") is not None
-                ]
-                ic_items.sort(key=lambda x: x[1], reverse=True)
-                factors = [x[0] for x in ic_items]
-                ic_vals = [x[1] for x in ic_items]
-                p_vals  = [x[2] for x in ic_items]
-                sig_marks = ["**" if p < 0.05 else ("*" if p < 0.10 else "") for p in p_vals]
-                colors = ["#00B894" if v > 0 else "#D63031" for v in ic_vals]
-
-                fig_ic = go.Figure(go.Bar(
-                    x=factors, y=ic_vals, marker_color=colors,
-                    text=[f"{v:+.4f}{s}" for v, s in zip(ic_vals, sig_marks)],
-                    textposition="outside",
+            if z_data:
+                fig_hm = go.Figure(go.Heatmap(
+                    z=z_data,
+                    x=date_labels,
+                    y=[HZ_META[h][0] for h in hz_list],
+                    colorscale="RdYlGn", zmid=0,
+                    text=[[f"{v:+.1f}%" for v in row] for row in z_data],
+                    texttemplate="%{text}",
+                    colorbar=dict(title="收益%", thickness=12),
                 ))
-                fig_ic.add_hline(y=0, line_dash="dot", line_color="#B2BEC3")
-                fig_ic.update_layout(
-                    title="因子 3月 IC（**=p<0.05，*=p<0.10）",
-                    height=320, margin=dict(t=40, b=80, l=10, r=10),
-                    yaxis_title="IC", xaxis=dict(tickangle=-30),
-                    plot_bgcolor="rgba(0,0,0,0)",
+                fig_hm.update_layout(
+                    height=200, margin=dict(t=10, b=40, l=60, r=20),
+                    xaxis=dict(tickfont_size=9),
                 )
-                st.plotly_chart(fig_ic, use_container_width=True)
+                st.plotly_chart(fig_hm, use_container_width=True)
+        else:
+            st.info("暂无数据。")
 
-                # AI 解读
-                if api_status and ic_items:
-                    try:
-                        top3 = {f: v for f, v, _ in ic_items[:3]}
-                        r = requests.post(
-                            f"{API_BASE}/api/analyze/chart",
-                            json={"title": "因子IC分析",
-                                  "data": {"top_factors": top3, "total": len(ic_items)},
-                                  "provider": st.session_state.provider},
-                            timeout=20,
-                        )
-                        c = r.json().get("commentary", "")
-                        if c:
-                            st.caption(f"🤖 {c}")
-                    except Exception:
-                        pass
-            else:
-                st.info("IC 数据不可用。")
+    # ── Tab3: 因子分析 ──────────────────────────────────────────────────────
+    with tab_ic:
+        try:
+            ic_data = load_ic_analysis()
+            cfg     = load_strategy_config()
+        except Exception:
+            ic_data, cfg = {}, {}
 
-        with tab3:
-            if not rpnl.empty:
-                col_p1, col_p2 = st.columns(2)
-                with col_p1:
-                    if "pnl_pct" in rpnl.columns:
-                        fig_hist = go.Figure(go.Histogram(
-                            x=rpnl["pnl_pct"] * 100, nbinsx=30,
-                            marker_color="#0984E3", opacity=0.75,
-                        ))
-                        mean_pnl = float(rpnl["pnl_pct"].mean()) * 100
-                        fig_hist.add_vline(x=mean_pnl, line_dash="dash",
-                                           line_color="#D63031",
-                                           annotation_text=f"均值{mean_pnl:+.2f}%")
-                        fig_hist.update_layout(
-                            title=f"PnL 分布（{len(rpnl)} 条）",
-                            height=300, margin=dict(t=40, b=40),
-                            xaxis_title="收益率(%)", plot_bgcolor="rgba(0,0,0,0)",
-                        )
-                        st.plotly_chart(fig_hist, use_container_width=True)
-                with col_p2:
-                    win_rate = float((rpnl["pnl_pct"] > 0).mean()) * 100 if "pnl_pct" in rpnl.columns else 0
-                    mean_win = float(rpnl[rpnl["pnl_pct"] > 0]["pnl_pct"].mean()) * 100 if "pnl_pct" in rpnl.columns else 0
-                    mean_loss = float(rpnl[rpnl["pnl_pct"] < 0]["pnl_pct"].mean()) * 100 if "pnl_pct" in rpnl.columns else 0
-                    st.metric("记录总数", f"{len(rpnl)} 条")
-                    st.metric("胜率", f"{win_rate:.1f}%")
-                    st.metric("平均盈利", f"{mean_win:+.2f}%")
-                    st.metric("平均亏损", f"{mean_loss:+.2f}%")
-                    if win_rate > 0 and mean_loss != 0:
-                        profit_factor = abs(mean_win * win_rate / (mean_loss * (100 - win_rate)))
-                        st.metric("盈亏比", f"{profit_factor:.2f}x")
-            else:
-                st.info("PnL 数据不可用。")
+        ic_final = ic_data.get("ic_final_picks", {})
+        if ic_final:
+            # IC 柱状图
+            items = [
+                (k, v.get("ic_3m") or 0, v.get("p_3m") or 1)
+                for k, v in ic_final.items()
+                if v.get("ic_3m") is not None
+            ]
+            items.sort(key=lambda x: x[1], reverse=True)
+            factors   = [x[0] for x in items]
+            ic_vals   = [x[1] for x in items]
+            sig_marks = ["**" if x[2]<0.05 else ("*" if x[2]<0.10 else "") for x in items]
+            colors    = ["#00B894" if v > 0 else "#D63031" for v in ic_vals]
 
-        with tab4:
-            s2_updates = cfg.get("system2_updates", {})
-            new_weights = s2_updates.get("weights_calibrated",
-                {"value": 0.242, "momentum": 0.223, "quality": 0.333, "technical": 0.202})
-            cur_weights = s2_updates.get("weights_previous",
-                {"value": 0.30, "momentum": 0.25, "quality": 0.25, "technical": 0.20})
+            fig_ic = go.Figure(go.Bar(
+                x=factors, y=ic_vals, marker_color=colors,
+                text=[f"{v:+.4f}{s}" for v, s in zip(ic_vals, sig_marks)],
+                textposition="outside",
+            ))
+            fig_ic.add_hline(y=0, line_dash="dot", line_color="rgba(178,190,195,0.5)")
+            fig_ic.update_layout(
+                title="因子 3月 IC（**=p<0.05，*=p<0.10）",
+                height=300, margin=dict(t=40, b=90, l=10, r=10),
+                yaxis_title="Spearman IC",
+                xaxis=dict(tickangle=-35, tickfont_size=10),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_ic, use_container_width=True)
 
-            DIM_LABELS = {"value": "价值", "momentum": "动量",
-                          "quality": "质量", "technical": "技术"}
-            DIM_COLORS = {"value": "#FDCB6E", "momentum": "#E17055",
-                          "quality": "#00B894", "technical": "#74B9FF"}
+            if api_ok:
+                top3 = {f: v for f, v, _ in items[:3]}
+                commentary = call_analyze_chart("因子IC分析", {"top_factors": top3}, provider)
+                if commentary:
+                    st.caption(f"🤖 **AI解读**：{commentary}")
 
-            col_w1, col_w2 = st.columns(2)
-            with col_w1:
-                st.markdown("**v1 权重（启发式）**")
-                fig_cur = go.Figure(go.Pie(
-                    labels=[DIM_LABELS[k] for k in cur_weights],
-                    values=list(cur_weights.values()), hole=0.5,
-                    marker_colors=[DIM_COLORS[k] for k in cur_weights],
-                ))
-                fig_cur.update_layout(height=220, margin=dict(t=0, b=0, l=0, r=0))
-                st.plotly_chart(fig_cur, use_container_width=True)
+            # System2 权重对比
+            st.markdown("**⚖️ System2 权重（v1 vs v2校准）**")
+            s2 = cfg.get("system2_updates", {})
+            cur = s2.get("weights_previous", {"value":0.30,"momentum":0.25,"quality":0.25,"technical":0.20})
+            new = s2.get("weights_calibrated", {"value":0.242,"momentum":0.223,"quality":0.333,"technical":0.202})
+            DIM = {"value":"价值","momentum":"动量","quality":"质量","technical":"技术"}
+            COLS_DIM = {"value":"#FDCB6E","momentum":"#E17055","quality":"#00B894","technical":"#74B9FF"}
 
-            with col_w2:
-                st.markdown("**v2 权重（IC 驱动校准）**")
-                fig_new = go.Figure(go.Pie(
-                    labels=[DIM_LABELS[k] for k in new_weights],
-                    values=list(new_weights.values()), hole=0.5,
-                    marker_colors=[DIM_COLORS[k] for k in new_weights],
-                ))
-                fig_new.update_layout(height=220, margin=dict(t=0, b=0, l=0, r=0))
-                st.plotly_chart(fig_new, use_container_width=True)
+            fig_w = go.Figure()
+            fig_w.add_trace(go.Bar(
+                name="v1启发式",
+                x=[DIM[k] for k in cur], y=[v*100 for v in cur.values()],
+                marker_color="rgba(178,190,195,0.6)",
+            ))
+            fig_w.add_trace(go.Bar(
+                name="v2 IC校准",
+                x=[DIM[k] for k in new], y=[v*100 for v in new.values()],
+                marker_color=[COLS_DIM[k] for k in new],
+            ))
+            fig_w.update_layout(
+                barmode="group", height=260,
+                margin=dict(t=10, b=40, l=40, r=10),
+                yaxis_title="权重(%)",
+                legend=dict(orientation="h", y=1.05),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_w, use_container_width=True)
+        else:
+            st.info("IC 数据不可用，请先运行「IC优化分析」。")
 
-            # 权重变化表
-            weight_rows = []
-            for k in cur_weights:
-                delta = new_weights.get(k, 0) - cur_weights[k]
-                weight_rows.append({
-                    "维度": DIM_LABELS[k],
-                    "v1权重": f"{cur_weights[k]*100:.1f}%",
-                    "v2权重": f"{new_weights.get(k,0)*100:.1f}%",
-                    "变化":   f"{delta*100:+.1f}pp",
-                    "方向":   "⬆️" if delta > 0 else "⬇️",
-                })
-            st.dataframe(pd.DataFrame(weight_rows), hide_index=True, use_container_width=True)
-
-            # AI 解读
-            if api_status:
-                try:
-                    r = requests.post(
-                        f"{API_BASE}/api/analyze/chart",
-                        json={"title": "System2权重校准",
-                              "data": {"v1": cur_weights, "v2": new_weights},
-                              "provider": st.session_state.provider},
-                        timeout=20,
+    # ── Tab4: 执行历史 ──────────────────────────────────────────────────────
+    with tab_history:
+        history = st.session_state.exec_history
+        if not history:
+            st.info("本次会话尚未执行任何命令，在左侧点击操作按钮开始。")
+        else:
+            # 倒序显示
+            for rec in reversed(history):
+                icon = "✅" if rec["success"] else "❌"
+                with st.expander(
+                    f"{icon} {rec['ts']}  {rec['label']}  ({rec['elapsed']:.1f}s)",
+                    expanded=False,
+                ):
+                    if rec.get("ai_text"):
+                        st.markdown(f"**🤖 AI解读：** {rec['ai_text']}")
+                        st.divider()
+                    st.code(
+                        rec["output"][-3000:] if len(rec["output"]) > 3000 else rec["output"],
+                        language="text",
                     )
-                    c = r.json().get("commentary", "")
-                    if c:
-                        st.caption(f"🤖 {c}")
-                except Exception:
-                    pass
-    else:
-        st.info("暂无模拟数据。请先运行「30日全A股模拟」。")
+
+            # 汇总统计
+            st.divider()
+            total   = len(history)
+            success = sum(1 for r in history if r["success"])
+            st.markdown(f"**本次会话**：共执行 {total} 次 · 成功 {success} 次 · 失败 {total-success} 次")
