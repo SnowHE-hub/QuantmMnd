@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 PYTHON = "/home/lenovo/miniforge3/envs/quantmind/bin/python"
-ROOT   = Path(__file__).resolve().parents[4]
+ROOT   = Path(__file__).resolve().parents[3]   # quantmind/
 
 # ── 命令注册表（只注册实际存在的脚本）────────────────────────────────────────
 COMMANDS: dict[str, dict] = {
