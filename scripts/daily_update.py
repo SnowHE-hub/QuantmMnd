@@ -117,6 +117,55 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+_CHAMPION_MODEL_PATH = _ROOT / "models" / "lgbm_v6_alpha.pkl"
+_CHAMPION_META_PATH  = _ROOT / "models" / "lgbm_v6_alpha.meta.json"
+_EXPECTED_FEATURES   = 38
+_EXPECTED_DIRECTION  = 1
+
+
+def _sanity_check_champion_model() -> None:
+    """启动时校验冠军模型完整性，任一项不通过立即 raise RuntimeError."""
+    import pickle
+
+    errors: list[str] = []
+
+    if not _CHAMPION_MODEL_PATH.exists():
+        raise RuntimeError(f"[SanityCheck] 冠军模型文件不存在: {_CHAMPION_MODEL_PATH}")
+
+    try:
+        with open(_CHAMPION_MODEL_PATH, "rb") as _f:
+            _m = pickle.load(_f)
+        direction = getattr(_m, "direction", None)
+        n_features = len(getattr(_m, "_feature_names", None) or [])
+        if direction != _EXPECTED_DIRECTION:
+            errors.append(f"direction={direction}（期望 {_EXPECTED_DIRECTION}）")
+        if n_features != _EXPECTED_FEATURES:
+            errors.append(f"特征数量={n_features}（期望 {_EXPECTED_FEATURES}）")
+    except Exception as _e:
+        raise RuntimeError(f"[SanityCheck] 无法加载冠军模型: {_e}") from _e
+
+    if _CHAMPION_META_PATH.exists():
+        try:
+            _meta = json.loads(_CHAMPION_META_PATH.read_text(encoding="utf-8"))
+            ic_mean = _meta.get("ic_mean")
+            if ic_mean is None or float(ic_mean) <= 0:
+                errors.append(f"meta.ic_mean={ic_mean}（期望 >0）")
+        except Exception as _e:
+            errors.append(f"meta.json 解析失败: {_e}")
+    else:
+        errors.append("meta.json 不存在，无法验证 ic_mean")
+
+    if errors:
+        msg = "冠军模型完整性校验失败：" + "；".join(errors)
+        logger.error(f"[SanityCheck] ❌ {msg}")
+        raise RuntimeError(msg)
+
+    logger.info(
+        f"[SanityCheck] ✅ 冠军模型校验通过 "
+        f"(direction={_EXPECTED_DIRECTION}, features={n_features}, ic_mean={ic_mean:.4f})"
+    )
+
+
 def _snapshot_has_usable_cache(as_of: date) -> bool:
     """本地是否有可用的快照价格文件（下载失败时降级继续）."""
     from quantmind.core.config import get_settings
@@ -931,6 +980,13 @@ def main() -> int:
     logger.info(f"{'='*60}")
     logger.info(f"QuantMind 每日更新流水线 — 目标日期={_date_str}")
     logger.info(f"{'='*60}")
+
+    # ── 冠军模型完整性校验（优先于一切业务逻辑）────────────────────────────
+    try:
+        _sanity_check_champion_model()
+    except RuntimeError as _e:
+        logger.error(f"[SanityCheck] 流水线中止：{_e}")
+        return 1
 
     if _today_calendar_skip_non_trading(args):
         return 0

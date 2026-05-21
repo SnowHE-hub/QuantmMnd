@@ -50,6 +50,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from filelock import FileLock
 from scipy import stats
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -68,11 +69,17 @@ except ImportError:
 # 常量
 # ─────────────────────────────────────────────────────────────────────────────
 
-IC_MARGIN      = -0.003   # challenger IC 只需不比 champion 差 0.003 以上
-IC_MIN         = -0.02    # challenger IC 至少不能明显为负（-0.02 容忍噪声）
-ICIR_MIN       = -0.5     # 多期 ICIR 底线
-LABEL_COL      = "forward_return_63d"
-MIN_STOCKS     = 30
+IC_MARGIN         = -0.003   # challenger IC 只需不比 champion 差 0.003 以上
+IC_MIN            = -0.02    # challenger IC 至少不能明显为负（-0.02 容忍噪声）
+IC_MIN_PROMOTE    = 0.0      # 晋升门禁：有效 IC 必须严格为正
+ICIR_MIN          = -0.5     # 多期 ICIR 底线
+DIRECTION_REQUIRED = 1       # 生产冠军模型必须 direction=+1
+LABEL_COL         = "forward_return_63d"
+MIN_STOCKS        = 30
+
+
+class PromotionBlockedError(RuntimeError):
+    """晋升被门禁拦截：challenger 不符合生产要求."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -202,16 +209,61 @@ def promote(
     direction: int,
     dry_run: bool = False,
 ) -> dict:
-    """执行模型升级：备份旧 champion，将 challenger 写入生产路径."""
+    """执行模型升级：备份旧 champion，将 challenger 写入生产路径.
+
+    晋升门禁（以下任一不满足则抛出 PromotionBlockedError 并写入 lineage）：
+      1. challenger pkl 中 model.direction == DIRECTION_REQUIRED（+1）
+      2. 有效 IC 均值 > IC_MIN_PROMOTE（0.0）
+    """
+    lineage_path = champion_path.parent / "model_lineage.json"
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # ── 门禁校验 ─────────────────────────────────────────────────────────────
+    block_reasons: list[str] = []
+    model_direction: int | None = None
+    try:
+        with open(challenger_path, "rb") as _f:
+            _m = pickle.load(_f)
+        model_direction = getattr(_m, "direction", None)
+        if model_direction != DIRECTION_REQUIRED:
+            block_reasons.append(
+                f"model.direction={model_direction} (要求 {DIRECTION_REQUIRED})"
+            )
+    except Exception as _e:
+        block_reasons.append(f"无法加载 challenger pkl: {_e}")
+
+    challenger_ic = chall_eval.get("ic_mean")
+    if challenger_ic is None or challenger_ic <= IC_MIN_PROMOTE:
+        block_reasons.append(
+            f"有效 ic_mean={challenger_ic} <= {IC_MIN_PROMOTE}（必须严格为正）"
+        )
+
+    if block_reasons:
+        reason_str = "; ".join(block_reasons)
+        logger.warning(f"  ⛔ [晋升门禁] 拒绝 {challenger_tag}: {reason_str}")
+        blocked_record = {
+            "ts":                  ts,
+            "action":              "PROMOTE_BLOCKED",
+            "challenger_tag":      challenger_tag,
+            "challenger_path":     str(challenger_path),
+            "challenger_ic":       challenger_ic,
+            "challenger_direction": model_direction,
+            "reason":              reason_str,
+        }
+        if not dry_run:
+            _lineage: list[dict] = []
+            if lineage_path.exists():
+                _lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
+            _lineage.append(blocked_record)
+            lineage_path.write_text(
+                json.dumps(_lineage, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        raise PromotionBlockedError(reason_str)
+
+    # ── 门禁通过，构造晋升记录 ────────────────────────────────────────────────
     archive_dir = champion_path.parent / "archive"
     archive_dir.mkdir(exist_ok=True)
     archive_path = archive_dir / f"lgbm_{ts}_{champion_path.stem}.pkl"
-
-    lineage_path = champion_path.parent / "model_lineage.json"
-    lineage: list[dict] = []
-    if lineage_path.exists():
-        lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
 
     record = {
         "ts":                ts,
@@ -220,44 +272,46 @@ def promote(
         "challenger_path":   str(challenger_path),
         "champion_path":     str(champion_path),
         "archive_path":      str(archive_path),
-        "challenger_ic":     chall_eval.get("ic_mean"),
+        "challenger_ic":     challenger_ic,
         "champion_ic":       champ_eval.get("ic_mean"),
         "ic_delta":          (
-            round(chall_eval["ic_mean"] - (champ_eval.get("ic_mean") or 0), 6)
-            if chall_eval.get("ic_mean") is not None else None
+            round(challenger_ic - (champ_eval.get("ic_mean") or 0), 6)
+            if challenger_ic is not None else None
         ),
         "direction":         direction,
         "feature_cols":      feature_cols,
     }
 
-    if not dry_run:
-        # 备份旧 champion
-        shutil.copy2(champion_path, archive_path)
-        # 覆盖生产模型
-        shutil.copy2(challenger_path, champion_path)
-        # 更新 meta.json
-        meta_path = champion_path.with_suffix(".meta.json")
-        if meta_path.exists():
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    # ── 文件写入（持文件锁，防并发竞态）─────────────────────────────────────
+    lock_path = champion_path.with_suffix(".lock")
+    with FileLock(str(lock_path), timeout=30):
+        lineage: list[dict] = []
+        if lineage_path.exists():
+            lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
+
+        if not dry_run:
+            shutil.copy2(champion_path, archive_path)
+            shutil.copy2(challenger_path, champion_path)
+            meta_path = champion_path.with_suffix(".meta.json")
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            meta.update({
+                "promoted_at":    ts,
+                "challenger_tag": challenger_tag,
+                "ic_mean":        challenger_ic,
+                "ic_ir":          chall_eval.get("icir"),
+                "direction":      direction,
+                "feature_cols":   feature_cols,
+            })
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            lineage.append(record)
+            lineage_path.write_text(
+                json.dumps(lineage, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            logger.info(f"  ✅ 已备份旧 champion → {archive_path}")
+            logger.info(f"  ✅ 已写入新 champion → {champion_path}")
         else:
-            meta = {}
-        meta.update({
-            "promoted_at":   ts,
-            "challenger_tag": challenger_tag,
-            "ic_mean":       chall_eval.get("ic_mean"),
-            "ic_ir":         chall_eval.get("icir"),
-            "direction":     direction,
-            "feature_cols":  feature_cols,
-        })
-        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-        # 更新血统记录
-        lineage.append(record)
-        lineage_path.write_text(json.dumps(lineage, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info(f"  ✅ 已备份旧 champion → {archive_path}")
-        logger.info(f"  ✅ 已写入新 champion → {champion_path}")
-    else:
-        logger.info(f"  [DRY-RUN] 将备份 → {archive_path}")
-        logger.info(f"  [DRY-RUN] 将写入 → {champion_path}")
+            logger.info(f"  [DRY-RUN] 将备份 → {archive_path}")
+            logger.info(f"  [DRY-RUN] 将写入 → {champion_path}")
 
     return record
 
@@ -277,6 +331,7 @@ def run(
     champion_direction: int = -1,
     challenger_direction: int = -1,
     dry_run: bool = False,
+    challenger_feature_cols: list[str] | None = None,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -317,11 +372,16 @@ def run(
     challenger = _load_model(challenger_path)
 
     # ── 评估 ──────────────────────────────────────────────────────────────────
+    chall_fcols = challenger_feature_cols if challenger_feature_cols is not None else feature_cols
+
     logger.info("评估 champion...")
     champ_eval = evaluate_model(champion, panel, test_dates, feature_cols, champion_direction)
 
-    logger.info("评估 challenger...")
-    chall_eval = evaluate_model(challenger, panel, test_dates, feature_cols, challenger_direction)
+    if challenger_feature_cols is not None:
+        logger.info(f"评估 challenger（独立特征集，{len(chall_fcols)} 个特征）...")
+    else:
+        logger.info("评估 challenger...")
+    chall_eval = evaluate_model(challenger, panel, test_dates, chall_fcols, challenger_direction)
 
     # ── 决策 ──────────────────────────────────────────────────────────────────
     decision, reasons = decide(chall_eval, champ_eval)
@@ -346,16 +406,20 @@ def run(
     # ── 执行动作 ──────────────────────────────────────────────────────────────
     promote_record = None
     if decision == "PROMOTE":
-        promote_record = promote(
-            challenger_path=challenger_path,
-            champion_path=champion_path,
-            challenger_tag=challenger_tag,
-            chall_eval=chall_eval,
-            champ_eval=champ_eval,
-            feature_cols=feature_cols,
-            direction=challenger_direction,
-            dry_run=dry_run,
-        )
+        try:
+            promote_record = promote(
+                challenger_path=challenger_path,
+                champion_path=champion_path,
+                challenger_tag=challenger_tag,
+                chall_eval=chall_eval,
+                champ_eval=champ_eval,
+                feature_cols=feature_cols,
+                direction=challenger_direction,
+                dry_run=dry_run,
+            )
+        except PromotionBlockedError as _e:
+            logger.warning(f"  ⛔ 晋升被门禁拦截，实际决策降为 DISCARD: {_e}")
+            decision = "DISCARD"
 
     # ── 保存评估结果 ──────────────────────────────────────────────────────────
     ts = datetime.now().isoformat(timespec="seconds")
@@ -394,6 +458,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--panel",       type=Path, default=Path("data/panel/alpha_panel_v4.parquet"))
     p.add_argument("--features",    type=Path, default=Path("data/features/top_factors_v3_63d_flat.json"))
+    p.add_argument("--challenger-features", type=Path, default=None,
+                   help="challenger 独立特征文件（不同于 champion 特征集时使用）")
     p.add_argument("--champion",    type=Path, default=Path("models/lgbm_v6_alpha.pkl"))
     p.add_argument("--challenger",  type=Path, default=Path("reports/sequential_val/round_7/model.pkl"))
     p.add_argument("--challenger-tag", default="round7_2025q3")
@@ -425,6 +491,21 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(f"无法解析特征文件：{args.features}")
     feature_cols = [c for c in feature_cols if c in panel.columns]
 
+    # 独立 challenger 特征集（可选）
+    challenger_feature_cols: list[str] | None = None
+    if args.challenger_features and args.challenger_features.exists():
+        raw_c = json.loads(args.challenger_features.read_text(encoding="utf-8"))
+        if isinstance(raw_c, list):
+            challenger_feature_cols = raw_c
+        elif isinstance(raw_c, dict):
+            for key in ("feature_cols", "selected_factors", "factors", "features"):
+                if key in raw_c and isinstance(raw_c[key], list):
+                    challenger_feature_cols = raw_c[key]
+                    break
+        if challenger_feature_cols:
+            challenger_feature_cols = [c for c in challenger_feature_cols if c in panel.columns]
+            logger.info(f"Challenger 独立特征集: {len(challenger_feature_cols)} 个特征")
+
     run(
         panel=panel,
         feature_cols=feature_cols,
@@ -436,6 +517,7 @@ def main(argv: list[str] | None = None) -> None:
         champion_direction=args.champion_direction,
         challenger_direction=args.challenger_direction,
         dry_run=args.dry_run,
+        challenger_feature_cols=challenger_feature_cols,
     )
 
 
