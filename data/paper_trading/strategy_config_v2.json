@@ -117,6 +117,12 @@
     ],
     "recommendation": "家居/建筑/装修 sector 主导 3m 超额收益，建议行业偏向 weight 提升"
   },
+  "layer6_overweight": {
+    "overweight_industries": ["装修装饰", "建筑工程", "机械基件"],
+    "overweight_limit": 5,
+    "default_limit": 3,
+    "rationale": "30日模拟 Top3 贡献行业，3m 超额收益显著（装修+252%/建筑+119%/机械+58%）"
+  },
   "meta_learner_update": {
     "current_realized_pnl_size": "~80 条",
     "after_expansion": "~380 条 (30天×10只)",

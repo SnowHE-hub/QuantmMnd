@@ -419,11 +419,36 @@ class FeatureBuilder:
 
 # ─── 三系统实现 ───────────────────────────────────────────────────────────────
 
+_STRATEGY_CONFIG_V2 = _ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+
+
+def _load_layer6_overweight_config() -> tuple[list[str], int, int]:
+    """从 strategy_config_v2.json 读取 Layer6 超配参数.
+
+    Returns:
+        (overweight_industries, overweight_limit, default_limit)
+    """
+    try:
+        cfg = json.loads(_STRATEGY_CONFIG_V2.read_text(encoding="utf-8"))
+        ow = cfg.get("layer6_overweight", {})
+        return (
+            ow.get("overweight_industries", []),
+            int(ow.get("overweight_limit", 5)),
+            int(ow.get("default_limit", 3)),
+        )
+    except Exception:
+        return [], 5, 3
+
+
 class SelectionSystem:
     """系统1：6层筛选漏斗，全A→15只候选."""
 
     def __init__(self, stock_basic: pd.DataFrame):
         self.stock_basic = stock_basic.set_index("ts_code")
+        ow_inds, ow_limit, default_limit = _load_layer6_overweight_config()
+        self._ow_industries: set[str] = set(ow_inds)
+        self._ow_limit: int = ow_limit
+        self._default_limit: int = default_limit
 
     def run(self, as_of: pd.Timestamp, factor_df: pd.DataFrame,
             model, top_n: int = 15) -> pd.DataFrame:
@@ -521,14 +546,20 @@ class SelectionSystem:
             df = df.sort_values("lgbm_score", ascending=False).head(50)
         logger.info(f"  Layer5 LGBM:     → {len(df)}")
 
-        # Layer 6: 行业分散 → Top N（每个行业最多 3 只）
+        # Layer 6: 行业分散 → Top N（超配行业最多 overweight_limit 只，其余 default_limit 只）
+        if self._ow_industries:
+            logger.info(
+                f"  [Layer6] 超配通道: {sorted(self._ow_industries)} 上限={self._ow_limit}，"
+                f"其他行业上限={self._default_limit}"
+            )
         if "industry" in self.stock_basic.columns:
             df["industry"] = self.stock_basic["industry"].reindex(df.index)
             selected = []
             industry_count: Dict[str, int] = {}
             for ticker, row in df.iterrows():
                 ind = row.get("industry", "其他") or "其他"
-                if industry_count.get(ind, 0) < 3:
+                limit = self._ow_limit if ind in self._ow_industries else self._default_limit
+                if industry_count.get(ind, 0) < limit:
                     selected.append(ticker)
                     industry_count[ind] = industry_count.get(ind, 0) + 1
                 if len(selected) >= top_n:
