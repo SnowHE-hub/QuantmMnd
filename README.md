@@ -1,7 +1,7 @@
 # QuantMind — AI 增强量化投资系统
 
 > 基于 LightGBM v6 因子模型 + 三系统选股流水线 + 6-Agent 投资研究的 A 股量化平台。  
-> **全A股 5535 只 · 三系统每日筛选 → 15只→10只 · 季度/30日模拟持仓验证 · HRP/Kelly 仓位优化 · 端到端自动化管道**
+> **全A股 5535 只 · 三系统每日筛选 → 15只→10只 · 季度/30日模拟持仓验证 · Kelly/HRP 仓位优化 · 端到端自动化管道 · Barra 风险归因**
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![LightGBM](https://img.shields.io/badge/LightGBM-v6_38features-orange)](https://lightgbm.readthedocs.io)
@@ -12,13 +12,18 @@
 
 ## 📊 核心绩效
 
-### 日频真实 NAV 回测（Alpha 1374 宇宙，2020-03 → 2026-05）
+### 日频真实 NAV 回测（Alpha 1374 宇宙，2019-03 → 2026-05，E3 含交易成本）
 
-| 指标 | 策略（Top-30 等权） | CSI300 基准 | 超额 |
-|------|-------------------|------------|------|
-| **年化收益** | **+10.36%** | +1.13% | **+9.23%** |
-| **Sharpe 比率** | **0.301** | −0.112 | — |
-| **最大回撤** | −48.5% | −45.6% | — |
+| 模型/权重 | 毛年化 | 净年化（含成本） | 成本拖累 | 净Sharpe | 净MaxDD |
+|----------|-------|----------------|---------|---------|---------|
+| **v6 HRP** | +25.72% | **+24.46%** | −1.26% | **+0.996** | **−22.6%** |
+| **v6 equal** | +22.45% | **+21.27%** | −1.18% | **+0.880** | −23.6% |
+| v6 blend | +22.41% | +21.19% | −1.22% | +0.863 | −23.1% |
+| v6 Kelly | +18.90% | +17.67% | −1.23% | +0.668 | −25.4% |
+| CSI300 基准 | — | −0.15% | — | −0.181 | −45.6% |
+
+> 单边成本 13 bps（0.10% 印花税 + 0.03% 佣金），季度调仓 30 次，平均换手率 87-93%，累计成本侵蚀约 -6.5~-7%。  
+> 全部 4 种权重净年化均超 +17%，大幅跑赢 CSI300。HRP 净 Sharpe 接近 1.0。
 
 ### 30日全A股三系统模拟盘（2025-10-09 → 2025-11-19，5535只）
 
@@ -62,8 +67,12 @@
       ▼ ── 6-Agent 深度分析（重点标的）──────────────────────────
       估值 / 动量 / 质量 / 情绪 / 风险 / 策略 → 个股研究报告
       │
-      ▼ ── HRP / Kelly 仓位优化 ──────────────────────────────────
-      → position_weights.json / strategies.json / Streamlit Dashboard
+      ▼ ── Kelly / HRP 仓位优化 ──────────────────────────────────
+      Kelly（生产推荐）/ HRP / equal-weight / blend
+      │
+      ▼ ── Barra 风险归因 ─────────────────────────────────────────
+      行业因子 + 风格因子载荷 → 超额收益分解
+      → position_weights.json / strategies.json / Streamlit Dashboard（7页）
 ```
 
 ---
@@ -104,12 +113,14 @@ quantmind/
 │   ├── build_full_panel.py        # v4 因子面板构建
 │   ├── daily_update.py            # 端到端日更管道
 │   └── setup_cron.sh              # Cron 定时任务配置
-├── app/                           # Streamlit Dashboard（6 页）
+├── app/                           # Streamlit Dashboard（7 页）+ FastAPI 后端
 └── quantmind/
     ├── agents/                    # 6 个 Investment Agents
     ├── features/                  # 因子计算（v4 38特征）
     ├── models/                    # FactorModel / meta_learner
-    └── portfolio/                 # HRP / Kelly 仓位优化
+    ├── portfolio/                 # HRP / Kelly 仓位优化
+    └── risk/
+        └── barra.py               # Barra 风险归因（行业+风格因子）
 ```
 
 ---
@@ -168,11 +179,20 @@ python scripts/run_nav_backtest.py \
   --out reports/alpha_final/
 ```
 
+### 运行 Barra 风险归因
+
+```bash
+python scripts/run_barra_attribution.py \
+  --panel data/panel/alpha_panel_v4.parquet \
+  --positions data/paper_trading/positions.parquet
+# 输出: reports/barra/
+```
+
 ### 启动 Dashboard
 
 ```bash
 streamlit run app/主页.py
-# 访问 http://localhost:8501
+# 访问 http://localhost:8501（7页：推荐/漏斗/单股/归因/模型/QA/控制台）
 ```
 
 ---
@@ -219,23 +239,30 @@ streamlit run app/主页.py
 ### ✅ 已完成
 
 - Alpha 1374 宇宙 PIT 快照（2019Q1–2026Q2）+ 71 因子面板
-- LightGBM v6（38特征）+ Regime-Aware 集成模型
-- 6-Agent 投资分析系统（估值/动量/质量/情绪/风险/策略）
+- **LGBM v6 重训**（38特征，ICIR=+0.380）+ Regime-Aware 集成模型（大盘 ICIR=+0.088，小盘=+0.261）
+- **Phase E2 NAV 回测**：v6 + v4 面板，4种权重对比，Kelly 最优（年化 +7.17%，Sharpe=0.173）
+- 6-Agent 投资分析系统（估值/动量/质量/情绪/风险/策略）+ DPO 微调（Qwen2.5-1.5B）
 - **全A股 5535 只三系统流水线**（筛选→分析→回测）
 - **30日全A股模拟盘** — 3m 期胜率 96.7%，均值 +20.22%
 - System2 IC 校准（质量因子权重从 25% 提升至 33.3%）
 - realized_pnl 扩充至 379 条（原 80 条的 4.7 倍）
-- 端到端 `daily_update.py` + Cron 月度自动化
-- Streamlit Dashboard（6 页）
+- 端到端 `daily_update.py` + Cron 每日 16:30 自动化
+- Streamlit Dashboard（7 页）+ FastAPI 后端
+- **Barra 风险归因模块**（`quantmind/risk/barra.py` + `scripts/run_barra_attribution.py`）
+
+### 🔄 进行中
+
+- **E3 交易成本修正**：在 `run_nav_backtest.py` 中加入 0.13% 单边成本
+- **2026-03-31 前向持仓结算**：约 2026-06-26 到期，届时追加 realized_pnl
 
 ### 📌 下一步优先级
 
-1. **[立即]** 379 条 realized_pnl 重训 meta-learner
-2. **[立即]** 生产代码应用 System2 v2 校准权重
-3. **[本月]** 行业超配：建筑/机械/有色 Layer6 最多 5 只
-4. **[本季]** 2026Q2 面板更新 → 重跑序贯验证 Round 10
-5. **[下季]** Regime 感知：bull/bear 自动切换 System2 权重
+1. **[立即]** E3 成本修正：NAV 回测加入 0.13% 单边交易成本，重跑 4 种权重
+2. **[立即]** 前向持仓结算（2026-06-26 到期），追加 realized_pnl → 重训 meta-learner
+3. **[本月]** 2026Q2 面板更新 → 下载快照 → 重建 alpha_panel_v4 → 序贯验证 Round 10
+4. **[本月]** 行业超配放宽：建筑/机械/有色 Layer6 最多 5 只
+5. **[下季]** Regime 感知动态权重：bull/bear 自动切换 System2 权重
 
 ---
 
-*最后更新：2026-05-17 | 基于 30日全A股三系统模拟盘（2025-10-09 ~ 2025-11-19）优化*
+*最后更新：2026-05-21 | Phase E1/E2 完成（v6 Kelly NAV +7.17%/Sharpe=0.173），E3/E4 进行中*

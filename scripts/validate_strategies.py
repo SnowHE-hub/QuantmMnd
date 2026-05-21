@@ -297,11 +297,11 @@ def _determine_status(
 ) -> str:
     if rating == "回避":
         return "AVOID"
-    if expected_value < 0 or hit_stop > 0.4:
+    if expected_value < -0.005 or hit_stop > 0.5:
         return "AVOID"
-    if expected_value > 0.01 and win_rate > 0.5 and hit_stop < 0.3:
+    if expected_value > 0.005 and win_rate > 0.45 and hit_stop < 0.35:
         return "ACCEPTABLE"
-    if expected_value > 0 and win_rate > 0.45:
+    if expected_value > 0 and win_rate > 0.4:
         return "WATCHLIST"
     return "AVOID"
 
