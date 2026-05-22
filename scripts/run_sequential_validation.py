@@ -144,6 +144,17 @@ def _build_rounds(all_dates: list[pd.Timestamp]) -> list[dict]:
             "train_end": "2025-09-30", "test_range": ("2025-10-01", "2025-12-31"),
             "note": "纳入 2025Q3 数据（2025 全年完整验证）",
         },
+        # Round 8-9: 2026 数据逐步喂入
+        {
+            "id": 8, "name": "2025Q4→2026Q1",
+            "train_end": "2025-12-31", "test_range": ("2026-01-01", "2026-03-31"),
+            "note": "首次纳入 2026 数据（2025 全年完整训练）",
+        },
+        {
+            "id": 9, "name": "2026Q1→Q2",
+            "train_end": "2026-03-31", "test_range": ("2026-04-01", "2026-06-30"),
+            "note": "纳入 2026Q1 数据（2026H1 完整验证）",
+        },
     ]
 
     result = []
@@ -590,7 +601,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--out", type=Path,
                    default=Path("reports/sequential_val/"))
     p.add_argument("--start-round", type=int, default=0)
-    p.add_argument("--end-round",   type=int, default=7)
+    p.add_argument("--end-round",   type=int, default=9)
+    p.add_argument("--label-col", type=str, default=None,
+                   help="覆盖 LABEL_COL（默认 forward_return_63d）；"
+                        "2026 数据建议改用 forward_return_21d")
     p.add_argument("--ic-threshold", type=float, default=IC_WATCHLIST,
                    help="IC 告警阈值（默认 0.015）")
     p.add_argument("--n-estimators", type=int, default=400)
@@ -644,6 +658,15 @@ def main(argv: list[str] | None = None) -> None:
         "learning_rate": args.learning_rate,
         "early_stopping_rounds": 50,
     }
+
+    # 支持 --label-col 覆盖全局 LABEL_COL
+    if args.label_col:
+        import quantmind  # noqa: F401 (side-effect-free import guard)
+        import scripts.run_sequential_validation as _self
+        _self.LABEL_COL = args.label_col
+        global LABEL_COL
+        LABEL_COL = args.label_col
+        logger.info(f"[SeqVal] 覆盖 LABEL_COL → {LABEL_COL}")
 
     run_validation(
         panel=panel,

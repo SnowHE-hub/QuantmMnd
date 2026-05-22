@@ -1,0 +1,17 @@
+{
+  "fitted": true,
+  "n_samples": 29,
+  "n_dates": 3,
+  "train_r2": 0.131,
+  "ridge_alpha": 1.0,
+  "agent_weights": {
+    "valuation": -0.088495,
+    "momentum": -0.04971,
+    "quality": 0.032511,
+    "sentiment": -0.317414,
+    "risk": -0.192914,
+    "strategy": 0.318956
+  },
+  "top_agent": "strategy",
+  "trained_at": "2026-05-16T22:21:15"
+}

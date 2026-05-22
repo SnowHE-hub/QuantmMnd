@@ -43,6 +43,13 @@ from quantmind.features.sentiment import (
     SENTIMENT_FACTORS,
     compute_all_sentiment_factors,
 )
+from quantmind.features.text_sentiment import (
+    TEXT_SENTIMENT_FACTORS,
+    build_ann_sentiment_factor,
+    compute_ic as text_sentiment_ic,
+    run_full_pipeline as run_text_sentiment_pipeline,
+    score_announcements,
+)
 from quantmind.features.standardize import (
     cross_section_rank,
     cross_section_zscore,
@@ -66,6 +73,11 @@ from quantmind.features.utils import (
 
 __all__ = [
     "ALL_FACTOR_GROUPS",
+    "TEXT_SENTIMENT_FACTORS",
+    "build_ann_sentiment_factor",
+    "run_text_sentiment_pipeline",
+    "score_announcements",
+    "text_sentiment_ic",
     "CATEGORICAL_EXPOSURE_FIELDS",
     "EXPANSION_FACTORS",
     "FUNDAMENTAL_FACTORS",

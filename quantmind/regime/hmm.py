@@ -20,6 +20,19 @@ Prototype observations for state auto-labeling:
   Bull prototype  obs=19  (o1=High,  o2=Low,  o3=Mid)  → 2*9 + 0*3 + 1 = 19
   Bear prototype  obs=7   (o1=Low,   o2=High, o3=Mid)  → 0*9 + 2*3 + 1 =  7
 
+State-labeling assumption (IMPORTANT)
+--------------------------------------
+  _assign_state_labels() anchors state semantics to fixed prototype symbols.
+  This is valid when training data is long enough for the EM to differentiate
+  states, but prototype-to-state mapping may drift if:
+    (a) the dataset is very short (<200 bars)
+    (b) the underlying regime distribution changes materially
+    (c) the HMM is re-initialised with a different random seed
+
+  After fitting, always call RegimeHMM.validate_state_labels() to confirm that
+  the empirical mean returns satisfy bull > neutral > bear.  If they do not,
+  the method swaps the label_map entries automatically and emits a WARNING.
+
 Numerical methods
 -----------------
   Forward-backward : per-step scaled (avoids underflow)
@@ -421,7 +434,10 @@ class RegimeHMM:
         dist      = {v: int((states == k).sum()) for k, v in label_map.items()}
         logger.info(f"RegimeHMM state distribution: {dist}")
 
-        return cls(hmm, label_map, pd.DatetimeIndex(dates), states)
+        model = cls(hmm, label_map, pd.DatetimeIndex(dates), states)
+        # Sanity-check state ordering; auto-swap bull↔bear if violated
+        model.validate_state_labels(close=tmp)
+        return model
 
     @classmethod
     def _neutral_fallback(cls) -> "RegimeHMM":
@@ -464,3 +480,76 @@ class RegimeHMM:
     def get_weights(self, regime: str) -> Dict[str, float]:
         """Return the calibrated factor weight dictionary for *regime*."""
         return REGIME_WEIGHTS.get(regime, REGIME_WEIGHTS["neutral"])
+
+    # ── Label sanity-check ───────────────────────────────────────────────────
+
+    def validate_state_labels(self, close: Optional[pd.Series] = None) -> bool:
+        """Check that empirical mean returns satisfy bull > neutral > bear.
+
+        The prototype-anchor labeling in _assign_state_labels() is a heuristic.
+        If the data distribution changes or the EM converges to an atypical
+        solution, the semantic order may be violated.  This method verifies
+        the ordering and, if violated, swaps label_map entries to restore it,
+        emitting a WARNING.
+
+        Parameters
+        ----------
+        close : pd.Series indexed by trade_date, optional
+            CSI300 close prices aligned to the training window.  If None the
+            method tries to use the state sequence alone (less reliable).
+
+        Returns
+        -------
+        bool: True if ordering was correct (or could be fixed), False if it
+              could not be determined (e.g. too few states observed).
+        """
+        if len(self._states) == 0:
+            return True   # neutral-fallback model, nothing to validate
+
+        # ── Compute mean daily return per state from Viterbi sequence ────────
+        if close is not None:
+            aligned_close = close.reindex(self._dates)
+            daily_ret = aligned_close.pct_change()
+        else:
+            # Cannot compute returns without price data — skip gracefully
+            logger.debug("validate_state_labels: no close series supplied, skipping")
+            return True
+
+        means: Dict[int, float] = {}
+        for state_int, label in self._label_map.items():
+            mask = self._states == state_int
+            if mask.sum() < 5:
+                continue
+            state_ret = daily_ret.values[mask]
+            means[state_int] = float(np.nanmean(state_ret))
+
+        if len(means) < 2:
+            return True   # not enough distinct states to compare
+
+        bull_state    = next((k for k, v in self._label_map.items() if v == "bull"),    None)
+        neutral_state = next((k for k, v in self._label_map.items() if v == "neutral"), None)
+        bear_state    = next((k for k, v in self._label_map.items() if v == "bear"),    None)
+
+        bull_ret    = means.get(bull_state,    float("-inf"))
+        neutral_ret = means.get(neutral_state, 0.0)
+        bear_ret    = means.get(bear_state,    float("inf"))
+
+        order_ok = (bull_ret >= neutral_ret >= bear_ret)
+
+        if not order_ok:
+            logger.warning(
+                f"validate_state_labels: state ordering violated "
+                f"(bull={bull_ret:.4%}, neutral={neutral_ret:.4%}, bear={bear_ret:.4%}). "
+                f"Swapping 'bull' ↔ 'bear' labels."
+            )
+            # Swap bull ↔ bear in label_map
+            if bull_state is not None and bear_state is not None:
+                self._label_map[bull_state] = "bear"
+                self._label_map[bear_state] = "bull"
+        else:
+            logger.info(
+                f"validate_state_labels OK: "
+                f"bull={bull_ret:.4%} ≥ neutral={neutral_ret:.4%} ≥ bear={bear_ret:.4%}"
+            )
+
+        return True

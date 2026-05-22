@@ -1,0 +1,29 @@
+{
+  "version": "v2",
+  "fitted": true,
+  "n_samples": 450,
+  "features": [
+    "composite_score",
+    "value_score",
+    "momentum_score",
+    "quality_score",
+    "technical_score",
+    "lgbm_score",
+    "hist_win_rate",
+    "hist_sharpe"
+  ],
+  "train_r2": 0.0343,
+  "cv_r2": -0.0133,
+  "ridge_alpha": 1.0,
+  "coefficients": {
+    "composite_score": 0.015881,
+    "value_score": -0.02536,
+    "momentum_score": 0.006039,
+    "quality_score": 0.050788,
+    "technical_score": -0.000104,
+    "lgbm_score": 0.016109,
+    "hist_win_rate": 0.027793,
+    "hist_sharpe": -0.04167
+  },
+  "trained_at": "2026-05-22T13:37:54"
+}
