@@ -647,9 +647,33 @@ class AnalysisSystem:
 class BacktestSystem:
     """系统3：历史胜率验证 + 风险评估 → 最终可投名单."""
 
-    def __init__(self, prices: pd.DataFrame):
+    SHARPE_THRESH_BULL   = 0.5   # Bull Regime 下的 hist_sharpe 最低阈值
+    SHARPE_THRESH_NORMAL = 1.0   # 其他情况下的 hist_sharpe 最低阈值
+    BULL_CSI300_20D      = 0.05  # CSI300 近 20 日涨幅 > 5% 判定 Bull Regime
+
+    def __init__(self, prices: pd.DataFrame, csi300: pd.DataFrame | None = None):
         self._close = prices.pivot_table(
             index="trade_date", columns="ts_code", values="close", aggfunc="last").sort_index()
+        self._csi300: pd.Series | None = None
+        if csi300 is not None and not csi300.empty:
+            col = "close" if "close" in csi300.columns else csi300.columns[0]
+            idx = csi300.get("trade_date", csi300.index)
+            self._csi300 = csi300.set_index("trade_date")[col].sort_index() if "trade_date" in csi300.columns \
+                else csi300[col].sort_index()
+
+    def _is_bull_regime(self, as_of: pd.Timestamp) -> bool:
+        """判断当前是否 Bull Regime：CSI300 近 20 日涨幅 > BULL_CSI300_20D."""
+        if self._csi300 is None:
+            return False
+        hist = self._csi300[self._csi300.index <= as_of]
+        if len(hist) < 21:
+            return False
+        ret_20d = float(hist.iloc[-1] / hist.iloc[-21] - 1)
+        return ret_20d > self.BULL_CSI300_20D
+
+    def sharpe_thresh(self, as_of: pd.Timestamp) -> float:
+        """返回当前 Regime 对应的 hist_sharpe 最低阈值（供测试直接验证）."""
+        return self.SHARPE_THRESH_BULL if self._is_bull_regime(as_of) else self.SHARPE_THRESH_NORMAL
 
     def validate(self, candidates: pd.DataFrame, as_of: pd.Timestamp,
                  lookback_days: int = 60) -> pd.DataFrame:
@@ -694,6 +718,15 @@ class BacktestSystem:
             bt_df = bt_df.set_index("ts_code")
         out = candidates.join(bt_df, how="left") if not bt_df.empty else candidates.copy()
 
+        # ── Regime 判断 + Sharpe 阈值 ────────────────────────────────────────
+        is_bull = self._is_bull_regime(as_of)
+        sharpe_thresh = self.SHARPE_THRESH_BULL if is_bull else self.SHARPE_THRESH_NORMAL
+        regime_label = "Bull" if is_bull else "Normal"
+        logger.info(
+            f"  [System3] Regime={regime_label}（CSI300 20日涨幅{'>' if is_bull else '≤'}"
+            f"{self.BULL_CSI300_20D:.0%}），hist_sharpe 阈值={sharpe_thresh}"
+        )
+
         # 风险等级
         def risk_level(row):
             if row.get("hist_maxdd", -1) < -0.30 or row.get("hist_sharpe", 0) < -0.5:
@@ -703,11 +736,12 @@ class BacktestSystem:
             return "低"
 
         out["risk_level"] = out.apply(risk_level, axis=1)
-        # 可投资判断：历史胜率 > 40%，最大回撤 > -35%，风险非极高
+        # 可投资判断：历史胜率 > 40%，最大回撤 > -35%，风险非极高，hist_sharpe >= 阈值
         out["investable"] = (
             (out["hist_win_rate"].fillna(0.4) >= 0.40) &
             (out["hist_maxdd"].fillna(-0.5) > -0.40) &
-            (out["risk_level"] != "高")
+            (out["risk_level"] != "高") &
+            (out["hist_sharpe"].fillna(0.0) >= sharpe_thresh)
         )
         logger.info(f"  回测验证: {out['investable'].sum()} / {len(out)} 只通过")
         return out.sort_values("composite_score", ascending=False)
@@ -816,7 +850,7 @@ def step_simulate(model_path: Path) -> pd.DataFrame:
     feat_builder = FeatureBuilder(prices_all, csi300_df, csi500_df)
     selector     = SelectionSystem(stock_basic)
     analyzer     = AnalysisSystem()
-    backtester   = BacktestSystem(prices_all)
+    backtester   = BacktestSystem(prices_all, csi300_df)
 
     HORIZONS = {"1w": 5, "2w": 10, "21d": 21, "3m": 63}
 
