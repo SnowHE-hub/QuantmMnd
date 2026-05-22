@@ -236,33 +236,56 @@ streamlit run app/主页.py
 
 ## 🗺️ 路线图
 
-### ✅ 已完成
+### ✅ 阶段 1 — 全部完成（2026-05-22）
 
+#### 核心基础设施
 - Alpha 1374 宇宙 PIT 快照（2019Q1–2026Q2）+ 71 因子面板
-- **LGBM v6 重训**（38特征，ICIR=+0.380）+ Regime-Aware 集成模型（大盘 ICIR=+0.088，小盘=+0.261）
-- **Phase E2 NAV 回测**：v6 + v4 面板，4种权重对比，Kelly 最优（年化 +7.17%，Sharpe=0.173）
-- 6-Agent 投资分析系统（估值/动量/质量/情绪/风险/策略）+ DPO 微调（Qwen2.5-1.5B）
+- **LGBM v6 重训**（38特征，ICIR=+0.380）+ Regime-Aware 集成模型
 - **全A股 5535 只三系统流水线**（筛选→分析→回测）
 - **30日全A股模拟盘** — 3m 期胜率 96.7%，均值 +20.22%
-- System2 IC 校准（质量因子权重从 25% 提升至 33.3%）
-- realized_pnl 扩充至 379 条（原 80 条的 4.7 倍）
-- 端到端 `daily_update.py` + Cron 每日 16:30 自动化
-- Streamlit Dashboard（7 页）+ FastAPI 后端
-- **Barra 风险归因模块**（`quantmind/risk/barra.py` + `scripts/run_barra_attribution.py`）
+- 6-Agent 投资分析系统 + DPO 微调（Qwen2.5-1.5B）
+- System2 IC 校准（质量因子权重 25%→33.3%）
+- **Phase E2/E3 NAV 回测**（含 13bps 成本）：HRP 净年化 +24.46%，Sharpe≈1.0
+- Barra 风险归因模块（`quantmind/risk/barra.py`）
+- Streamlit Dashboard（7 页）+ FastAPI 后端 + Cron 每日 16:30 自动化
 
-### 🔄 进行中
+#### 阶段 1 新增（本期完成）
+- ✅ **HMM Regime 检测器**（`quantmind/regime/hmm.py`）
+  - 3状态 HMM + 前向后向算法 + Viterbi 解码
+  - `validate_state_labels()` 自动校验 bull≥neutral≥bear 排序
+  - 原型锚定假设注释 + 31 项测试全通过
+- ✅ **文本情绪因子 `ann_sentiment_5d`**（`quantmind/features/text_sentiment.py`）
+  - Tushare `anns_d` 公告拉取（76,908条 / 5,523只股票）
+  - BERT（IDEA-CCNL/hw2942）→ 词典降级三级打分
+  - 5日滚动均值因子，29项测试全通过
+  - **实盘 IC = −0.131，p = 0.025，n = 294** ✅（负向：高情绪→均值回归）
+- ✅ **序贯验证扩展至 Round 8**（`scripts/run_sequential_validation.py`）
+  - Round 8（2025Q4→2026Q1）：IC=−0.146（21d标签），PROMOTE
+  - 新增 `--label-col` 参数，适配 2026 数据 63d 窗口不足问题
+- ✅ **Meta-Learner v2**（`scripts/train_meta_learner.py`）
+  - 根因诊断：v2-draft 误用 stock_returns（单一30日窗口，伪复制）
+  - 修正为 `realized_pnl × alpha_panel_v4 join`（n=100，8季度）
+  - 任务从回归改为**分类**（预测 `hit`：是否跑赢中位数）
+  - **LOQO CV AUC = 0.6025** ✅（近期季度 Q3=0.84，Q4=0.95）
+  - 关键发现：sentiment/momentum 代理分 IC 为负（反转效应）
 
-- **E3 交易成本修正**：在 `run_nav_backtest.py` 中加入 0.13% 单边成本
-- **2026-03-31 前向持仓结算**：约 2026-06-26 到期，届时追加 realized_pnl
+### 🔄 阶段 2 — 进行中
 
-### 📌 下一步优先级
+- 🔄 **2-A 研报因子**：基于 NLP 解析券商研报，构建 `analyst_revision_score`（评级上调/目标价变动/超预期词频）
+- 🔄 **2-B CNN 因子网络**：对 K线图像序列做卷积特征提取，捕捉形态信息
+- 🔄 **2-C Qlib SigAnaRecord**：接入 Qlib 信号分析框架，标准化因子 IC 报告体系
+- 🔄 **2-D EM 隐变量因子**：混合高斯 EM 聚类，发现隐含市场结构特征
+- 🔄 **2-E 表达式引擎**：遗传算法搜索因子组合表达式（Alphalens 风格）
 
-1. **[立即]** E3 成本修正：NAV 回测加入 0.13% 单边交易成本，重跑 4 种权重
-2. **[立即]** 前向持仓结算（2026-06-26 到期），追加 realized_pnl → 重训 meta-learner
-3. **[本月]** 2026Q2 面板更新 → 下载快照 → 重建 alpha_panel_v4 → 序贯验证 Round 10
-4. **[本月]** 行业超配放宽：建筑/机械/有色 Layer6 最多 5 只
-5. **[下季]** Regime 感知动态权重：bull/bear 自动切换 System2 权重
+### 📌 近期优先级
+
+1. **[2026-06-26]** 前向持仓结算 → 追加 realized_pnl → 重训 meta-learner v2
+   - 目标：n 从 100 → 110+，CV AUC 期望进一步提升
+   - 命令：`python scripts/train_meta_learner.py --pnl ... --panel ...`
+2. **[本月]** `ann_sentiment_5d` BERT 打分验证（transformer输出格式已修复，重跑可启用）
+3. **[本月]** 2026Q2 面板更新 + 序贯验证 Round 9 补跑（等21d标签充足后）
+4. **[下季]** 阶段 2 正式启动（2-A 研报因子优先级最高）
 
 ---
 
-*最后更新：2026-05-21 | Phase E1/E2 完成（v6 Kelly NAV +7.17%/Sharpe=0.173），E3/E4 进行中*
+*最后更新：2026-05-22 | 阶段 1 全部完成（v6 HRP 净年化+24.46%/Sharpe≈1.0 · HMM · ann_sentiment_5d IC=-0.131✅ · MetaLearner v2 AUC=0.60）*
