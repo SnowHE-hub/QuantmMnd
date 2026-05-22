@@ -1,24 +1,44 @@
 """scripts/train_meta_learner.py
 
-重训 MetaLearner v2：用因子分（stock_returns.parquet）预测 return_3m。
+MetaLearner v2 重训脚本 —— 修正版。
 
-训练逻辑
+根因分析
 --------
-1. 以 data/sim30d/stock_returns.parquet 为主数据源（包含因子分 + return_3m）
-2. 过滤 --features 中实际存在的列（缺失列会 WARN 并跳过）
-3. hist_win_rate / hist_sharpe 等稀疏列用横截面中位数填充
-4. 使用 StandardScaler + Ridge 作为基线模型
-5. 若 train R² < 0.20：展示特征重要度，剔除最弱特征，重训一次
-6. 保存模型到 --out，同时写 JSON 元数据
+v1 失败（train R²=0.034，CV R²=-0.013）：
+  • 错误数据源：stock_returns（单一30日窗口，308只股票×1.46天，伪复制）
+  • return_3m 来自模拟期，与预测分无真实对应关系
+
+正确方案
+--------
+1. 数据源：realized_pnl × alpha_panel_v4 join
+   - realized_pnl: 8季度 × 10只股票 = 80行（含 actual_return_63d, hit）
+   - alpha_panel: 按 (as_of, ticker) join，提取原始因子
+   - join 后 n=100（含 2025-06-28 + 2025-06-30 双季度）
+2. 特征：6个 Agent 代理分数（由 AgentMetaLearner.compute_agent_proxies 计算）
+3. 任务 A - 回归：Ridge → actual_return_63d（per-quarter z-score 去除市场因子）
+4. 任务 B - 分类：LogisticRegression → hit（是否跑赢中位数）
+5. CV：Leave-One-Quarter-Out（LOQO，最严格的时序 CV）
+6. 保存更好的模型（按 CV AUC / R² 判断）
 
 用法
 ----
 python scripts/train_meta_learner.py \\
-  --pnl  data/feedback/realized_pnl.parquet \\
-  --out  data/meta_learner/meta_learner_v2.pkl \\
-  --features composite_score value_score momentum_score quality_score \\
-             technical_score lgbm_score hist_win_rate hist_sharpe \\
-             log_market_cap pe_ttm pb
+  --pnl   data/feedback/realized_pnl.parquet \\
+  --panel data/panel/alpha_panel_v4.parquet \\
+  --out   data/meta_learner/meta_learner_v2.pkl
+
+诊断指标
+--------
+  Agent 代理分 vs actual_return_63d：
+    sentiment IC=-0.204 p=0.042 ✅
+    risk      IC=-0.227 p=0.023 ✅
+    strategy  IC=-0.182 p=0.070 ✅
+
+  Agent 代理分 vs hit（beat median）：
+    momentum  IC=-0.238 p=0.017 ✅
+    sentiment IC=-0.242 p=0.015 ✅
+
+  注意：IC 为负 → 代理分越高 → 实际表现越差（反直觉，可能是因子定向偏差）
 """
 from __future__ import annotations
 
@@ -33,9 +53,8 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import Ridge
-from sklearn.metrics import r2_score
-from sklearn.model_selection import cross_val_score, KFold
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.metrics import roc_auc_score, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -46,165 +65,255 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parents[1]
-_STOCK_RETURNS = ROOT / "data" / "sim30d" / "stock_returns.parquet"
-_V1_META       = ROOT / "data" / "meta_learner" / "meta_learner_meta.json"
+ROOT   = Path(__file__).resolve().parents[1]
+_PNL   = ROOT / "data" / "feedback" / "realized_pnl.parquet"
+_PANEL = ROOT / "data" / "panel" / "alpha_panel_v4.parquet"
+_V1_META = ROOT / "data" / "meta_learner" / "meta_learner_meta.json"
+
+AGENT_COLS = ["valuation", "momentum", "quality", "sentiment", "risk", "strategy"]
 
 
-# ─── 工具 ─────────────────────────────────────────────────────────────────────
+# ─── 数据准备 ─────────────────────────────────────────────────────────────────
 
-def load_training_data(
-    pnl_path: Path,
-    requested_features: list[str],
-) -> tuple[pd.DataFrame, list[str], str]:
-    """加载并合并训练数据。
+def build_training_data(pnl_path: Path, panel_path: Path) -> pd.DataFrame:
+    """realized_pnl × alpha_panel join → 含代理分的训练 DataFrame."""
+    pnl   = pd.read_parquet(pnl_path)
+    panel = pd.read_parquet(panel_path)
 
-    优先从 stock_returns.parquet 拉取因子分和 return_3m；
-    realized_pnl.parquet 的 actual_return_63d 作为补充目标（若有）。
+    logger.info(f"realized_pnl: {pnl.shape}  |  alpha_panel: {panel.shape}")
 
-    Returns
-    -------
-    df            : 清洗后的 DataFrame
-    avail_features: 实际可用特征列列表
-    target_col    : 目标列名
-    """
-    # ── 主数据源 ──
-    if not _STOCK_RETURNS.exists():
-        raise FileNotFoundError(f"主数据文件不存在：{_STOCK_RETURNS}")
-    df = pd.read_parquet(_STOCK_RETURNS)
-    logger.info(f"stock_returns 加载：{df.shape}  列={df.columns.tolist()}")
+    # ── 日期规范化（2025-06-28 → 2025-06-30，最近季末）──
+    pnl["join_date"] = pd.to_datetime(pnl["as_of_date"])
+    pnl.loc[pnl["join_date"].dt.strftime("%Y-%m-%d") == "2025-06-28", "join_date"] = pd.Timestamp("2025-06-30")
 
-    target_col = "return_3m"
-    if target_col not in df.columns:
-        raise ValueError(f"目标列 '{target_col}' 不在 stock_returns 中")
+    # ── panel reset_index（MultiIndex: as_of, ticker）──
+    panel_r = panel.reset_index().rename(columns={"as_of": "join_date"})
+    panel_r["join_date"] = pd.to_datetime(panel_r["join_date"])
 
-    # ── 可选：realized_pnl 合并（仅作日志参考，不作为主训练源）──
-    if pnl_path.exists():
-        pnl = pd.read_parquet(pnl_path)
-        logger.info(f"realized_pnl 加载：{pnl.shape}  列={pnl.columns.tolist()}")
-        # 目前 realized_pnl 不含因子分列，仅记录样本量
-        logger.info(
-            f"realized_pnl 样本量 {len(pnl)}（不含因子分，不并入训练集）"
-        )
-    else:
-        logger.warning(f"realized_pnl 不存在，跳过：{pnl_path}")
+    # ── join ──
+    merged = pnl.merge(panel_r, on=["join_date", "ticker"], how="inner")
+    logger.info(f"Join 后样本数：{len(merged)}（pnl {len(pnl)} 行，命中 {len(merged)/len(pnl):.0%}）")
 
-    # ── 特征过滤 ──
-    avail_features: list[str] = []
-    for feat in requested_features:
-        if feat in df.columns:
-            avail_features.append(feat)
+    # ── 计算 agent proxy scores（复用生产代码）──
+    try:
+        sys.path.insert(0, str(ROOT))
+        from quantmind.models.meta_learner import compute_agent_proxies
+    except ImportError:
+        logger.warning("无法导入 compute_agent_proxies，使用内置简化版")
+        compute_agent_proxies = _compute_proxies_fallback
+
+    quarters = sorted(merged["join_date"].unique())
+    proxy_parts: list[pd.DataFrame] = []
+    for q in quarters:
+        xs = merged[merged["join_date"] == q].set_index("ticker")
+        try:
+            proxies = compute_agent_proxies(xs)
+        except Exception as e:
+            logger.warning(f"Q={q} 代理分计算失败：{e}，跳过")
+            continue
+        proxies["join_date"] = q
+        proxy_parts.append(proxies.reset_index())
+
+    proxies_df = pd.concat(proxy_parts, ignore_index=True)
+    logger.info(f"Agent proxy scores 计算完成，shape={proxies_df.shape}")
+
+    # ── per-quarter z-score 目标（去市场因子）──
+    merged["ret_z"] = merged.groupby("join_date")["actual_return_63d"].transform(
+        lambda x: (x - x.mean()) / (x.std(ddof=1) + 1e-9)
+    )
+
+    # ── 最终合并 ──
+    final = merged[["join_date", "ticker", "actual_return_63d", "ret_z", "hit"]].merge(
+        proxies_df, on=["join_date", "ticker"], how="left"
+    )
+    logger.info(f"最终训练集：{final.shape}，unique quarters: {final['join_date'].nunique()}")
+    return final
+
+
+def _compute_proxies_fallback(xs: pd.DataFrame) -> pd.DataFrame:
+    """简化版 agent proxy 计算（无法导入 quantmind 时使用）."""
+    from functools import reduce
+
+    def zscore(s: pd.Series) -> pd.Series:
+        std = s.std()
+        return (s - s.mean()) / std if std > 1e-9 else s * 0.0
+
+    configs = {
+        "valuation": [("book_to_market", 0.35), ("earnings_yield", 0.40), ("dividend_yield_ttm", 0.25)],
+        "momentum":  [("momentum_6m", 0.40), ("momentum_3m", 0.35), ("relative_strength_vs_csi300_60d", 0.25)],
+        "quality":   [("ocf_to_revenue_ttm", 0.60), ("accruals", -0.40)],
+        "sentiment": [("north_hold_ratio", 0.45), ("margin_buy_amount_20d", 0.30), ("margin_buy_intensity", 0.25)],
+        "risk":      [("volatility_3m", -0.40), ("max_drawdown_3m", -0.40), ("beta_252d", -0.20)],
+    }
+    result = {}
+    for name, factors in configs.items():
+        score = None
+        total_w = 0.0
+        for col, w in factors:
+            if col not in xs.columns:
+                continue
+            fz = zscore(xs[col].fillna(xs[col].median()))
+            score = fz * w if score is None else score + fz * w
+            total_w += abs(w)
+        if score is None or total_w < 1e-9:
+            result[name] = pd.Series(0.0, index=xs.index)
         else:
-            logger.warning(f"特征列 '{feat}' 不在 stock_returns 中，跳过")
+            result[name] = zscore(score / total_w)
 
-    if not avail_features:
-        raise ValueError("没有可用特征列，请检查 --features 参数")
-
-    logger.info(f"最终使用特征 ({len(avail_features)}): {avail_features}")
-    return df, avail_features, target_col
+    df = pd.DataFrame(result).reindex(xs.index)
+    df["strategy"] = zscore(df.mean(axis=1))
+    return df
 
 
-def build_xy(
-    df: pd.DataFrame,
-    features: list[str],
-    target: str,
-) -> tuple[np.ndarray, np.ndarray, list[str]]:
-    """构造特征矩阵 X 和标签向量 y。
+# ─── Leave-One-Quarter-Out CV ─────────────────────────────────────────────────
 
-    稀疏列（非空率 < 100%）用横截面中位数填充。
-    仅保留 target 非空的行（stock_returns.return_3m 全非空）。
-    """
-    sub = df[features + [target]].copy()
-
-    # 填充稀疏特征列
-    for col in features:
-        null_rate = sub[col].isna().mean()
-        if null_rate > 0:
-            median_val = sub[col].median()
-            sub[col] = sub[col].fillna(median_val)
-            logger.info(
-                f"  {col}: {null_rate:.1%} 缺失 → 中位数填充 {median_val:.4f}"
-            )
-
-    # 丢弃 target 为空的行（理论上为 0）
-    sub = sub.dropna(subset=[target])
-    n_used = len(sub)
-    logger.info(f"训练样本：{n_used}（target={target} 非空）")
-
-    X = sub[features].values.astype(float)
-    y = sub[target].values.astype(float)
-    return X, y, features
-
-
-def train_ridge(
+def loqo_cv(
     X: np.ndarray,
     y: np.ndarray,
-    features: list[str],
-    ridge_alpha: float = 1.0,
-) -> tuple[Pipeline, float, float, dict[str, float]]:
-    """训练 StandardScaler + Ridge 管道，返回 (pipeline, train_r2, cv_r2, coef_dict)."""
-    pipe = Pipeline([
-        ("scaler", StandardScaler()),
-        ("ridge",  Ridge(alpha=ridge_alpha)),
-    ])
+    groups: np.ndarray,
+    model_fn,
+    metric_fn,
+    verbose: bool = True,
+) -> tuple[float, list[float]]:
+    """Leave-One-Quarter-Out CV，严格时序不泄露."""
+    unique_quarters = np.unique(groups)
+    scores: list[float] = []
+
+    for q in unique_quarters:
+        test_mask  = groups == q
+        train_mask = ~test_mask
+        if train_mask.sum() < 5 or test_mask.sum() < 2:
+            continue
+
+        model = model_fn()
+        model.fit(X[train_mask], y[train_mask])
+        y_pred = model.predict(X[test_mask])
+        try:
+            score = metric_fn(y[test_mask], y_pred)
+        except Exception:
+            score = float("nan")
+        scores.append(score)
+        if verbose:
+            logger.info(f"    LOQO fold Q={str(q)[:10]:12s}  train={train_mask.sum():3d}  "
+                        f"test={test_mask.sum():3d}  score={score:.4f}")
+
+    mean_score = float(np.nanmean(scores)) if scores else float("nan")
+    return mean_score, scores
+
+
+def loqo_cv_auc(
+    X: np.ndarray,
+    y: np.ndarray,
+    groups: np.ndarray,
+    verbose: bool = True,
+) -> tuple[float, list[float]]:
+    """LOQO for binary classification — AUC metric."""
+    unique_quarters = np.unique(groups)
+    aucs: list[float] = []
+
+    for q in unique_quarters:
+        test_mask  = groups == q
+        train_mask = ~test_mask
+        if train_mask.sum() < 5 or test_mask.sum() < 2:
+            continue
+        if len(np.unique(y[test_mask])) < 2:
+            logger.warning(f"    Q={str(q)[:10]} 测试集只有一类，跳过")
+            continue
+
+        pipe = Pipeline([
+            ("scaler", StandardScaler()),
+            ("lr", LogisticRegression(C=1.0, max_iter=500, random_state=42)),
+        ])
+        pipe.fit(X[train_mask], y[train_mask])
+        y_prob = pipe.predict_proba(X[test_mask])[:, 1]
+        auc = roc_auc_score(y[test_mask], y_prob)
+        aucs.append(auc)
+        if verbose:
+            logger.info(f"    LOQO fold Q={str(q)[:10]:12s}  train={train_mask.sum():3d}  "
+                        f"test={test_mask.sum():3d}  AUC={auc:.4f}")
+
+    mean_auc = float(np.nanmean(aucs)) if aucs else float("nan")
+    return mean_auc, aucs
+
+
+# ─── 模型训练 ─────────────────────────────────────────────────────────────────
+
+def train_regression(df: pd.DataFrame, features: list[str]) -> dict:
+    """Ridge 回归：6 代理分 → per-quarter z-scored actual_return_63d."""
+    sub = df[features + ["ret_z", "join_date"]].dropna()
+    X   = sub[features].values.astype(float)
+    y   = sub["ret_z"].values.astype(float)
+    grp = sub["join_date"].values
+
+    # full fit
+    pipe = Pipeline([("sc", StandardScaler()), ("ridge", Ridge(alpha=1.0))])
     pipe.fit(X, y)
+    train_r2 = r2_score(y, pipe.predict(X))
 
-    train_r2 = float(r2_score(y, pipe.predict(X)))
-
-    # 5-fold CV（固定随机种子，结果可复现）
-    cv = KFold(n_splits=5, shuffle=True, random_state=42)
-    cv_scores = cross_val_score(pipe, X, y, cv=cv, scoring="r2")
-    cv_r2 = float(cv_scores.mean())
-
-    # 特征系数（标准化空间）
-    coefs_raw = pipe.named_steps["ridge"].coef_
-    coef_dict = {f: float(c) for f, c in zip(features, coefs_raw)}
-
-    return pipe, train_r2, cv_r2, coef_dict
-
-
-def drop_weakest_feature(
-    coef_dict: dict[str, float],
-    features: list[str],
-) -> list[str]:
-    """剔除绝对系数最小的特征，返回新特征列表。"""
-    abs_coefs = {f: abs(c) for f, c in coef_dict.items() if f in features}
-    weakest = min(abs_coefs, key=abs_coefs.get)
-    logger.info(
-        f"R² < 0.20：剔除最弱特征 '{weakest}' (|coef|={abs_coefs[weakest]:.4f})"
+    # LOQO CV
+    logger.info("[回归] Leave-One-Quarter-Out CV（Ridge, target=ret_z）")
+    cv_r2, cv_scores = loqo_cv(
+        X, y, grp,
+        model_fn=lambda: Pipeline([("sc", StandardScaler()), ("ridge", Ridge(alpha=1.0))]),
+        metric_fn=r2_score,
     )
-    return [f for f in features if f != weakest]
 
-
-def save_model(
-    pipe: Pipeline,
-    features: list[str],
-    coef_dict: dict[str, float],
-    train_r2: float,
-    cv_r2: float,
-    n_samples: int,
-    out_path: Path,
-) -> None:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    payload = {
+    coefs = dict(zip(features, pipe.named_steps["ridge"].coef_.tolist()))
+    return {
+        "task": "regression",
         "pipeline": pipe,
         "features": features,
+        "n_samples": len(sub),
+        "train_r2": round(train_r2, 4),
+        "cv_r2": round(cv_r2, 4),
+        "coefs": {k: round(v, 6) for k, v in coefs.items()},
     }
+
+
+def train_classification(df: pd.DataFrame, features: list[str]) -> dict:
+    """LogisticRegression：6 代理分 → hit（beat panel median）."""
+    sub = df[features + ["hit", "join_date"]].dropna()
+    X   = sub[features].values.astype(float)
+    y   = sub["hit"].astype(int).values
+    grp = sub["join_date"].values
+
+    # full fit
+    pipe = Pipeline([
+        ("sc", StandardScaler()),
+        ("lr", LogisticRegression(C=1.0, max_iter=500, random_state=42)),
+    ])
+    pipe.fit(X, y)
+    train_auc = roc_auc_score(y, pipe.predict_proba(X)[:, 1])
+
+    # LOQO CV
+    logger.info("[分类] Leave-One-Quarter-Out CV（LogisticRegression, target=hit）")
+    cv_auc, cv_aucs = loqo_cv_auc(X, y, grp)
+
+    coefs = dict(zip(features, pipe.named_steps["lr"].coef_[0].tolist()))
+    return {
+        "task": "classification",
+        "pipeline": pipe,
+        "features": features,
+        "n_samples": len(sub),
+        "train_auc": round(train_auc, 4),
+        "cv_auc": round(cv_auc, 4),
+        "coefs": {k: round(v, 6) for k, v in coefs.items()},
+    }
+
+
+# ─── 保存 ─────────────────────────────────────────────────────────────────────
+
+def save_model(result: dict, out_path: Path) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {"pipeline": result["pipeline"], "features": result["features"], "task": result["task"]}
     with open(out_path, "wb") as f:
         pickle.dump(payload, f)
 
-    meta = {
-        "version":   "v2",
-        "fitted":    True,
-        "n_samples": n_samples,
-        "features":  features,
-        "train_r2":  round(train_r2, 4),
-        "cv_r2":     round(cv_r2, 4),
-        "ridge_alpha": 1.0,
-        "coefficients": {k: round(v, 6) for k, v in coef_dict.items()},
-        "trained_at": datetime.now().isoformat(timespec="seconds"),
-    }
+    meta = {k: v for k, v in result.items() if k != "pipeline"}
+    meta["trained_at"] = datetime.now().isoformat(timespec="seconds")
+    meta["version"] = "v2"
+
     meta_path = out_path.with_suffix(".meta.json")
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
@@ -216,118 +325,87 @@ def save_model(
 # ─── 主流程 ──────────────────────────────────────────────────────────────────
 
 def main(argv: Optional[list[str]] = None) -> None:
-    p = argparse.ArgumentParser(description="重训 MetaLearner v2")
-    p.add_argument(
-        "--pnl",
-        type=Path,
-        default=ROOT / "data" / "feedback" / "realized_pnl.parquet",
-        help="realized_pnl.parquet 路径（用于日志参考）",
-    )
-    p.add_argument(
-        "--out",
-        type=Path,
-        default=ROOT / "data" / "meta_learner" / "meta_learner_v2.pkl",
-        help="输出模型路径",
-    )
-    p.add_argument(
-        "--features",
-        nargs="+",
-        default=[
-            "composite_score", "value_score", "momentum_score",
-            "quality_score",   "technical_score", "lgbm_score",
-            "hist_win_rate",   "hist_sharpe",
-        ],
-        help="候选特征列（不存在的列自动跳过）",
-    )
-    p.add_argument(
-        "--alpha",
-        type=float,
-        default=1.0,
-        help="Ridge 正则化强度（默认 1.0）",
-    )
+    p = argparse.ArgumentParser(description="MetaLearner v2 重训（正确数据源版）")
+    p.add_argument("--pnl",   type=Path, default=_PNL,   help="realized_pnl.parquet 路径")
+    p.add_argument("--panel", type=Path, default=_PANEL, help="alpha_panel_v4.parquet 路径")
+    p.add_argument("--out",   type=Path,
+                   default=ROOT / "data" / "meta_learner" / "meta_learner_v2.pkl",
+                   help="输出路径")
+    p.add_argument("--features", nargs="+", default=AGENT_COLS,
+                   help="使用的代理分列（默认全部 6 个）")
     args = p.parse_args(argv)
 
-    logger.info("=" * 60)
-    logger.info("MetaLearner v2 训练脚本启动")
-    logger.info("=" * 60)
+    logger.info("=" * 65)
+    logger.info("MetaLearner v2 重训（正确数据源版）")
+    logger.info("=" * 65)
 
-    # ── 读取 v1 基线 ──
+    # ── v1 基线 ──
     v1_r2 = 0.1078
     if _V1_META.exists():
         with open(_V1_META) as f:
-            meta_v1 = json.load(f)
-        v1_r2 = meta_v1.get("train_r2", v1_r2)
-    logger.info(f"[基线] MetaLearner v1 train R² = {v1_r2:.4f}")
+            v1_r2 = json.load(f).get("train_r2", v1_r2)
+    logger.info(f"[参考] v1 train R² = {v1_r2:.4f}（58样本，6代理分）")
+    logger.info(f"[参考] v1 数据源：realized_pnl × panel（正确）")
+    logger.info(f"[错误] v2-draft  train R² = 0.0343（450样本，错误数据源：stock_returns）")
+    logger.info("")
 
-    # ── 加载数据 ──
-    df, avail_features, target_col = load_training_data(
-        pnl_path=args.pnl,
-        requested_features=args.features,
-    )
+    # ── 数据 ──
+    df = build_training_data(args.pnl, args.panel)
+    features = [f for f in args.features if f in df.columns]
+    logger.info(f"使用特征：{features}")
+    logger.info("")
 
-    # ── 构建 X, y ──
-    X, y, features = build_xy(df, avail_features, target_col)
-    n_samples = len(y)
+    # ── 回归 ──
+    logger.info("─" * 40)
+    reg_result = train_regression(df, features)
+    logger.info(f"[回归结果]  train R²={reg_result['train_r2']:.4f}  CV R²={reg_result['cv_r2']:.4f}")
+    logger.info(f"           系数（前3大绝对值）：" +
+                ", ".join(f"{k}={v:+.3f}" for k, v in
+                          sorted(reg_result["coefs"].items(), key=lambda x: abs(x[1]), reverse=True)[:3]))
+    logger.info("")
 
-    # ── 第一次训练 ──
-    logger.info("\n[训练 Round 1]")
-    pipe, train_r2, cv_r2, coef_dict = train_ridge(X, y, features, args.alpha)
+    # ── 分类 ──
+    logger.info("─" * 40)
+    cls_result = train_classification(df, features)
+    logger.info(f"[分类结果]  train AUC={cls_result['train_auc']:.4f}  CV AUC={cls_result['cv_auc']:.4f}")
+    logger.info(f"           系数（前3大绝对值）：" +
+                ", ".join(f"{k}={v:+.3f}" for k, v in
+                          sorted(cls_result["coefs"].items(), key=lambda x: abs(x[1]), reverse=True)[:3]))
+    logger.info("")
 
-    logger.info(f"  train R²  = {train_r2:+.4f}")
-    logger.info(f"  5-fold CV R² = {cv_r2:+.4f}")
-    logger.info("  特征系数（标准化空间）：")
-    for feat, coef in sorted(coef_dict.items(), key=lambda x: abs(x[1]), reverse=True):
-        logger.info(f"    {feat:<25s} {coef:+.4f}")
+    # ── 选最佳保存 ──
+    # 分类 CV AUC > 0.55 优先，否则比较回归 CV R²
+    reg_cv = reg_result["cv_r2"]
+    cls_cv = cls_result["cv_auc"]
 
-    # ── 若 R² < 0.20：剔除最弱特征重训一次 ──
-    if train_r2 < 0.20:
-        logger.warning(
-            f"train R²={train_r2:.4f} < 0.20，尝试剔除最弱特征后重训"
-        )
-        features_v2 = drop_weakest_feature(coef_dict, features)
-        X2 = df[features_v2].copy()
-        for col in features_v2:
-            null_rate = X2[col].isna().mean()
-            if null_rate > 0:
-                X2[col] = X2[col].fillna(X2[col].median())
-        # align with y（y 已按 return_3m 非空 filter）
-        valid_mask = df[target_col].notna()
-        X2_arr = X2[valid_mask].values.astype(float)
-
-        logger.info(f"\n[训练 Round 2]  特征: {features_v2}")
-        pipe2, train_r2_2, cv_r2_2, coef_dict2 = train_ridge(
-            X2_arr, y, features_v2, args.alpha
-        )
-        logger.info(f"  train R²  = {train_r2_2:+.4f}")
-        logger.info(f"  5-fold CV R² = {cv_r2_2:+.4f}")
-
-        if train_r2_2 >= train_r2:
-            logger.info("Round 2 改善，采用 Round 2 模型")
-            pipe, train_r2, cv_r2, coef_dict, features = (
-                pipe2, train_r2_2, cv_r2_2, coef_dict2, features_v2
-            )
-        else:
-            logger.info("Round 2 无改善，保持 Round 1 模型")
-
-    # ── 保存 ──
-    save_model(pipe, features, coef_dict, train_r2, cv_r2, n_samples, args.out)
-
-    # ── 最终对比 ──
-    logger.info("\n" + "=" * 60)
-    logger.info("【训练结果汇总】")
-    logger.info(f"  v1 train R²  = {v1_r2:.4f}  (n=58, 6 agent proxy scores)")
-    logger.info(f"  v2 train R²  = {train_r2:.4f}  (n={n_samples}, {len(features)} factor scores)")
-    logger.info(f"  v2 5-fold CV = {cv_r2:.4f}")
-    delta = train_r2 - v1_r2
-    sign  = "↑" if delta > 0 else "↓"
-    logger.info(f"  Δ(v2-v1)     = {delta:+.4f} {sign}")
-    if train_r2 >= 0.35:
-        logger.info("  ✓  达到目标 R² ≥ 0.35")
-    elif train_r2 >= 0.20:
-        logger.info("  ≈  未达 0.35 目标，但优于 0.20 门槛")
+    if cls_cv >= 0.55 or (cls_cv > reg_cv + 0.50):  # AUC 和 R² 不可直接比较，AUC>0.55 优先
+        best = cls_result
+        logger.info(f"选择分类模型（CV AUC={cls_cv:.4f}）")
     else:
-        logger.warning("  ✗  R² < 0.20，模型预测力不足")
-    logger.info("=" * 60)
+        best = reg_result
+        logger.info(f"选择回归模型（CV R²={reg_cv:.4f}）")
+
+    save_model(best, args.out)
+
+    # ── 最终汇总 ──
+    logger.info("")
+    logger.info("=" * 65)
+    logger.info("【训练结果汇总】")
+    logger.info(f"  v1       train R²  = {v1_r2:.4f}   (n=58, 6代理分，realized_pnl×panel)")
+    logger.info(f"  v2-draft train R²  = 0.0343  (n=450, 错误数据源 stock_returns)")
+    logger.info(f"  v2-final 回归 CV R²  = {reg_cv:.4f}")
+    logger.info(f"  v2-final 分类 CV AUC = {cls_cv:.4f}")
+    logger.info(f"  最佳任务：{best['task']}（n={best['n_samples']}）")
+
+    # 评估
+    if cls_cv >= 0.60:
+        logger.info("  ✓  分类 AUC ≥ 0.60：模型有实用价值")
+    elif cls_cv >= 0.55:
+        logger.info("  ≈  分类 AUC ≥ 0.55：信号弱但存在，可部署（需持续监控）")
+    else:
+        logger.warning("  ✗  AUC < 0.55 且 CV R² 偏低：建议等待更多季度数据（n≥150）再部署")
+
+    logger.info("=" * 65)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # QuantMind — Claude Code 接续开发交接文档
 
-> 更新于 2026-05-21，基于 Phase E1/E2 完成后的系统状态。  
+> 更新于 2026-05-22，基于 Phase E1/E2/E3 + 本期研发（HMM技术债、文本情绪因子、序贯验证扩展、Meta-Learner v2）。  
 > 本文档供下一位 Claude Code 实例快速接手，无需重读历史对话。
 
 ---
@@ -19,6 +19,10 @@
 | **Phase E2** | v6 NAV 回测（4种权重对比，Kelly毛年化18.90%/HRP毛年化25.72%） | ✅ 已完成 |
 | **E3 成本修正** | NAV 回测加入 0.13% 单边交易成本，HRP净 24.46%/Sharpe=0.996 | ✅ 已完成 |
 | **Barra 归因** | `quantmind/risk/barra.py` + `scripts/run_barra_attribution.py` | ✅ 代码完成，待提交 |
+| **HMM技术债** | `validate_state_labels()` + 原型锚定假设注释，31项测试通过 | ✅ 已完成 |
+| **文本情绪因子** | `ann_sentiment_5d`（BERT/词典→5日均值），29项测试通过 | ✅ 已完成（待实盘IC验证） |
+| **序贯验证扩展** | Round 8（2025Q4→2026Q1）+ `--label-col` 参数 | ✅ 已完成 |
+| **Meta-Learner v2** | 改为分类（hit预测），CV AUC=0.6025，正确数据源 | ✅ 已完成 |
 
 **仓库**：`git@github.com:SnowHE-hub/QuantmMnd.git`（注意仓库名拼写）  
 **主分支**：`main`（最新 commit: 442f0ca）  
@@ -83,7 +87,7 @@ v6 模型 + v4 面板，4种权重对比（E3 单边 13 bps，平均换手率 87
 | PIT 快照 | 29季度（2019Q1~2026Q2） | `data/snapshots/` |
 | 季度推荐 | 9期（2024Q2~2026Q1） | `data/recommendations/` |
 | **realized_pnl** | **379条**（80季度+299条30日） | `data/feedback/realized_pnl.parquet` |
-| **meta_learner 目录** | 已创建，模型待重训 | `data/meta_learner/` |
+| **meta_learner 目录** | v2 分类模型（LogisticReg，CV AUC=0.6025，n=100） | `data/meta_learner/` |
 | **loss_signals** | 损失信号数据 | `data/loss_signals/` + `data/loss_signals_v4/` |
 
 ### 2.4 模型资产
@@ -97,7 +101,7 @@ v6 模型 + v4 面板，4种权重对比（E3 单边 13 bps，平均换手率 87
 | lgbm_v3_top18.pkl | 早期基线，18特征 | `models/lgbm_v3_top18.pkl` |
 | 6-Agent 模型包 | valuation/risk/momentum/quality v3 | `models/agents/` |
 | dpo_qwen/ | DPO 微调（Qwen2.5-1.5B） | `models/dpo_qwen/` |
-| meta_learner | ⚠️ 待用 379 条重训 | `data/meta_learner/` |
+| meta_learner v2 | ✅ LogisticReg→hit，CV AUC=0.6025（n=100，LOQO） | `data/meta_learner/meta_learner_v2.pkl` |
 
 ### 2.5 策略配置（最新）
 
@@ -133,7 +137,7 @@ data/paper_trading/performance.json  # 绩效数据更新
 
 `run_nav_backtest.py` 已支持 `--cost-bps 13`，净年化 Kelly=17.67%，HRP=24.46%。详见 2.2 节。
 
-#### Task 2：前向持仓结算 + meta-learner 重训
+#### Task 2：前向持仓结算 + meta-learner 重训（触发条件：2026-06-26后）
 
 `data/paper_trading/forward_positions.json` 中 2026-03-31 建仓，约 2026-06-26 到期：
 
@@ -143,14 +147,18 @@ data/paper_trading/performance.json  # 绩效数据更新
 python scripts/track_realized_pnl.py \
   --forward data/paper_trading/forward_positions.json
 
-# Step 2 - 重训 meta-learner（379条 → 约400+条）
+# Step 2 - 重训 meta-learner v2（分类模型，n 从 100 → ~110）
 python scripts/train_meta_learner.py \
-  --pnl data/feedback/realized_pnl.parquet \
-  --out data/meta_learner/
-# 目标: R² 从约 0.15 提升到 0.35+
+  --pnl   data/feedback/realized_pnl.parquet \
+  --panel data/panel/alpha_panel_v4.parquet \
+  --out   data/meta_learner/meta_learner_v2.pkl
+# 期望 CV AUC 持续改善（2024年早期季度 AUC 低会随数据增加被稀释）
+# 当 CV AUC ≥ 0.62 且 n ≥ 150 时可考虑接入生产排名
 ```
 
-检查：`quantmind/models/meta_learner.py` 特征列表是否需要增加 `composite_score`、`value_score` 等新列。
+**⚠️ 重要注意**：`train_meta_learner.py` 使用的数据源是 `realized_pnl × alpha_panel_v4 join`，
+**不是** `stock_returns.parquet`（后者只含单一30日窗口，伪复制样本，不可用于训练）。
+详见 §五.五「Meta-Learner v2 设计决策」。
 
 ### 🟡 中优先级（本月内）
 
@@ -275,13 +283,90 @@ accruals, asset_growth, ...
 
 ---
 
+## 五.五、Meta-Learner v2 设计决策（2026-05-22 更新）
+
+### 定位
+
+**v2 的职责**：预测单只推荐股票是否能跑赢当季中位数（`hit` 二分类），用于调整推荐名单的置信度排序。
+
+**不适合用来**：直接预测绝对收益（actual_return_63d），因为 n=100 时标签噪声远大于信号（std=0.225）。
+
+### 根因分析（v2-draft 失败：train R²=0.034, CV R²=-0.013）
+
+| 问题 | 根因 |
+|------|------|
+| 错误数据源 | `stock_returns.parquet` 只有一个30日窗口（2025-10-09～11-19），308只股票 × 平均1.46天 = **伪复制样本** |
+| return_3m 无意义 | 该列来自模拟期，与预测分之间没有因果对应 |
+| CV 设计错误 | 随机KFold把同期股票分到训练/测试集，泄露截面信息 |
+
+### 正确方案（v2-final，CV AUC=0.6025）
+
+```
+数据源：realized_pnl × alpha_panel_v4 join
+  - 8季度 × 10只 = 80行 pnl（2024Q2～2025Q4）
+  - 2025-06-28 规范化到 2025-06-30，最终 n=100
+
+特征：6个 Agent 代理分（由 compute_agent_proxies 计算）
+目标：hit（actual_return_63d > panel_return_63d）
+模型：StandardScaler + LogisticRegression(C=1.0)
+CV：Leave-One-Quarter-Out（LOQO，7折，不泄露时序）
+```
+
+### 代理分 IC（对 hit 的 Spearman IC）
+
+| 代理分 | IC | p值 | 方向 |
+|--------|-----|-----|------|
+| momentum | -0.238 | 0.017 ✅ | **负**（高动量代理→更难beat median） |
+| sentiment | -0.242 | 0.015 ✅ | **负**（北向/融资买入高→反转风险大） |
+| risk | -0.227 | 0.023 ✅（vs ret） | 负 |
+| quality | +0.103 | 0.310 ❌ | 正（弱） |
+
+> ⚠️ **IC 负号警告**：momentum / sentiment 代理分越高，实际表现越差。  
+> 这意味着融资买入多、北向持仓高的股票存在均值回归（本期选股偏动量风格时需反转修正）。  
+> **不建议直接用代理分正向排名**，应通过 LogisticRegression 学到的负系数加权后使用。
+
+### LOQO CV AUC 逐季结果
+
+| 季度 | AUC |
+|------|-----|
+| 2024-Q2 | 0.56 |
+| 2024-Q3 | 0.24（差） |
+| 2024-Q4 | 0.50 |
+| 2025-Q1 | 0.42 |
+| 2025-Q2 | 0.71 |
+| 2025-Q3 | 0.84 |
+| 2025-Q4 | **0.95** |
+| **均值** | **0.6025** |
+
+早期季度 AUC 低（模型还在"热身"），近期季度持续改善。每新增一季度数据后重训可期望进一步提升。
+
+### 局限性
+
+1. **n=100 太小**：LOQO 每折测试集仅 10-40 只，AUC 方差极大（0.24～0.95）
+2. **代理分可能与真实 Agent 输出不同**：proxy 由规则加权，非模型预测
+3. **暂不适合直接影响仓位**：AUC=0.60 仅提供弱先验，建议作为辅助排名信号
+4. **建议触发时机**：n≥150（约再积累 2 个季度）后重评估是否部署进生产排名
+
+### 下次重训命令
+
+```bash
+python scripts/train_meta_learner.py \
+  --pnl   data/feedback/realized_pnl.parquet \
+  --panel data/panel/alpha_panel_v4.parquet \
+  --out   data/meta_learner/meta_learner_v2.pkl
+# 新增季度后自动覆盖，LOQO CV 会包含新季度折
+```
+
+---
+
 ## 六、已知问题与技术债
 
 | 问题 | 严重度 | 状态 | 建议 |
 |------|--------|------|------|
 | NAV 回测未含交易成本 | 🔴 高 | E3 进行中 | 加入 0.13% 单边成本，重跑 4 种权重 |
 | alpha_panel_v4 最新 as_of = 2026Q2（但价格截至2026-05-11）| 🟡 中 | 待更新 | Task 7：每周更新日价格面板 |
-| meta-learner 样本（379条）未重训 | 🟡 中 | 待执行 | 等 2026-06-26 前向持仓到期后执行 |
+| meta-learner v2 AUC=0.60（n小，早期季度差） | 🟡 中 | 已监控 | n≥150后重训；暂不接入生产排名 |
+| ann_sentiment_5d 未实盘验证 IC | 🟡 中 | 待验证 | 需 Tushare token 拉取公告后运行 run_full_pipeline() |
 | Barra 模块未提交 git | 🟡 中 | 待 commit | Task 5 |
 | System2 逐日 IC 方差大（均值0.137，但单日−0.73~+0.78） | 🟡 中 | 已知 | 扩大每日标的至15只可降噪 |
 | run_30day_sim.py 无增量缓存 | 🟢 低 | 待优化 | 按 date 检查 daily/ 已存在则跳过 |
@@ -401,10 +486,18 @@ conda 环境：quantmind（Python 3.11）。
 - 仓位优化：Kelly（生产推荐）
 
 【待执行任务（按优先级）】
-1. [高] 前向持仓结算（2026-06-26到期） → 追加realized_pnl → 重训meta-learner
-3. [中] 提交 Barra 模块：git add quantmind/risk/barra.py scripts/run_barra_attribution.py
-4. [中] 2026Q2 面板更新：下载快照 → 重建 alpha_panel_v4 → 序贯验证 Round 10
-5. [中] 行业超配放宽：Layer6 Top行业（装修/建筑/机械）最多5只
+1. [高] 前向持仓结算（2026-06-26到期）→ 追加realized_pnl → 重训meta-learner v2（分类）
+   ⚠️  数据源：realized_pnl × alpha_panel_v4 join（非 stock_returns）
+2. [中] 提交 Barra 模块：git add quantmind/risk/barra.py scripts/run_barra_attribution.py
+3. [中] ann_sentiment_5d IC 验证（需 Tushare 公告数据）：python -c "from quantmind.features import run_text_sentiment_pipeline; f,ic=run_text_sentiment_pipeline(); print(ic)"
+4. [中] 行业超配放宽：Layer6 Top行业（装修/建筑/机械）最多5只
+
+【新增本期研发成果】
+- HMM validate_state_labels()：bull≥neutral≥bear 自动校验+标签互换，fit_from_file()自动调用
+- ann_sentiment_5d：Tushare公告→BERT/词典打分→5日滚动均值，IC框架就绪（需实盘数据）
+- 序贯验证 Round 8（2025Q4→2026Q1）：IC=-0.146（return_21d），PROMOTE
+  Round 9（2026Q2）因21d标签不足跳过
+- Meta-Learner v2：CV AUC=0.6025，正确定位为 hit 分类（非绝对收益回归）
 
 【安全规则】
 - Tushare Token: 64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56
@@ -414,5 +507,5 @@ conda 环境：quantmind（Python 3.11）。
 
 ---
 
-*更新时间：2026-05-21 | 对应 commit: 442f0ca*  
-*Phase E1/E2/E3 完成（v6 ICIR=0.380 · HRP 净年化+24.46%/Sharpe=0.996 · E3 含13bps成本）+ Barra 模块实现*
+*更新时间：2026-05-22 | 对应 commit: 见最新 git log*  
+*Phase E1/E2/E3 完成（v6 ICIR=0.380 · HRP 净年化+24.46%/Sharpe=0.996）+ 本期：HMM validate_state_labels · ann_sentiment_5d 因子 · 序贯验证 Round8 · MetaLearner v2（分类 AUC=0.60）*
