@@ -1,5 +1,23 @@
 """quantmind.models — 量化因子模型."""
 
+from quantmind.models.factor_cnn import (
+    ALL_CNN_FEATURES,
+    CNNTrainResult,
+    FACTOR_GROUPS,
+    FactorCNN,
+    FoldMetrics,
+    MOMENTUM_FEATURES,
+    QUALITY_FEATURES,
+    TECHNICAL_FEATURES,
+    VALUE_FEATURES,
+    cross_section_zscore,
+    ensemble_scores,
+    ic_loss,
+    predict_cnn,
+    preprocess_cross_section,
+    preprocess_panel,
+    train_factor_cnn,
+)
 from quantmind.models.factor_model import (
     CrossSectionalLabel,
     FactorModel,
@@ -21,6 +39,24 @@ from quantmind.models.llm_reranker import (
 )
 
 __all__ = [
+    # FactorCNN
+    "ALL_CNN_FEATURES",
+    "CNNTrainResult",
+    "FACTOR_GROUPS",
+    "FactorCNN",
+    "FoldMetrics",
+    "MOMENTUM_FEATURES",
+    "QUALITY_FEATURES",
+    "TECHNICAL_FEATURES",
+    "VALUE_FEATURES",
+    "cross_section_zscore",
+    "ensemble_scores",
+    "ic_loss",
+    "predict_cnn",
+    "preprocess_cross_section",
+    "preprocess_panel",
+    "train_factor_cnn",
+    # FactorModel base
     "CrossSectionalLabel",
     "FactorModel",
     "FactorSelector",
