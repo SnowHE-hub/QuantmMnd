@@ -180,15 +180,27 @@ def _score_dict(text: str) -> float:
     return (pos - neg) / (pos + neg + 1e-9)
 
 
-def _results_to_score(results: list) -> float:
-    """transformers all_scores 输出 → positive_prob - negative_prob."""
+def _results_to_score(results) -> float:
+    """transformers 输出 → positive_prob - negative_prob.
+
+    兼容两种输出格式：
+    - 旧版 (return_all_scores=True)：list[dict]，如 [{"label":"POSITIVE","score":0.9}, ...]
+    - 新版 (top-k=1 默认)：       dict，       如 {"label":"POSITIVE","score":0.9}
+    """
+    # 兼容性：单个 dict → 包成 list
+    if isinstance(results, dict):
+        results = [results]
+
     lookup: dict[str, float] = {}
     for r in results:
-        label = r["label"].lower()
+        if not isinstance(r, dict):
+            continue
+        label = str(r.get("label", "")).lower()
+        score = float(r.get("score", 0.0))
         if any(k in label for k in ("pos", "positive", "1")):
-            lookup["pos"] = r["score"]
+            lookup["pos"] = score
         elif any(k in label for k in ("neg", "negative", "0")):
-            lookup["neg"] = r["score"]
+            lookup["neg"] = score
     pos = lookup.get("pos", 0.5)
     neg = lookup.get("neg", 0.5)
     return float(np.clip(pos - neg, -1.0, 1.0))
@@ -319,7 +331,13 @@ def compute_ic(
 ) -> dict:
     """Spearman IC(ann_sentiment_5d, return_3m).
 
-    stock_returns.parquet 格式：columns = date, ticker, ..., return_3m
+    对齐策略
+    --------
+    factor 为 MultiIndex(ts_code, trade_date)，trade_date 是公告日（非交易日）。
+    stock_returns 用 ticker + date（交易日）。两者日期几乎不重合，不能直接 join。
+
+    正确做法：按 ts_code 聚合——每只股票取 ann_sentiment_5d 的时序均值，
+    再与 stock_returns 的 return_3m 均值（或最新值）按 ts_code join。
 
     Returns
     -------
@@ -338,21 +356,36 @@ def compute_ic(
         logger.warning(f"return_3m 列不存在，可用列: {ret.columns.tolist()}")
         return _EMPTY
 
-    # stock_returns 用 ticker / date；factor 用 ts_code / trade_date
-    ret = ret[["ticker", "date", "return_3m"]].dropna()
-    ret["trade_date"] = pd.to_datetime(ret["date"])
-    ret = ret.rename(columns={"ticker": "ts_code"}).set_index(["ts_code", "trade_date"])
+    # ── 因子：按 ts_code 取时序均值（去掉 trade_date 维度）──
+    factor_df = factor.rename("factor").reset_index()
+    # 支持 MultiIndex 或普通 DataFrame
+    if "ts_code" not in factor_df.columns:
+        # MultiIndex 展开后列名可能是 level_0/level_1
+        factor_df.columns = ["ts_code", "trade_date", "factor"]
+    factor_mean = factor_df.groupby("ts_code")["factor"].mean()
 
+    # ── 收益：按 ticker 取 return_3m 均值──
+    ret_ticker = ret.rename(columns={"ticker": "ts_code"}) if "ticker" in ret.columns else ret
+    if "ts_code" not in ret_ticker.columns:
+        logger.warning("stock_returns 缺少 ticker/ts_code 列")
+        return _EMPTY
+    ret_mean = (
+        ret_ticker[["ts_code", "return_3m"]]
+        .dropna()
+        .groupby("ts_code")["return_3m"]
+        .mean()
+    )
+
+    # ── 按 ts_code join ──
     merged = (
-        factor.rename("factor")
-        .to_frame()
-        .join(ret["return_3m"], how="inner")
+        factor_mean.to_frame("factor")
+        .join(ret_mean.rename("return_3m"), how="inner")
         .dropna()
     )
     n = len(merged)
 
     if n < 30:
-        logger.warning(f"样本量 {n} < 30，IC 不可靠")
+        logger.warning(f"样本量 {n} < 30，IC 不可靠（覆盖股票数不足）")
         return {**_EMPTY, "n": n}
 
     ic, p_val = stats.spearmanr(merged["factor"], merged["return_3m"])
