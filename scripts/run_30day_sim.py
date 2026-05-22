@@ -573,9 +573,28 @@ class SelectionSystem:
 
 
 class AnalysisSystem:
-    """系统2：四维评分 + 投资评级."""
+    """系统2：四维评分 + 投资评级.
 
+    初始化时训练 3-state HMM（纯 NumPy，无外部依赖）。
+    analyze() 按当日 Regime 自动切换四维因子权重。
+    """
+
+    # 默认权重（未训练 / Neutral Regime 兜底）
     WEIGHTS = {"value": 0.30, "momentum": 0.25, "quality": 0.25, "technical": 0.20}
+
+    def __init__(self) -> None:
+        """训练 RegimeHMM，失败时静默降级为默认权重."""
+        from quantmind.regime.hmm import RegimeHMM
+        hist_path = _ROOT / "data" / "raw" / "index_daily_panel.parquet"
+        sim_path  = _ROOT / "data" / "sim30d" / "raw" / "index_000300_SH.parquet"
+        try:
+            self._regime_model: RegimeHMM | None = RegimeHMM.fit_from_file(
+                hist_path, sim_path
+            )
+            logger.info("[System2] RegimeHMM 初始化完成")
+        except Exception as exc:
+            logger.warning(f"[System2] RegimeHMM 初始化失败，使用默认权重: {exc}")
+            self._regime_model = None
 
     def analyze(self, candidates: pd.DataFrame, as_of: pd.Timestamp) -> pd.DataFrame:
         df = candidates.copy()
@@ -600,12 +619,26 @@ class AnalysisSystem:
             self._factor_score(df, tech_factors_neg, direction=-1) * 0.5
         )
 
+        # ── Regime 识别 → 动态权重 ──────────────────────────────────────────────
+        if self._regime_model is not None:
+            regime  = self._regime_model.predict_regime(None, as_of)
+            weights = self._regime_model.get_weights(regime)
+        else:
+            regime  = "neutral"
+            weights = self.WEIGHTS
+        logger.info(
+            f"  [System2] HMM Regime={regime}，weights="
+            f"val={weights['value']:.3f} mom={weights['momentum']:.3f} "
+            f"qual={weights['quality']:.3f} tech={weights['technical']:.3f}"
+        )
+        df["regime"] = regime
+
         # 综合得分
         df["composite_score"] = (
-            df["value_score"]     * self.WEIGHTS["value"] +
-            df["momentum_score"]  * self.WEIGHTS["momentum"] +
-            df["quality_score"]   * self.WEIGHTS["quality"] +
-            df["technical_score"] * self.WEIGHTS["technical"]
+            df["value_score"]     * weights["value"] +
+            df["momentum_score"]  * weights["momentum"] +
+            df["quality_score"]   * weights["quality"] +
+            df["technical_score"] * weights["technical"]
         )
 
         # 投资评级
