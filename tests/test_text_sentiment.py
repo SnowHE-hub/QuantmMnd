@@ -269,7 +269,7 @@ class TestBuildAnnSentimentFactor:
 
     def test_factor_name(self, scored_announcements):
         factor = build_ann_sentiment_factor(scored_announcements)
-        assert factor.name == "ann_sentiment_5d"
+        assert factor.name == "ann_contrarian_5d"
 
 
 # ─── 6. compute_ic ───────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ class TestComputeIC:
         dates   = pd.to_datetime(["2025-10-09"] * n)
         idx     = pd.MultiIndex.from_arrays([tickers, dates],
                                             names=["ts_code", "trade_date"])
-        return pd.Series(rng.uniform(-1, 1, n), index=idx, name="ann_sentiment_5d")
+        return pd.Series(rng.uniform(-1, 1, n), index=idx, name="ann_contrarian_5d")
 
     def _make_returns_parquet(self, tmp_path: Path, factor: pd.Series) -> Path:
         """创建与 factor 对齐的 mock stock_returns.parquet."""
@@ -333,7 +333,7 @@ class TestComputeIC:
 # ─── 7. TEXT_SENTIMENT_FACTORS 常量 ──────────────────────────────────────────
 
 def test_text_sentiment_factors_constant():
-    assert "ann_sentiment_5d" in TEXT_SENTIMENT_FACTORS
+    assert "ann_contrarian_5d" in TEXT_SENTIMENT_FACTORS
 
 
 # ─── 8. 端到端 run_full_pipeline (mock, 无联网) ──────────────────────────────

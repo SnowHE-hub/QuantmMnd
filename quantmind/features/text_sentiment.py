@@ -7,10 +7,17 @@ Workflow
 1. 拉取 Tushare anns_d 公告摘要 → data/text/announcements.parquet（缓存，有则跳过）
 2. 用金融情绪 BERT 打分：positive_prob - negative_prob ∈ [-1, 1]
    优先级：IDEA-CCNL → hw2942 → 词典降级
-3. 按 (ts_code, trade_date) 滚动 5 日均值 → ann_sentiment_5d
-4. 输出 MultiIndex(ts_code, trade_date) → ann_sentiment_5d；缺失填 0
-5. IC 验证：Spearman(ann_sentiment_5d, return_3m)
+3. 按 (ts_code, trade_date) 滚动 5 日均值，再乘以 -1 → ann_contrarian_5d
+4. 输出 MultiIndex(ts_code, trade_date) → ann_contrarian_5d；缺失填 0
+5. IC 验证：Spearman(ann_contrarian_5d, return_3m)
    |IC| > 0.03 且 p < 0.1 视为"有信号"
+
+方向说明
+--------
+A 股公告存在过度反应 / 均值回归效应：情绪得分为正（乐观）的公告，
+后续 3 个月收益反而偏低（IC ≈ -0.131）。取反后 ann_contrarian_5d 的
+IC ≈ +0.131，符合"逆向因子"语义：得分越高 → 市场前期越悲观 → 后续
+表现越强。
 
 Backtest-Expert 指引（参考 ~/.claude/skills/claude-trading-skills）
 ----------------------------------------------------------------------
@@ -35,7 +42,7 @@ logger = logging.getLogger(__name__)
 _ROOT      = Path(__file__).resolve().parents[2]
 _TEXT_DIR  = _ROOT / "data" / "text"
 _ANN_CACHE = _TEXT_DIR / "announcements.parquet"
-_FACTOR_CACHE = _TEXT_DIR / "ann_sentiment_factor.parquet"
+_FACTOR_CACHE = _TEXT_DIR / "ann_contrarian_factor.parquet"
 _RETURNS_PATH = _ROOT / "data" / "sim30d" / "stock_returns.parquet"
 
 # Transformer 模型候选（按优先级）
@@ -55,7 +62,8 @@ _NEG_WORDS: frozenset[str] = frozenset({
 })
 
 # 公开特征名
-TEXT_SENTIMENT_FACTORS = ["ann_sentiment_5d"]
+# ann_contrarian_5d：A 股公告逆向情绪因子（IC ≈ +0.131，原始情绪得分取反）
+TEXT_SENTIMENT_FACTORS = ["ann_contrarian_5d"]
 
 
 # ─── 工具 ─────────────────────────────────────────────────────────────────────
@@ -267,20 +275,25 @@ def build_ann_sentiment_factor(
     ann_df: pd.DataFrame,
     trading_cal: Optional[pd.DatetimeIndex] = None,
 ) -> pd.Series:
-    """构造 ann_sentiment_5d 因子。
+    """构造 ann_contrarian_5d 逆向情绪因子。
 
     聚合规则
     --------
     * 同一 (ts_code, trade_date) 多条公告 → 情绪均值
-    * 每只股票做 5 日滚动均值（min_periods=1）
+    * 每只股票做 5 日滚动均值（min_periods=1），再乘以 -1
     * 缺失日期（无公告）填 0（中性）
+
+    方向
+    ----
+    A 股公告情绪 IC ≈ -0.131（正面公告 → 后续跑输），取反后 IC ≈ +0.131，
+    语义变为"逆向"：越悲观的公告群 → 后续越强势。
 
     Returns
     -------
-    pd.Series  MultiIndex(ts_code, trade_date), name='ann_sentiment_5d'
+    pd.Series  MultiIndex(ts_code, trade_date), name='ann_contrarian_5d'
     """
     if ann_df.empty or "sentiment_score" not in ann_df.columns:
-        return pd.Series(dtype=float, name="ann_sentiment_5d")
+        return pd.Series(dtype=float, name="ann_contrarian_5d")
 
     df = ann_df.copy()
     df["trade_date"] = pd.to_datetime(df["ann_date"])
@@ -300,24 +313,23 @@ def build_ann_sentiment_factor(
         # 用整个 trading_cal（调用方负责控制输出范围）；
         # 早于第一条公告的日期也填 0，晚于最后公告的日期同样填 0。
         if trading_cal is not None:
-            cal_slice = trading_cal[trading_cal >= trading_cal.min()]  # 即全日历
             grp_ts = grp_ts.reindex(trading_cal).fillna(0.0)
 
-        # 5 日滚动均值，缺失填 0
-        rolled = grp_ts.fillna(0.0).rolling(5, min_periods=1).mean()
-        rolled.name = "ann_sentiment_5d"
+        # 5 日滚动均值，再取反（逆向因子：IC +0.131）
+        rolled = grp_ts.fillna(0.0).rolling(5, min_periods=1).mean() * -1.0
+        rolled.name = "ann_contrarian_5d"
         results.append(
             rolled.reset_index().rename(columns={"index": "trade_date"})
             .assign(ts_code=code)
         )
 
     if not results:
-        return pd.Series(dtype=float, name="ann_sentiment_5d")
+        return pd.Series(dtype=float, name="ann_contrarian_5d")
 
     factor_df = pd.concat(results, ignore_index=True)
     factor_df["trade_date"] = pd.to_datetime(factor_df["trade_date"])
     factor_series = (
-        factor_df.set_index(["ts_code", "trade_date"])["ann_sentiment_5d"]
+        factor_df.set_index(["ts_code", "trade_date"])["ann_contrarian_5d"]
         .fillna(0.0)
     )
     return factor_series
@@ -329,14 +341,14 @@ def compute_ic(
     factor: pd.Series,
     returns_path: Path = _RETURNS_PATH,
 ) -> dict:
-    """Spearman IC(ann_sentiment_5d, return_3m).
+    """Spearman IC(ann_contrarian_5d, return_3m).
 
     对齐策略
     --------
     factor 为 MultiIndex(ts_code, trade_date)，trade_date 是公告日（非交易日）。
     stock_returns 用 ticker + date（交易日）。两者日期几乎不重合，不能直接 join。
 
-    正确做法：按 ts_code 聚合——每只股票取 ann_sentiment_5d 的时序均值，
+    正确做法：按 ts_code 聚合——每只股票取 ann_contrarian_5d 的时序均值，
     再与 stock_returns 的 return_3m 均值（或最新值）按 ts_code join。
 
     Returns
@@ -397,7 +409,7 @@ def compute_ic(
         "valid": bool(valid),
     }
     logger.info(
-        f"IC(ann_sentiment_5d, return_3m) = {ic:+.4f}  "
+        f"IC(ann_contrarian_5d, return_3m) = {ic:+.4f}  "
         f"p={p_val:.4f}  n={n}  "
         f"→ {'有信号 ✓' if valid else '信号不足 ✗'}"
     )
@@ -414,8 +426,8 @@ def run_full_pipeline(
 
     Returns
     -------
-    factor     : pd.Series  ann_sentiment_5d  MultiIndex(ts_code, trade_date)
-    ic_result  : dict       {ic, p_value, n, valid}
+    factor     : pd.Series  ann_contrarian_5d  MultiIndex(ts_code, trade_date)
+    ic_result  : dict       {ic, p_value, n, valid}  (IC 验证结果，期望 IC ≈ +0.131)
     """
     _TEXT_DIR.mkdir(parents=True, exist_ok=True)
 

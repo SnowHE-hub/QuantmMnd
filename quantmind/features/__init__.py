@@ -43,6 +43,13 @@ from quantmind.features.sentiment import (
     SENTIMENT_FACTORS,
     compute_all_sentiment_factors,
 )
+from quantmind.features.analyst_revision import (
+    ANALYST_REVISION_FACTORS,
+    build_analyst_revision_factor,
+    compute_analyst_ic,
+    fetch_analyst_reports,
+    run_analyst_pipeline,
+)
 from quantmind.features.text_sentiment import (
     TEXT_SENTIMENT_FACTORS,
     build_ann_sentiment_factor,
@@ -73,6 +80,13 @@ from quantmind.features.utils import (
 
 __all__ = [
     "ALL_FACTOR_GROUPS",
+    # analyst revision
+    "ANALYST_REVISION_FACTORS",
+    "build_analyst_revision_factor",
+    "compute_analyst_ic",
+    "fetch_analyst_reports",
+    "run_analyst_pipeline",
+    # text sentiment
     "TEXT_SENTIMENT_FACTORS",
     "build_ann_sentiment_factor",
     "run_text_sentiment_pipeline",
