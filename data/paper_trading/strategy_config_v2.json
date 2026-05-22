@@ -12,6 +12,7 @@
     "recommendation": "LGBM 3m IC 为正 → 模型在 bull regime 仍有效；可考虑提高 Top50→Top30 减少噪声"
   },
   "system2_updates": {
+    "em_factor_weight": 0.2,
     "weights_calibrated": {
       "value": 0.242,
       "momentum": 0.2229,

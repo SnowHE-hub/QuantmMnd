@@ -70,6 +70,15 @@ from quantmind.features.technical import (
     TECHNICAL_FACTORS,
     compute_all_technical_factors,
 )
+from quantmind.features.em_fundamental import (
+    EM_FUNDAMENTAL_FACTORS,
+    EM_IC_WEIGHTS,
+    EM_N_COMPONENTS,
+    EM_OBS_COLS,
+    GaussianMixtureEM,
+    blend_quality_score,
+    build_em_fundamental_factor,
+)
 from quantmind.features.utils import (
     cagr,
     latest_report_per_ticker,
@@ -80,6 +89,14 @@ from quantmind.features.utils import (
 
 __all__ = [
     "ALL_FACTOR_GROUPS",
+    # EM fundamental quality
+    "EM_FUNDAMENTAL_FACTORS",
+    "EM_IC_WEIGHTS",
+    "EM_N_COMPONENTS",
+    "EM_OBS_COLS",
+    "GaussianMixtureEM",
+    "blend_quality_score",
+    "build_em_fundamental_factor",
     # analyst revision
     "ANALYST_REVISION_FACTORS",
     "build_analyst_revision_factor",
