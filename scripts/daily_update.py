@@ -444,8 +444,13 @@ def step5b_position_sizing(
 ) -> tuple[bool, list[dict]]:
     """HRP / Kelly / 等权 仓位优化 — 为 Top-N 候选计算建议权重。
 
-    计算结果写入每个 candidate dict 的 'weight' 字段，并保存至
-    reports/daily/<date>/position_weights.json
+    流程
+    ----
+    1. 用历史价格计算 HRP / Kelly / 混合原始权重
+    2. 若启用 Barra 约束（``args.barra_constrained`` 或配置 barra_* 字段），
+       在原始权重基础上叠加行业 / 风格 / 换手率约束（cvxpy 求解）
+    3. 写入每个 candidate dict 的 'weight' 字段，保存至
+       reports/daily/<date>/position_weights.json
     """
     import json
 
@@ -490,6 +495,109 @@ def step5b_position_sizing(
         else:
             w_final = blend_weights(w_hrp, w_kelly, alpha=0.5)
 
+        # ── Barra 约束层（可选）─────────────────────────────────────────────
+        barra_enabled = getattr(args, "barra_constrained", False)
+        if not barra_enabled:
+            # 也支持从 strategy_config_v2.json 读取开关
+            _cfg_path = _ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+            if _cfg_path.exists():
+                try:
+                    import json as _json
+                    _cfg = _json.loads(_cfg_path.read_text(encoding="utf-8"))
+                    barra_enabled = _cfg.get("barra_constrained", False)
+                except Exception:
+                    pass
+
+        if barra_enabled:
+            try:
+                from quantmind.portfolio.constrained_optimizer import ConstrainedPortfolioOptimizer
+                from quantmind.risk.barra import STYLE_MAP
+
+                # 读取配置（若无则使用默认值）
+                _cfg_path = _ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+                barra_cfg: dict = {}
+                if _cfg_path.exists():
+                    try:
+                        import json as _json
+                        _cfg = _json.loads(_cfg_path.read_text(encoding="utf-8"))
+                        barra_cfg = _cfg.get("barra_constraints", {})
+                    except Exception:
+                        pass
+
+                ind_limit  = float(barra_cfg.get("industry_limit",  0.3))
+                sty_limit  = float(barra_cfg.get("style_limit",     0.5))
+                to_limit   = float(barra_cfg.get("turnover_limit",  0.6))
+                risk_avers = float(barra_cfg.get("risk_aversion",   1.0))
+
+                # 读取 alpha panel 最近一期截面
+                panel_path = _ROOT / "data" / "panel" / "alpha_panel_v4.parquet"
+                if panel_path.exists():
+                    panel = pd.read_parquet(panel_path)
+                    panel_dates = panel.index.get_level_values("as_of").unique()
+                    valid_dates = panel_dates[panel_dates <= pd.Timestamp(as_of)]
+                    if len(valid_dates) > 0:
+                        latest_panel = valid_dates.max()
+                        panel_xs = panel.xs(latest_panel, level="as_of")
+
+                        # 构建因子暴露矩阵
+                        factor_exp = ConstrainedPortfolioOptimizer.build_factor_exposures(
+                            panel_xs.reindex(tickers)
+                        )
+
+                        # alpha scores = 候选排名得分
+                        score_map = {c["ticker"]: float(c.get("predicted_score", 0.5))
+                                     for c in candidates}
+                        alpha_scores = pd.Series(score_map).reindex(tickers).fillna(0.0)
+
+                        # 协方差矩阵（年化）
+                        cov_mat = rets.reindex(columns=tickers).cov() * 252
+
+                        # 上期权重（换手约束）
+                        prev_w_json = _ROOT / "reports" / "daily"
+                        prev_weights = None
+                        # 尝试读取最新 position_weights.json
+                        try:
+                            prev_dates = sorted(prev_w_json.glob("*/position_weights.json"))
+                            if prev_dates:
+                                prev_data = json.loads(prev_dates[-1].read_text())
+                                prev_weights = pd.Series(
+                                    {r["ticker"]: r["weight"]
+                                     for r in prev_data.get("weights", [])}
+                                ).reindex(tickers).fillna(0.0)
+                        except Exception:
+                            pass
+
+                        opt = ConstrainedPortfolioOptimizer(
+                            industry_limit=ind_limit,
+                            style_limit=sty_limit,
+                            turnover_limit=to_limit,
+                            risk_aversion=risk_avers,
+                        )
+                        w_constrained = opt.optimize(
+                            alpha_scores, factor_exp, cov_mat, prev_weights
+                        )
+
+                        # 检验：若约束权重有效，替换原始权重
+                        if w_constrained is not None and abs(w_constrained.sum() - 1.0) < 0.01:
+                            logger.info(
+                                "[Step5b] Barra 约束优化成功 "
+                                "max_w=%.3f  HHI=%.4f",
+                                float(w_constrained.max()),
+                                float((w_constrained ** 2).sum()),
+                            )
+                            w_final = w_constrained
+
+                            # 记录因子暴露到报告
+                            exp_report = opt.compute_active_exposure(w_final, factor_exp)
+                            out_dir = _ROOT / "reports" / "daily" / str(as_of)
+                            out_dir.mkdir(parents=True, exist_ok=True)
+                            exp_report.reset_index().to_csv(
+                                out_dir / "barra_exposure.csv", index=False
+                            )
+            except Exception as barra_exc:
+                logger.warning("[Step5b] Barra 约束层失败（%s），使用原始权重", barra_exc)
+        # ── end Barra 约束层 ──────────────────────────────────────────────────
+
         w_dict = w_final.to_dict()
         for c in candidates:
             c["weight"] = round(float(w_dict.get(c["ticker"], 1.0 / len(candidates))), 6)
@@ -499,7 +607,9 @@ def step5b_position_sizing(
         out_dir.mkdir(parents=True, exist_ok=True)
         weight_records = [{"ticker": c["ticker"], "weight": c["weight"]} for c in candidates]
         (out_dir / "position_weights.json").write_text(
-            json.dumps({"date": str(as_of), "method": method, "weights": weight_records}, ensure_ascii=False, indent=2),
+            json.dumps({"date": str(as_of), "method": method, "weights": weight_records,
+                        "barra_constrained": barra_enabled},
+                       ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         logger.info(f"[Step5b] ✅ {method} 仓位优化完成，已保存 position_weights.json")
