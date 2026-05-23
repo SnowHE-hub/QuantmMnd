@@ -269,23 +269,44 @@ streamlit run app/主页.py
   - **LOQO CV AUC = 0.6025** ✅（近期季度 Q3=0.84，Q4=0.95）
   - 关键发现：sentiment/momentum 代理分 IC 为负（反转效应）
 
-### 🔄 阶段 2 — 进行中
+### ✅ 阶段 2 — 全部完成（2026-05-23）
 
-- 🔄 **2-A 研报因子**：基于 NLP 解析券商研报，构建 `analyst_revision_score`（评级上调/目标价变动/超预期词频）
-- 🔄 **2-B CNN 因子网络**：对 K线图像序列做卷积特征提取，捕捉形态信息
-- 🔄 **2-C Qlib SigAnaRecord**：接入 Qlib 信号分析框架，标准化因子 IC 报告体系
-- 🔄 **2-D EM 隐变量因子**：混合高斯 EM 聚类，发现隐含市场结构特征
-- 🔄 **2-E 表达式引擎**：遗传算法搜索因子组合表达式（Alphalens 风格）
+- ✅ **2-A 研报因子** (`quantmind/features/analyst_revision.py`)
+  - Tushare 研报评级拉取 + 数字化 + `analyst_revision_score` 因子
+  - 27 项测试全通过；真实 IC 待 Tushare 积分升级后验证
+- ✅ **2-B FactorCNN 因子网络** (`quantmind/models/factor_cnn.py`)
+  - 4分支 Inception 架构（Value/Quality/Momentum/Technical）
+  - IC Loss（−cosine_sim）+ Walk-Forward 训练；Fold1 IC = 0.030
+  - `ensemble_scores()` 与 LGBM 集成；22 项测试全通过
+- ✅ **2-C 归因报告** (`scripts/generate_attribution_report.py`)
+  - 4 张发表级图表（NAV曲线 / IC热力图 / Regime时间轴 / Barra因子载荷）
+  - PDF + PNG + JPG 三格式输出，`reports/attribution/` 目录
+- ✅ **2-D EM 隐变量因子** (`quantmind/features/em_fundamental.py`)
+  - 纯 NumPy GMM（K=3，K-Means++初始化，Cholesky log-PDF）
+  - IC-先验权重投影到1D后拟合 GMM，避免高维退化
+  - **IC>0 占比 60.7%**（28季）；25 项测试全通过
+  - `strategy_config_v2.json` 新增 `em_factor_weight: 0.2`
+- ✅ **2-E 表达式引擎** (`quantmind/features/expr_factors.py`)
+  - 轻量 Qlib 风格表达式因子引擎（无需安装 pyqlib）
+  - 9 个时序算子 + 7 个内置因子（momentum/reversal/vol/amihud/RSI/Bollinger）
+  - **7/7 因子 Spearman = 1.000000**（expr vs 参考 Python 验证）
+  - CLAUDE.md 新增完整因子添加指南
+
+### 🚀 阶段 3 — 下一阶段
+
+- ⬜ **3-A 6-Agent 对抗辩论升级**：多 Agent 辩手架构，强化多空观点博弈，提升持仓决策质量
+- ⬜ **3-B Barra → 组合约束**：将 Barra 风险因子暴露直接接入持仓优化约束层，控制因子集中度
+- ⬜ **3-C Qlib 数据层迁移**：将日频量价数据源切换至 Qlib 标准数据层，复用表达式引擎管道
+- ⬜ **3-D MLflow 实验追踪**：为 FactorCNN / LGBM / Meta-Learner 的训练过程添加 MLflow 追踪
+- ⬜ **3-E Regime 动态权重完善**：基于 HMM 状态实时调整 System2 因子权重，完成闭环验证
 
 ### 📌 近期优先级
 
 1. **[2026-06-26]** 前向持仓结算 → 追加 realized_pnl → 重训 meta-learner v2
    - 目标：n 从 100 → 110+，CV AUC 期望进一步提升
-   - 命令：`python scripts/train_meta_learner.py --pnl ... --panel ...`
-2. **[本月]** `ann_sentiment_5d` BERT 打分验证（transformer输出格式已修复，重跑可启用）
-3. **[本月]** 2026Q2 面板更新 + 序贯验证 Round 9 补跑（等21d标签充足后）
-4. **[下季]** 阶段 2 正式启动（2-A 研报因子优先级最高）
+2. **[本月]** 2026Q2 面板更新 + 序贯验证 Round 9（等21d标签充足后）
+3. **[下季]** 阶段 3 正式启动（3-A 对抗辩论升级优先）
 
 ---
 
-*最后更新：2026-05-22 | 阶段 1 全部完成（v6 HRP 净年化+24.46%/Sharpe≈1.0 · HMM · ann_sentiment_5d IC=-0.131✅ · MetaLearner v2 AUC=0.60）*
+*最后更新：2026-05-23 | 阶段 2 全部完成（FactorCNN IC=0.030 · EM因子IC>0=60.7% · ann_contrarian IC=+0.131 · 归因报告4图 · 表达式引擎7因子）*

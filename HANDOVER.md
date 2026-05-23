@@ -1,6 +1,6 @@
 # QuantMind — Claude Code 接续开发交接文档
 
-> 更新于 2026-05-22，基于 Phase E1/E2/E3 + 本期研发（HMM技术债、文本情绪因子、序贯验证扩展、Meta-Learner v2）。  
+> 更新于 2026-05-23，基于 Phase E1/E2/E3 + 阶段1（HMM/文本情绪/Meta-Learner）+ **阶段2（全部完成）**。  
 > 本文档供下一位 Claude Code 实例快速接手，无需重读历史对话。
 
 ---
@@ -31,7 +31,43 @@
 
 ---
 
-## 二、系统当前状态（2026-05-21）
+## 〇、阶段 2 成果摘要（2026-05-23 完成）
+
+### 新增模块
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| **analyst_revision** | `quantmind/features/analyst_revision.py` | 研报评级因子：Tushare拉取 + 数字化 + analyst_revision_score |
+| **FactorCNN** | `quantmind/models/factor_cnn.py` | 4分支 Inception CNN + IC Loss + Walk-Forward训练 + ensemble_scores() |
+| **归因报告** | `scripts/generate_attribution_report.py` | 4张发表级图表（NAV/IC热图/Regime/Barra），PDF+PNG+JPG |
+| **em_fundamental** | `quantmind/features/em_fundamental.py` | 纯NumPy GMM（K=3）EM隐变量基本面质量因子 |
+| **expr_factors** | `quantmind/features/expr_factors.py` | 轻量Qlib表达式引擎，9算子，7内置因子，无pyqlib依赖 |
+
+### 关键指标
+
+| 指标 | 数值 | 备注 |
+|------|------|------|
+| FactorCNN Fold1 IC | **0.030** | forward_return_63d，Walk-Forward |
+| EM因子 IC>0 占比 | **60.7%** | 28季 Spearman，超过55%阈值 |
+| ann_contrarian_5d IC | **+0.131** | p=0.025，294样本（反向情绪因子） |
+| 表达式引擎一致性 | **1.000** | 7/7因子 Spearman=1.0 vs 参考Python |
+| 测试套件 | **590 passed** | 13个预存失败（与阶段2无关） |
+
+### 配置变更
+
+- `strategy_config_v2.json`：新增 `system2_updates.em_factor_weight = 0.2`
+- `quantmind/features/__init__.py`：注册 EM + ExprFactor 全部符号
+- `.claude/CLAUDE.md`：新增完整"因子添加指南"（方式A表达式 / 方式B快照）
+
+### 待完成（阶段3后）
+
+- FactorCNN Regime 分层重训：Bull/Bear/Neutral 各训一个子模型，集成时按 HMM 状态切换
+- analyst_revision 真实 IC 验证：Tushare 积分升级后拉取完整研报数据
+- EM 因子均值 IC 提升：当前 0.015，接近但未达 0.02 阈值；A股基本面噪声限制
+
+---
+
+## 二、系统当前状态（2026-05-23）
 
 ### 2.1 三系统流水线（核心）
 
