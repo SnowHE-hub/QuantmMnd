@@ -51,7 +51,18 @@ def parse_args(argv=None):
     p.add_argument("--weight-method", choices=["equal", "hrp", "kelly", "blend"], default="equal")
     p.add_argument("--kelly-fraction", type=float, default=0.5)
     p.add_argument("--rf",     type=float, default=0.03, help="年化无风险利率")
+    p.add_argument("--cost-bps", type=float, default=0.0,
+                   help="单边交易成本（bps）：卖方印花税+佣金 ≈ 13 bps，买方佣金 ≈ 3 bps，"
+                        "默认 0（不扣成本）。E3 成本修正建议使用 13")
     p.add_argument("--out",    type=Path, default=Path("reports/alpha_final/"))
+    p.add_argument("--no-mlflow", action="store_true",
+                   help="跳过 MLflow 实验记录（离线调试时使用）")
+    p.add_argument("--mlflow-uri", type=str, default="mlruns",
+                   help="MLflow tracking URI 或本地目录，默认 'mlruns'")
+    p.add_argument("--phase", type=str, default="",
+                   help="实验阶段标签（如 E3），写入 MLflow tag")
+    p.add_argument("--model-version", type=str, default="v6",
+                   help="模型版本标签，写入 MLflow tag，默认 'v6'")
     return p.parse_args(argv)
 
 
@@ -167,6 +178,21 @@ def compute_weights(
 # 核心 NAV 构建
 # ─────────────────────────────────────────────
 
+def _turnover_rate(prev_weights: dict[str, float], new_weights: dict[str, float]) -> float:
+    """计算两期持仓的单边换手率（0~1）。
+
+    换手率 = 新增买入权重之和 = 所有股票 max(0, w_new - w_old) 之和
+    等价于 1 - sum(min(w_old, w_new))，对卖出方对称。
+    首期建仓（prev_weights为空）换手率 = 1.0。
+    """
+    if not prev_weights:
+        return 1.0
+    all_tickers = set(prev_weights) | set(new_weights)
+    buys = sum(max(0.0, new_weights.get(t, 0.0) - prev_weights.get(t, 0.0))
+               for t in all_tickers)
+    return min(buys, 1.0)
+
+
 def build_daily_nav(
     panel: pd.DataFrame,
     scores: pd.Series,
@@ -174,14 +200,22 @@ def build_daily_nav(
     top_n: int,
     weight_method: str,
     kelly_fraction: float,
-) -> tuple[pd.Series, pd.DataFrame]:
-    """从日频价格和季末打分构建日频 NAV。
+    cost_bps: float = 0.0,
+) -> tuple[pd.Series, pd.DataFrame, list[dict]]:
+    """从日频价格和季末打分构建日频 NAV（含可选交易成本）。
+
+    Args:
+        cost_bps: 单边交易成本（bps）。买入成本 = turnover * cost_bps/10000，
+                  卖出成本 = turnover * cost_bps/10000（印花税+佣金合并为单边对称处理）。
+                  E3 建议值：13 bps（卖方 0.10% 印花税 + 0.03% 佣金）。
 
     Returns:
-        nav:      pd.Series（DatetimeIndex，策略净值，从 1.0 开始）
-        holdings: pd.DataFrame（每期持仓明细）
+        nav:           pd.Series（DatetimeIndex，策略净值，从 1.0 开始）
+        holdings:      pd.DataFrame（每期持仓明细）
+        turnover_log:  list[dict]（每期换手率 + 成本记录）
     """
     rebalance_dates = sorted(panel.index.get_level_values("as_of").unique())
+    cost_rate = cost_bps / 10_000  # 单边成本率
 
     # 每期调仓：选 Top-N，记录调仓日 + 持仓 + 权重
     periods: list[dict] = []
@@ -194,7 +228,7 @@ def build_daily_nav(
 
         weights = compute_weights(top_tickers, as_of, price_wide, weight_method, kelly_fraction)
 
-        # 持仓区间：as_of 后第一个交易日 → 下一个 as_of（含） 
+        # 持仓区间：as_of 后第一个交易日 → 下一个 as_of（含）
         entry_date = pd.Timestamp(as_of)
         exit_date = pd.Timestamp(rebalance_dates[i + 1]) if i + 1 < len(rebalance_dates) else price_wide.index[-1]
 
@@ -207,10 +241,11 @@ def build_daily_nav(
         })
 
     # ── 日频 NAV 计算 ──
-    # 对每个持仓期，找出区间内的交易日，用实际价格计算日收益
     all_dates = price_wide.index
     nav_series: dict[pd.Timestamp, float] = {}
     nav_val = 1.0
+    prev_weights: dict[str, float] = {}
+    turnover_log: list[dict] = []
 
     for period in periods:
         tickers = period["tickers"]
@@ -218,21 +253,26 @@ def build_daily_nav(
         entry = period["entry_date"]
         exit_ = period["exit_date"]
 
+        # ── 换手率 & 成本扣减（在持仓期首日前计入） ──
+        turnover = _turnover_rate(prev_weights, w_dict)
+        round_trip_cost = turnover * cost_rate * 2   # 买入 + 卖出各一次单边成本
+        nav_val *= (1.0 - round_trip_cost)           # 直接从 NAV 扣除，首日前完成
+        turnover_log.append({
+            "as_of": str(period["as_of"]),
+            "turnover": round(turnover, 4),
+            "round_trip_cost": round(round_trip_cost, 6),
+            "nav_after_cost": round(nav_val, 6),
+        })
+        prev_weights = dict(w_dict)
+
         # 持仓期内的交易日（entry 后一天 → exit）
         mask = (all_dates > entry) & (all_dates <= exit_)
         period_dates = all_dates[mask]
-
-        # 用 entry 当日收盘作为建仓基准价
-        # 找 entry 日或之前最近的交易日
-        entry_idx = all_dates.searchsorted(entry, side="right") - 1
-        if entry_idx < 0:
-            entry_idx = 0
 
         for t in period_dates:
             t_idx = all_dates.get_loc(t)
             prev_idx = t_idx - 1
 
-            # 计算当日组合收益（等权 / HRP）
             day_ret = 0.0
             weight_sum = 0.0
             for ticker, w in w_dict.items():
@@ -246,20 +286,18 @@ def build_daily_nav(
                 weight_sum += w
 
             if weight_sum > 1e-6:
-                day_ret /= weight_sum   # 重新归一化缺失持仓的影响
+                day_ret /= weight_sum
 
             nav_val *= (1 + day_ret)
             nav_series[t] = nav_val
 
     nav = pd.Series(nav_series, name="nav").sort_index()
 
-    # 补全第一个持仓前（作为基准 1.0）
     if len(nav) > 0:
         first_date = pd.Timestamp(periods[0]["entry_date"])
         nav_pre = pd.Series({first_date: 1.0}, name="nav")
         nav = pd.concat([nav_pre[~nav_pre.index.isin(nav.index)], nav]).sort_index()
 
-    # 持仓明细表
     holdings_rows = []
     for p in periods:
         for ticker in p["tickers"]:
@@ -272,7 +310,7 @@ def build_daily_nav(
             })
     holdings_df = pd.DataFrame(holdings_rows)
 
-    return nav, holdings_df
+    return nav, holdings_df, turnover_log
 
 
 # ─────────────────────────────────────────────
@@ -313,8 +351,13 @@ def build_benchmark_nav(price_wide: pd.DataFrame, nav: pd.Series) -> pd.Series |
 # 绩效指标
 # ─────────────────────────────────────────────
 
-def calc_metrics(nav: pd.Series, rf: float = 0.03) -> dict:
-    """日频 NAV → 综合绩效指标。"""
+def calc_metrics(
+    nav: pd.Series,
+    rf: float = 0.03,
+    turnover_log: list[dict] | None = None,
+    cost_bps: float = 0.0,
+) -> dict:
+    """日频 NAV → 综合绩效指标（含成本摘要）。"""
     rets = nav.pct_change().dropna()
     total = float(nav.iloc[-1] / nav.iloc[0] - 1)
     n_years = len(rets) / 252
@@ -325,10 +368,10 @@ def calc_metrics(nav: pd.Series, rf: float = 0.03) -> dict:
     dd = (nav / running_max - 1)
     max_dd = float(dd.min())
     calmar = ann_ret / (-max_dd + 1e-9) if max_dd < 0 else float("inf")
-    # 月度胜率
     monthly = nav.resample("ME").last().pct_change().dropna()
     win_rate = float((monthly > 0).mean()) if len(monthly) > 0 else float("nan")
-    return {
+
+    result = {
         "start_date": str(nav.index[0].date()),
         "end_date":   str(nav.index[-1].date()),
         "total_return":    round(total, 4),
@@ -339,7 +382,18 @@ def calc_metrics(nav: pd.Series, rf: float = 0.03) -> dict:
         "max_drawdown":    round(max_dd, 4),
         "monthly_win_rate": round(win_rate, 4),
         "n_trading_days":  len(rets),
+        "cost_bps":        cost_bps,
     }
+
+    if turnover_log:
+        turnovers = [r["turnover"] for r in turnover_log]
+        costs = [r["round_trip_cost"] for r in turnover_log]
+        result["avg_turnover"]       = round(float(np.mean(turnovers)), 4)
+        result["avg_round_trip_cost"] = round(float(np.mean(costs)), 6)
+        result["total_cost_drag"]    = round(float(np.prod([1 - c for c in costs])) - 1.0, 6)
+        result["n_rebalances"]       = len(turnover_log)
+
+    return result
 
 
 # ─────────────────────────────────────────────
@@ -366,7 +420,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <h1>Alpha 1374 · 日频真实 NAV 回测报告</h1>
-<p style="color:#888;font-size:12px;">模型: {model_name} · Top-{top_n} 季度调仓 · 权重方法: {weight_method} · 生成: {gen_date}</p>
+<p style="color:#888;font-size:12px;">模型: {model_name} · Top-{top_n} 季度调仓 · 权重方法: {weight_method} · 交易成本: {cost_note} · 生成: {gen_date}</p>
 
 <h2>绩效指标</h2>
 <div class="metrics-grid">
@@ -452,22 +506,34 @@ def build_html(
         return (f'<div class="metric-card"><div class="val{cls}">{val_str}</div>'
                 f'<div class="lbl">{label}</div></div>')
 
+    cost_bps = metrics.get("cost_bps", 0.0)
+    avg_to = metrics.get("avg_turnover", float("nan"))
+    cost_drag = metrics.get("total_cost_drag", float("nan"))
+
     cards = [
-        _card(_fmt(metrics.get("ann_return", float("nan"))),  "年化收益"),
+        _card(_fmt(metrics.get("ann_return", float("nan"))),  "年化收益（含成本）" if cost_bps > 0 else "年化收益"),
         _card(_fmt(metrics.get("ann_volatility", float("nan"))), "年化波动率"),
         _card(_fmt(metrics.get("sharpe_ratio", float("nan")), pct=False), "Sharpe 比率"),
         _card(_fmt(metrics.get("max_drawdown", float("nan"))), "最大回撤", neg=True),
         _card(_fmt(metrics.get("calmar_ratio", float("nan")), pct=False), "Calmar 比率"),
         _card(_fmt(metrics.get("monthly_win_rate", float("nan"))), "月度胜率"),
-        _card(f"{metrics.get('n_trading_days',0)}", "交易日数", neg=False),
         _card(_fmt(metrics.get("total_return", float("nan"))), "累计收益"),
+        _card(f"{metrics.get('n_trading_days',0)}", "交易日数"),
     ]
+    if cost_bps > 0:
+        cards += [
+            _card(f"{cost_bps:.0f} bps", "单边成本"),
+            _card(f"{avg_to*100:.1f}%" if avg_to == avg_to else "—", "平均换手率"),
+            _card(_fmt(cost_drag) if cost_drag == cost_drag else "—", "累计成本拖累", neg=True),
+        ]
 
+    cost_note = f"{cost_bps:.0f} bps/单边" if cost_bps > 0 else "不含成本"
     from datetime import date as dt_date
     return _HTML_TEMPLATE.format(
         model_name=args.model.name,
         top_n=args.top,
         weight_method=getattr(args, "weight_method", "equal"),
+        cost_note=cost_note,
         gen_date=str(dt_date.today()),
         metric_cards="\n".join(cards),
         nav_dates=json.dumps(dates_str),
@@ -504,13 +570,21 @@ def main(argv=None):
     print(f"[NAV Backtest] 加载模型并打分：{model_path}")
     scores = load_model_scores(panel, model_path)
 
-    print(f"[NAV Backtest] 构建日频 NAV（Top-{args.top}，{getattr(args,'weight_method','equal')}）…")
-    nav, holdings_df = build_daily_nav(
+    cost_bps = getattr(args, "cost_bps", 0.0)
+    cost_note = f"单边 {cost_bps:.0f} bps" if cost_bps > 0 else "不含成本"
+    print(f"[NAV Backtest] 构建日频 NAV（Top-{args.top}，{getattr(args,'weight_method','equal')}，{cost_note}）…")
+    nav, holdings_df, turnover_log = build_daily_nav(
         panel, scores, price_wide, args.top,
         weight_method=getattr(args, "weight_method", "equal"),
         kelly_fraction=getattr(args, "kelly_fraction", 0.5),
+        cost_bps=cost_bps,
     )
     print(f"  ✓ NAV 序列长度：{len(nav)}，区间：{nav.index[0].date()} → {nav.index[-1].date()}")
+    if cost_bps > 0 and turnover_log:
+        avg_to = np.mean([r["turnover"] for r in turnover_log])
+        total_cost = 1 - np.prod([1 - r["round_trip_cost"] for r in turnover_log])
+        print(f"  ✓ 成本：{len(turnover_log)} 次调仓，平均换手率 {avg_to*100:.1f}%，"
+              f"累计成本拖累 {total_cost*100:.2f}%")
 
     # 基准
     bm_nav = build_benchmark_nav(price_wide, nav)
@@ -520,7 +594,7 @@ def main(argv=None):
         print("  ⚠ 未找到 CSI300 基准，跳过对比")
 
     print("[NAV Backtest] 计算绩效指标…")
-    metrics = calc_metrics(nav, rf=args.rf)
+    metrics = calc_metrics(nav, rf=args.rf, turnover_log=turnover_log, cost_bps=cost_bps)
     print(f"  年化收益: {metrics['ann_return']*100:.2f}%  "
           f"Sharpe: {metrics['sharpe_ratio']:.3f}  "
           f"MaxDD: {metrics['max_drawdown']*100:.2f}%")
@@ -547,11 +621,56 @@ def main(argv=None):
     holdings_df.to_csv(holdings_csv, index=False)
     print(f"[NAV Backtest] ✅ 持仓明细已写入：{holdings_csv}")
 
+    if turnover_log:
+        to_json = out_dir / "nav_turnover.json"
+        to_json.write_text(json.dumps(turnover_log, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"[NAV Backtest] ✅ 换手率明细已写入：{to_json}")
+
     print("[NAV Backtest] 生成 HTML 报告…")
     html = build_html(nav, metrics, bm_nav, args)
     html_path = out_dir / "nav_report.html"
     html_path.write_text(html, encoding="utf-8")
     print(f"[NAV Backtest] ✅ HTML 报告已写入：{html_path}")
+
+    # ── MLflow 实验追踪 ────────────────────────────────────────────────────────
+    if not getattr(args, "no_mlflow", False):
+        try:
+            from quantmind.workflow.mlflow_tracker import ExperimentTracker
+
+            tracker = ExperimentTracker(
+                tracking_uri=getattr(args, "mlflow_uri", "mlruns"),
+            )
+            run_id = tracker.log_backtest_run(
+                params={
+                    "weight_method":    getattr(args, "weight_method", "equal"),
+                    "top_n":            args.top,
+                    "kelly_fraction":   getattr(args, "kelly_fraction", 0.5),
+                    "transaction_cost": getattr(args, "cost_bps", 0.0) / 10000,
+                    "rf":               args.rf,
+                    "phase":            getattr(args, "phase", ""),
+                    "model_version":    getattr(args, "model_version", "v6"),
+                },
+                metrics={
+                    "ann_return":        metrics.get("ann_return", float("nan")),
+                    "sharpe":            metrics.get("sharpe_ratio", float("nan")),
+                    "max_dd":            metrics.get("max_drawdown", float("nan")),
+                    "total_return":      metrics.get("total_return", float("nan")),
+                    "ann_volatility":    metrics.get("ann_volatility", float("nan")),
+                    "calmar":            metrics.get("calmar_ratio", float("nan")),
+                    "win_rate":          metrics.get("monthly_win_rate", float("nan")),
+                    "avg_turnover":      metrics.get("avg_turnover", float("nan")),
+                    "excess_ann_return": metrics.get("excess_ann_return", float("nan")),
+                },
+                artifacts_dir=str(out_dir),
+                run_name=(
+                    f"{getattr(args, 'weight_method', 'equal')}"
+                    f"_{getattr(args, 'phase', '') or 'backtest'}"
+                ),
+            )
+            print(f"[NAV Backtest] ✅ MLflow run_id: {run_id}")
+            print(f"[NAV Backtest]    查看实验: mlflow ui --port 5000")
+        except Exception as mlflow_exc:
+            print(f"[NAV Backtest] ⚠ MLflow 记录失败（{mlflow_exc}），回测结果已保存到文件")
 
 
 if __name__ == "__main__":
