@@ -53,6 +53,13 @@ except ImportError:
     import logging
     logger = logging.getLogger(__name__)
 
+try:
+    from quantmind.agents.debate_orchestrator import run_debate_filter
+    _DEBATE_AVAILABLE = True
+except Exception as _debate_import_err:
+    _DEBATE_AVAILABLE = False
+    logger.warning(f"辩论模块导入失败，跳过 debate filter: {_debate_import_err}")
+
 # ─── 全局配置 ────────────────────────────────────────────────────────────────
 
 SIM_DIR = _ROOT / "data" / "sim30d"
@@ -973,7 +980,45 @@ def step_simulate(model_path: Path) -> pd.DataFrame:
             # === 系统3: 回测验证 ===
             logger.info("  [系统3] 历史胜率验证...")
             validated = backtester.validate(analyzed, as_of)
-            final_list = validated[validated["investable"]].head(FINAL_TOP_N)
+
+            # === 系统4: 6-Agent 辩论置信度过滤（Layer6+）===
+            if _DEBATE_AVAILABLE:
+                try:
+                    # 取当日 Regime（来自 System2 分析结果）
+                    _regime = str(analyzed["regime"].iloc[0]) if "regime" in analyzed.columns else "neutral"
+
+                    # 构建 context_map：候选股票的因子快照（factor_df 行转 dict）
+                    _cand_tickers = validated.index.tolist()
+                    _context_map = {
+                        t: factor_df.loc[t].to_dict()
+                        for t in _cand_tickers
+                        if t in factor_df.index
+                    }
+
+                    logger.info(
+                        f"  [辩论] 对 {len(_cand_tickers)} 只候选运行 6-Agent 辩论"
+                        f"（Regime={_regime}）..."
+                    )
+                    validated = run_debate_filter(
+                        candidates_df        = validated,
+                        as_of                = as_of,
+                        context_map          = _context_map,
+                        regime               = _regime,
+                        confidence_threshold = 0.60,
+                        fallback_threshold   = 0.50,
+                        top_n                = FINAL_TOP_N,
+                        parallel_agents      = True,
+                        parallel_tickers     = False,
+                    )
+                    logger.info(
+                        f"  [辩论] 完成：{len(validated)} 只入选，"
+                        f"avg_conf={validated['debate_confidence'].mean():.3f}"
+                    )
+                except Exception as _debate_err:
+                    logger.warning(f"  [辩论] 运行失败，跳过：{_debate_err}")
+
+            final_list = validated[validated.get("investable", pd.Series(True, index=validated.index)).fillna(True)].head(FINAL_TOP_N) \
+                if "investable" in validated.columns else validated.head(FINAL_TOP_N)
             if final_list.empty:
                 logger.warning(f"  {date_str} 回测验证后无可投股票，使用 Top-5 候选")
                 final_list = validated.head(5)
@@ -1030,6 +1075,13 @@ def step_simulate(model_path: Path) -> pd.DataFrame:
                         "hist_maxdd": safe_val(row.get("hist_maxdd")),
                         "risk_level": str(row.get("risk_level", "中")),
                         "investable": bool(row.get("investable", True)),
+                        # 辩论置信度字段（若辩论模块未运行则为 None）
+                        "debate_confidence":    safe_val(row.get("debate_confidence")),
+                        "debate_recommendation": row.get("debate_recommendation"),
+                        "debate_holding_period": row.get("debate_holding_period"),
+                        "debate_bull_agents":   row.get("debate_bull_agents"),
+                        "debate_bear_agents":   row.get("debate_bear_agents"),
+                        "debate_summary":       row.get("debate_summary"),
                     }
                     for i, (t, row) in enumerate(final_list.iterrows())
                 ],
