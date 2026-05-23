@@ -11,6 +11,9 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
+# 统一数据接口：共享全局缓存，避免多实例重复加载同一文件
+from quantmind.data.handler import open_parquet_cached
+
 _ROOT = Path(__file__).resolve().parent.parent.parent
 _PRICES_DIR = _ROOT / "data" / "prices"
 _CSI300_PRICE_FILE = _PRICES_DIR / "csi300_daily_adj_close.parquet"
@@ -87,7 +90,8 @@ class BacktestDataProvider:
         cache_key = str(panel_file)
         if cache_key not in self._price_cache:
             logger.info(f"[BacktestData] 加载价格面板: {panel_file}")
-            self._price_cache[cache_key] = pd.read_parquet(panel_file)
+            # 替换1: open_parquet_cached 共享全局 DataHandler 缓存
+            self._price_cache[cache_key] = open_parquet_cached(panel_file)
 
         df = self._price_cache[cache_key]
 
@@ -164,7 +168,8 @@ class BacktestDataProvider:
             return pd.Series(dtype=float)
 
         try:
-            df = pd.read_parquet(_INDEX_FILE)
+            # 替换2: open_parquet_cached 共享全局 DataHandler 缓存
+            df = open_parquet_cached(_INDEX_FILE)
 
             # 尝试多种列名格式
             idx_col = None
@@ -243,7 +248,8 @@ class BacktestDataProvider:
         for p in panel_paths:
             p = Path(p)
             if p.exists():
-                frames.append(pd.read_parquet(p))
+                # 替换3: open_parquet_cached 共享全局 DataHandler 缓存
+                frames.append(open_parquet_cached(p))
         if not frames:
             return None
 
@@ -258,7 +264,8 @@ class BacktestDataProvider:
             return None
         cache_key = str(panel_file)
         if cache_key not in self._price_cache:
-            self._price_cache[cache_key] = pd.read_parquet(panel_file)
+            # 替换4: open_parquet_cached 共享全局 DataHandler 缓存
+            self._price_cache[cache_key] = open_parquet_cached(panel_file)
         return self._price_cache[cache_key]
 
     def _load_price_panel_full(self) -> pd.DataFrame | None:
@@ -268,7 +275,8 @@ class BacktestDataProvider:
             return None
         key = str(file)
         if key not in self._price_cache:
-            self._price_cache[key] = pd.read_parquet(file)
+            # 替换5: open_parquet_cached 共享全局 DataHandler 缓存
+            self._price_cache[key] = open_parquet_cached(file)
         return self._price_cache[key]
 
     def _resolve_price_file(self, ticker: str | None = None) -> Path | None:
