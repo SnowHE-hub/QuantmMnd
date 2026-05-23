@@ -583,10 +583,15 @@ class AnalysisSystem:
     WEIGHTS = {"value": 0.30, "momentum": 0.25, "quality": 0.25, "technical": 0.20}
 
     def __init__(self) -> None:
-        """训练 RegimeHMM，失败时静默降级为默认权重."""
+        """训练 RegimeHMM，初始化 DynamicWeightManager，失败时静默降级."""
         from quantmind.regime.hmm import RegimeHMM
-        hist_path = _ROOT / "data" / "raw" / "index_daily_panel.parquet"
-        sim_path  = _ROOT / "data" / "sim30d" / "raw" / "index_000300_SH.parquet"
+        from quantmind.regime.dynamic_weights import DynamicWeightManager
+
+        hist_path   = _ROOT / "data" / "raw" / "index_daily_panel.parquet"
+        sim_path    = _ROOT / "data" / "sim30d" / "raw" / "index_000300_SH.parquet"
+        config_path = _ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+
+        # HMM
         try:
             self._regime_model: RegimeHMM | None = RegimeHMM.fit_from_file(
                 hist_path, sim_path
@@ -595,6 +600,13 @@ class AnalysisSystem:
         except Exception as exc:
             logger.warning(f"[System2] RegimeHMM 初始化失败，使用默认权重: {exc}")
             self._regime_model = None
+
+        # 动态权重管理器（从 strategy_config_v2 读取覆盖项）
+        self._weight_mgr = DynamicWeightManager(
+            config_path=config_path if config_path.exists() else None,
+            auto_reload=False,
+        )
+        logger.info("[System2] DynamicWeightManager 初始化完成")
 
     def analyze(self, candidates: pd.DataFrame, as_of: pd.Timestamp) -> pd.DataFrame:
         df = candidates.copy()
@@ -619,27 +631,60 @@ class AnalysisSystem:
             self._factor_score(df, tech_factors_neg, direction=-1) * 0.5
         )
 
-        # ── Regime 识别 → 动态权重 ──────────────────────────────────────────────
+        # ── Regime 识别 → 动态权重（含 ensemble / em / text）────────────────────
         if self._regime_model is not None:
-            regime  = self._regime_model.predict_regime(None, as_of)
-            weights = self._regime_model.get_weights(regime)
+            regime = self._regime_model.predict_regime(None, as_of)
         else:
-            regime  = "neutral"
-            weights = self.WEIGHTS
-        logger.info(
-            f"  [System2] HMM Regime={regime}，weights="
-            f"val={weights['value']:.3f} mom={weights['momentum']:.3f} "
-            f"qual={weights['quality']:.3f} tech={weights['technical']:.3f}"
-        )
-        df["regime"] = regime
+            regime = "neutral"
 
-        # 综合得分
-        df["composite_score"] = (
-            df["value_score"]     * weights["value"] +
-            df["momentum_score"]  * weights["momentum"] +
-            df["quality_score"]   * weights["quality"] +
-            df["technical_score"] * weights["technical"]
+        all_weights   = self._weight_mgr.get_weights(regime)
+        sys2_weights  = all_weights["system2"]
+        ens_weights   = all_weights["ensemble"]
+        em_weight     = all_weights["em_factor"]
+        text_weight   = all_weights["text_factor"]
+
+        logger.info(
+            f"  [System2] HMM Regime={regime} | "
+            f"sys2=[val={sys2_weights['value']:.3f} mom={sys2_weights['momentum']:.3f} "
+            f"qual={sys2_weights['quality']:.3f} tech={sys2_weights['technical']:.3f}] | "
+            f"ensemble=[lgbm={ens_weights['lgbm']:.2f} cnn={ens_weights['cnn']:.2f}] | "
+            f"em={em_weight:.2f} text={text_weight:.2f}"
         )
+        df["regime"]            = regime
+        df["lgbm_weight"]       = ens_weights["lgbm"]
+        df["cnn_weight"]        = ens_weights["cnn"]
+        df["em_factor_weight"]  = em_weight
+        df["text_factor_weight"] = text_weight
+
+        # 综合得分（System2 四维）
+        df["composite_score"] = (
+            df["value_score"]     * sys2_weights["value"] +
+            df["momentum_score"]  * sys2_weights["momentum"] +
+            df["quality_score"]   * sys2_weights["quality"] +
+            df["technical_score"] * sys2_weights["technical"]
+        )
+
+        # ── EM 因子叠加（若列存在）────────────────────────────────────────────
+        if "fundamental_quality_score" in df.columns:
+            em_rank = df["fundamental_quality_score"].rank(pct=True) * 100
+            df["composite_score"] = (
+                df["composite_score"] * (1.0 - em_weight)
+                + em_rank * em_weight
+            )
+            logger.info(
+                f"  [System2] EM 因子叠加 weight={em_weight:.2f}"
+            )
+
+        # ── 文本情绪因子叠加（若列存在，ann_contrarian 正值=看涨）────────────
+        if "ann_contrarian_5d" in df.columns:
+            text_rank = df["ann_contrarian_5d"].rank(pct=True) * 100
+            df["composite_score"] = (
+                df["composite_score"] * (1.0 - text_weight)
+                + text_rank * text_weight
+            )
+            logger.info(
+                f"  [System2] 文本因子叠加 weight={text_weight:.2f}"
+            )
 
         # 投资评级
         df["rating"] = pd.cut(df["composite_score"],

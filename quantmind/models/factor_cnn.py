@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -721,6 +721,179 @@ def predict_cnn(
     return scores
 
 
+# ─── Regime-aware 训练 & 推理 ──────────────────────────────────────────────────
+
+def train_regime_aware_cnn(
+    panel: pd.DataFrame,
+    regime_map: Dict[pd.Timestamp, str],
+    *,
+    label_col: str = "forward_return_63d",
+    n_train_quarters: int = 8,
+    n_val_quarters: int = 2,
+    epochs: int = 60,
+    batch_size: int = 256,
+    lr: float = 3e-4,
+    weight_decay: float = 1e-4,
+    patience: int = 10,
+    device: str = "cpu",
+    min_regime_quarters: int = 4,
+) -> Dict[str, CNNTrainResult]:
+    """按 HMM regime 分组，分别训练专用 FactorCNN 模型。
+
+    Parameters
+    ----------
+    panel : pd.DataFrame
+        MultiIndex (date, ticker) 面板，与 ``train_factor_cnn`` 格式相同。
+    regime_map : dict[pd.Timestamp, str]
+        季度截面日期 → regime 标签（'bull' | 'neutral' | 'bear'）。
+        由 ``RegimeHMM.predict_regime()`` 批量调用生成。
+    min_regime_quarters : int
+        某 regime 可用季度数低于此阈值时跳过训练（样本太少）。
+        默认 4（需至少 n_val_quarters + 2 个有效季度）。
+    其余参数与 ``train_factor_cnn`` 相同。
+
+    Returns
+    -------
+    dict[str, CNNTrainResult]
+        Keys 为 'bull' / 'neutral' / 'bear'（仅包含成功训练的 regime）。
+        值为 CNNTrainResult，可从 ``.model`` 取出 FactorCNN 用于推理。
+
+    Examples
+    --------
+    >>> regime_map = {pd.Timestamp('2022-03-31'): 'bull', ...}
+    >>> results = train_regime_aware_cnn(panel, regime_map)
+    >>> for r, res in results.items():
+    ...     print(f"{r}: val_IC={res.val_ic_mean:.4f}")
+    """
+    # 面板中所有季度日期（排序）
+    panel_dates = (
+        panel.index.get_level_values(0).unique().sort_values()
+        if isinstance(panel.index, pd.MultiIndex)
+        else panel.index.unique().sort_values()
+    )
+
+    # 统一 key 类型为 pd.Timestamp，label 小写
+    regime_map_ts: Dict[pd.Timestamp, str] = {
+        pd.Timestamp(k): str(v).lower() for k, v in regime_map.items()
+    }
+
+    results: Dict[str, CNNTrainResult] = {}
+
+    for regime in ["bull", "neutral", "bear"]:
+        # 筛选属于该 regime 的季度日期
+        regime_dates: List[pd.Timestamp] = [
+            d for d in panel_dates if regime_map_ts.get(d, "") == regime
+        ]
+
+        if len(regime_dates) < min_regime_quarters:
+            log.warning(
+                "train_regime_aware_cnn: '%s' regime 仅 %d 季度 (< %d)，跳过",
+                regime, len(regime_dates), min_regime_quarters,
+            )
+            continue
+
+        log.info(
+            "train_regime_aware_cnn: 训练 '%s' 模型，%d 季度截面",
+            regime, len(regime_dates),
+        )
+
+        # 过滤面板至当前 regime
+        regime_panel = panel.loc[
+            panel.index.get_level_values(0).isin(regime_dates)
+        ]
+
+        # 动态调整窗口大小，避免超出样本
+        n_total = len(regime_dates)
+        n_val   = min(n_val_quarters,   max(1, n_total // 5))
+        n_train = min(n_train_quarters, n_total - n_val)
+
+        try:
+            result = train_factor_cnn(
+                panel=regime_panel,
+                label_col=label_col,
+                n_train_quarters=n_train,
+                n_val_quarters=n_val,
+                epochs=epochs,
+                batch_size=batch_size,
+                lr=lr,
+                weight_decay=weight_decay,
+                patience=patience,
+                device=device,
+            )
+            results[regime] = result
+            log.info(
+                "train_regime_aware_cnn: '%s' 完成 — val_IC=%.4f  ICIR=%.3f",
+                regime, result.val_ic_mean, result.val_icir,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.error(
+                "train_regime_aware_cnn: '%s' 训练失败 — %s", regime, exc
+            )
+
+    if not results:
+        log.error("train_regime_aware_cnn: 所有 regime 均训练失败，返回空字典")
+    else:
+        log.info(
+            "train_regime_aware_cnn: 完成 %d/3 regime 模型 — %s",
+            len(results), list(results.keys()),
+        )
+
+    return results
+
+
+def predict_cnn_regime_aware(
+    models: Dict[str, FactorCNN],
+    regime: str,
+    panel_slice: pd.DataFrame,
+    feature_cols: List[str],
+    device: str = "cpu",
+    fallback_regime: str = "neutral",
+) -> pd.Series:
+    """使用 regime 对应的专用 CNN 模型做截面推理。
+
+    Parameters
+    ----------
+    models : dict[str, FactorCNN]
+        从 ``train_regime_aware_cnn()`` 结果提取的模型字典，例如：
+        ``{r: res.model for r, res in results.items()}``
+    regime : str
+        当前 HMM regime（'bull' | 'neutral' | 'bear'，大小写不敏感）。
+    panel_slice : pd.DataFrame
+        单季截面（index=ticker，columns ⊇ feature_cols）。
+    feature_cols : list[str]
+        与训练时完全一致的特征列顺序。
+    fallback_regime : str
+        当 ``regime`` 无对应模型时的回退策略。默认 'neutral'。
+
+    Returns
+    -------
+    pd.Series  index=ticker，values=cnn_score（alpha rank score）
+    """
+    regime_lower = regime.lower()
+
+    if regime_lower not in models:
+        log.warning(
+            "predict_cnn_regime_aware: '%s' 无对应模型，回退到 '%s'",
+            regime, fallback_regime,
+        )
+        regime_lower = fallback_regime.lower()
+
+    if regime_lower not in models:
+        # 最后保底：取可用模型中的第一个
+        regime_lower = next(iter(models))
+        log.warning(
+            "predict_cnn_regime_aware: 回退 regime 也无模型，使用 '%s'",
+            regime_lower,
+        )
+
+    return predict_cnn(
+        model=models[regime_lower],
+        panel_slice=panel_slice,
+        feature_cols=feature_cols,
+        device=device,
+    )
+
+
 __all__ = [
     "ALL_CNN_FEATURES",
     "CNNTrainResult",
@@ -735,7 +908,9 @@ __all__ = [
     "ensemble_scores",
     "ic_loss",
     "predict_cnn",
+    "predict_cnn_regime_aware",
     "preprocess_cross_section",
     "preprocess_panel",
     "train_factor_cnn",
+    "train_regime_aware_cnn",
 ]
