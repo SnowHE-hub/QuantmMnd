@@ -244,7 +244,7 @@ addopts = [
 markers = [
     "slow: requires real API calls (akshare/tushare/LLM)",
     "gpu: requires GPU",
-    "integration: end-to-end integration tests",
+    "integration: tests requiring network/Tushare/LLM or large data files — excluded from unit CI",
     "pit: Point-in-Time correctness tests (核心)",
 ]
 asyncio_mode = "auto"

@@ -110,6 +110,7 @@ def test_batch_requests_split_by_50(engine):
     assert True  # 只要不崩溃即可
 
 
+@pytest.mark.integration
 def test_akshare_sleep_between_batches(engine):
     """直接测试 _fetch_prices_akshare 的分批逻辑（不 mock 整个函数）."""
     tickers = [f"0{str(i).zfill(5)}.SZ" for i in range(1, 101)]  # 100只
@@ -133,6 +134,7 @@ def test_akshare_sleep_between_batches(engine):
 
 # ── 测试：AkShare 失败不崩溃 ─────────────────────────────────────────────────
 
+@pytest.mark.integration
 def test_get_spot_data_network_failure_graceful(engine):
     """get_spot_data 失败时不崩溃（AkShare 网络异常 mock）."""
 

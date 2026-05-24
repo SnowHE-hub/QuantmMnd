@@ -19,6 +19,7 @@ SPLIT_META = PROJECT_ROOT / "data" / "panel" / "split_meta.json"
 SNAP_ROOT = PROJECT_ROOT / "data" / "snapshots"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="csi300_full_panel.parquet not built")
 def test_full_panel_rowcount_vs_snapshots() -> None:
     panel = pd.read_parquet(PANEL_PATH)
@@ -34,6 +35,7 @@ def test_full_panel_rowcount_vs_snapshots() -> None:
     assert ratio <= 0.05, f"row count {len(panel)} vs expected {expected}, ratio={ratio}"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
 def test_expansion_nonempty_after_2021() -> None:
     panel = pd.read_parquet(PANEL_PATH)
@@ -44,6 +46,7 @@ def test_expansion_nonempty_after_2021() -> None:
     assert rate > 0.8, f"expansion non-NaN rate {rate}"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
 def test_expansion_all_nan_2019_2020() -> None:
     panel = pd.read_parquet(PANEL_PATH)
@@ -65,6 +68,7 @@ def test_labels_nonnull_except_last_two_periods() -> None:
             assert col.notna().mean() > 0.9, f"{lab} @ {ts} too sparse"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
 def test_expansion_many_nonempty_columns_modern() -> None:
     panel = pd.read_parquet(PANEL_PATH)
@@ -94,6 +98,7 @@ def test_forward_returns_no_lookahead() -> None:
     assert abs(float(fr2.loc["AAA.SZ", "forward_return_5d"]) - exp) < 1e-9
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not SPLIT_META.exists(), reason="split not built")
 def test_split_no_date_overlap() -> None:
     meta = json.loads(SPLIT_META.read_text(encoding="utf-8"))

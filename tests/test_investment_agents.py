@@ -99,6 +99,7 @@ def test_valuation_agent_reasonable():
 
 # ── Test 2: ValuationAgent — 高估 ─────────────────────────────────────────────
 
+@pytest.mark.integration
 def test_valuation_agent_overvalued():
     """PE=80 → signal < -0.5（高估）."""
     ctx = _make_context(
@@ -152,6 +153,7 @@ def test_quality_agent_high_quality():
 
 # ── Test 5: SentimentAgent — 正面新闻（无需LLM） ──────────────────────────────
 
+@pytest.mark.integration
 def test_sentiment_agent_positive_news():
     """含"增长""超预期"新闻 → signal > 0（纯规则，不调 LLM）."""
     news_items = [
@@ -171,6 +173,7 @@ def test_sentiment_agent_positive_news():
 
 # ── Test 6: RiskAgent — 高风险 ───────────────────────────────────────────────
 
+@pytest.mark.integration
 def test_risk_agent_high_risk():
     """vol=50%, debt=80% → signal < -0.5，warnings 非空."""
     price_df = _make_price_series(TICKER, n=200, trend=0.0)

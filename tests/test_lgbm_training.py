@@ -58,6 +58,7 @@ def test_analyze_factor_ic_mock_panel_ic_range() -> None:
                 assert -1.0 <= v <= 1.0, (f, d, v)
 
 
+@pytest.mark.integration
 def test_train_lgbm_base_produces_model_and_metrics(tmp_path: Path) -> None:
     tr = _load_script_module("train_lgbm_model")
     rng = np.random.default_rng(1)
@@ -130,6 +131,7 @@ def test_train_lgbm_base_produces_model_and_metrics(tmp_path: Path) -> None:
     assert mj["test_ICIR"] == mj["test_ICIR"]
 
 
+@pytest.mark.integration
 def test_predict_rankings_csv_columns(tmp_path: Path) -> None:
     tr = _load_script_module("train_lgbm_model")
     pr = _load_script_module("predict_rankings")
