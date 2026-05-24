@@ -23,13 +23,21 @@ bottleneck 分支压缩到 8 维，concat 后用两层 MLP 输出截面 alpha sc
 * 截面预处理：winsorize(±3) → cross-section zscore → 组内中位数填 NaN
 * 滚动训练：扩展窗口，前 n_train_quarters 训练，后 n_val_quarters 验证
 * Early stopping：val IC 连续 5 epoch 不改善则停止
+
+数据增强（v2）
+--------------
+* augment_data()：截面内高斯噪声扰动，训练样本 ×(n_copies+1)
+* augment_copies=4, noise_sigma=0.05 → 30 季 → 150 季有效样本
+* 只对训练集增强，验证集保持原始，每折独立
 """
 
 from __future__ import annotations
 
 import logging
+import pickle
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -251,6 +259,53 @@ def preprocess_panel(
     return pd.concat(chunks, ignore_index=True)
 
 
+# ─── 数据增强 ──────────────────────────────────────────────────────────────────
+
+def augment_data(
+    X: np.ndarray,
+    y: np.ndarray,
+    n_copies: int = 4,
+    noise_sigma: float = 0.05,
+    seed: int = 42,
+) -> tuple[np.ndarray, np.ndarray]:
+    """截面内高斯噪声增强。
+
+    对每个训练季度生成 n_copies 个扰动副本，噪声强度 sigma=0.05
+    （特征已 zscore，相当于 5% 扰动）。保持标签不变（标签是未来收益，不加噪声）。
+
+    Parameters
+    ----------
+    X          : (n_samples, n_features) float32 训练特征矩阵
+    y          : (n_samples,) float32 训练标签向量
+    n_copies   : 生成副本数，0 表示不增强（直接返回原始数据）
+    noise_sigma: 高斯噪声标准差（特征已 zscore，0.05=5% 扰动）
+    seed       : 随机种子，保证每折结果可复现
+
+    Returns
+    -------
+    X_aug : (n_samples * (n_copies+1), n_features)  原始 + 扰动副本
+    y_aug : (n_samples * (n_copies+1),)             标签重复 (n_copies+1) 份
+
+    Notes
+    -----
+    - n_copies=0 → 等价无增强，返回原始数据（形状不变）
+    - n_copies=4 → 有效样本 ×5（30季 → 150季）
+    - 每折训练独立调用，不跨 fold 共享随机状态
+    - **只对训练集调用，验证集不增强**
+    """
+    if n_copies <= 0:
+        return X, y
+
+    rng = np.random.default_rng(seed)
+    X_aug = [X]
+    y_aug = [y]
+    for _ in range(n_copies):
+        noise = rng.normal(0.0, noise_sigma, X.shape).astype(X.dtype)
+        X_aug.append(X + noise)
+        y_aug.append(y)
+    return np.concatenate(X_aug, axis=0), np.concatenate(y_aug, axis=0)
+
+
 # ─── 模型定义 ──────────────────────────────────────────────────────────────────
 
 class _Branch(nn.Module):
@@ -446,6 +501,8 @@ def train_factor_cnn(
     weight_decay:     float = 1e-4,
     patience:         int = 5,
     device: str = "cpu",
+    augment_copies:   int = 4,
+    augment_sigma:    float = 0.02,
 ) -> CNNTrainResult:
     """滚动窗口训练 FactorCNN，返回验证集 IC 统计。
 
@@ -461,13 +518,17 @@ def train_factor_cnn(
     weight_decay     : Adam L2 正则
     patience         : Early stopping patience（val IC 无改善 epoch 数）
     device           : 'cuda' 或 'cpu'
+    augment_copies   : 高斯噪声扰动副本数（0=不增强，默认 4 → 有效样本 ×5）
+    augment_sigma    : 噪声标准差（特征已 zscore，默认 0.02=2% 扰动）
+                       注：0.05 过大会掩盖信号，网格搜索最优为 0.02
 
     Returns
     -------
     CNNTrainResult
     """
     dev = torch.device(device)
-    log.info("device=%s", dev)
+    log.info("device=%s  augment_copies=%d  augment_sigma=%.3f",
+             dev, augment_copies, augment_sigma)
 
     # 确认可用特征（面板里可能没有所有 71 个特征）
     avail = [c for c in ALL_CNN_FEATURES if c in panel.columns]
@@ -528,6 +589,20 @@ def train_factor_cnn(
         if X_tr.shape[0] == 0 or X_va.shape[0] == 0:
             log.warning("  空数据，跳过本折")
             continue
+
+        # ── 数据增强（仅对训练集，验证集不增强） ──────────────────────────────
+        if augment_copies > 0:
+            X_tr_np, y_tr_np = augment_data(
+                X_tr.cpu().numpy(), y_tr.cpu().numpy(),
+                n_copies=augment_copies,
+                noise_sigma=augment_sigma,
+                seed=42 + len(folds),   # 每折不同 seed，避免增强副本相同
+            )
+            X_tr = torch.tensor(X_tr_np, device=dev)
+            y_tr = torch.tensor(y_tr_np, device=dev)
+            log.info("  增强后训练样本: %d → %d (×%d)",
+                     X_tr.shape[0] // (augment_copies + 1),
+                     X_tr.shape[0], augment_copies + 1)
 
         # 重新实例化（每折独立）
         model = FactorCNN(
@@ -737,6 +812,8 @@ def train_regime_aware_cnn(
     patience: int = 10,
     device: str = "cpu",
     min_regime_quarters: int = 4,
+    augment_copies: int = 4,
+    augment_sigma: float = 0.02,
 ) -> Dict[str, CNNTrainResult]:
     """按 HMM regime 分组，分别训练专用 FactorCNN 模型。
 
@@ -819,6 +896,8 @@ def train_regime_aware_cnn(
                 weight_decay=weight_decay,
                 patience=patience,
                 device=device,
+                augment_copies=augment_copies,
+                augment_sigma=augment_sigma,
             )
             results[regime] = result
             log.info(
@@ -894,6 +973,101 @@ def predict_cnn_regime_aware(
     )
 
 
+# ─── 模型持久化 ────────────────────────────────────────────────────────────────
+
+def save_cnn_model(
+    results: Union[CNNTrainResult, Dict[str, CNNTrainResult]],
+    path: Union[str, Path],
+) -> None:
+    """将 CNN 训练结果序列化保存到 pickle 文件。
+
+    Parameters
+    ----------
+    results : CNNTrainResult 或 Dict[str, CNNTrainResult]
+        ``train_factor_cnn()`` 或 ``train_regime_aware_cnn()`` 的返回值。
+    path    : 输出路径（.pkl），父目录不存在时自动创建。
+
+    Notes
+    -----
+    保存内容：模型权重（state_dict）+ feature_cols + val_ic_mean + val_icir
+    加载：``pickle.load(open(path, 'rb'))``
+    """
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 统一转换为可序列化的 dict
+    if isinstance(results, CNNTrainResult):
+        payload = {
+            "__type__": "CNNTrainResult",
+            "val_ic_mean":  results.val_ic_mean,
+            "val_ic_std":   results.val_ic_std,
+            "val_icir":     results.val_icir,
+            "feature_cols": results.feature_cols,
+            "folds": [
+                {
+                    "val_ic":     f.val_ic,
+                    "train_ic":   f.train_ic,
+                    "best_epoch": f.best_epoch,
+                }
+                for f in results.folds
+            ],
+            "model_state": (
+                results.model.state_dict() if results.model is not None else None
+            ),
+            "model_config": (
+                {
+                    "n_value":     results.model.n_value,
+                    "n_quality":   results.model.n_quality,
+                    "n_momentum":  results.model.n_momentum,
+                    "n_technical": results.model.n_technical,
+                    "branch_dim":  results.model.branch_dim,
+                }
+                if results.model is not None
+                else None
+            ),
+        }
+    elif isinstance(results, dict):
+        payload = {
+            "__type__": "Dict[str, CNNTrainResult]",
+            "regimes": {},
+        }
+        for regime, res in results.items():
+            payload["regimes"][regime] = {
+                "val_ic_mean":  res.val_ic_mean,
+                "val_ic_std":   res.val_ic_std,
+                "val_icir":     res.val_icir,
+                "feature_cols": res.feature_cols,
+                "folds": [
+                    {
+                        "val_ic":     f.val_ic,
+                        "train_ic":   f.train_ic,
+                        "best_epoch": f.best_epoch,
+                    }
+                    for f in res.folds
+                ],
+                "model_state": (
+                    res.model.state_dict() if res.model is not None else None
+                ),
+                "model_config": (
+                    {
+                        "n_value":     res.model.n_value,
+                        "n_quality":   res.model.n_quality,
+                        "n_momentum":  res.model.n_momentum,
+                        "n_technical": res.model.n_technical,
+                        "branch_dim":  res.model.branch_dim,
+                    }
+                    if res.model is not None
+                    else None
+                ),
+            }
+    else:
+        raise TypeError(f"results 类型不支持: {type(results)}")
+
+    with open(out_path, "wb") as f:
+        pickle.dump(payload, f)
+    log.info("save_cnn_model: 已保存到 %s", out_path)
+
+
 __all__ = [
     "ALL_CNN_FEATURES",
     "CNNTrainResult",
@@ -904,6 +1078,7 @@ __all__ = [
     "QUALITY_FEATURES",
     "TECHNICAL_FEATURES",
     "VALUE_FEATURES",
+    "augment_data",
     "cross_section_zscore",
     "ensemble_scores",
     "ic_loss",
@@ -911,6 +1086,7 @@ __all__ = [
     "predict_cnn_regime_aware",
     "preprocess_cross_section",
     "preprocess_panel",
+    "save_cnn_model",
     "train_factor_cnn",
     "train_regime_aware_cnn",
 ]

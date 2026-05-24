@@ -45,11 +45,13 @@ from quantmind.models.factor_cnn import (
     QUALITY_FEATURES,
     TECHNICAL_FEATURES,
     VALUE_FEATURES,
+    augment_data,
     cross_section_zscore,
     ensemble_scores,
     ic_loss,
     predict_cnn,
     preprocess_cross_section,
+    save_cnn_model,
     train_factor_cnn,
 )
 
@@ -326,3 +328,106 @@ def test_fold_metrics_repr():
     fm  = FoldMetrics(train_dates=[], val_dates=[], val_ic=0.05, best_epoch=10)
     rep = repr(fm)
     assert "0.05" in rep or "0.0500" in rep
+
+
+# ─── 测试 21-26：augment_data ──────────────────────────────────────────────────
+
+class TestAugmentData:
+    """augment_data() 数据增强函数的单元测试。"""
+
+    def _make_xy(self, n: int = 50, f: int = 10,
+                 seed: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        rng = np.random.default_rng(seed)
+        X = rng.standard_normal((n, f)).astype(np.float32)
+        y = rng.standard_normal(n).astype(np.float32)
+        return X, y
+
+    def test_output_shape_n_copies_4(self):
+        """21. n_copies=4 → 输出行数 = 输入行数 × 5。"""
+        X, y = self._make_xy(n=30, f=8)
+        X_aug, y_aug = augment_data(X, y, n_copies=4, noise_sigma=0.05)
+        assert X_aug.shape[0] == 30 * 5, (
+            f"期望 {30*5} 行，得到 {X_aug.shape[0]}"
+        )
+        assert y_aug.shape[0] == 30 * 5
+
+    def test_output_shape_n_copies_1(self):
+        """22. n_copies=1 → 输出行数 = 输入行数 × 2。"""
+        X, y = self._make_xy(n=20, f=5)
+        X_aug, y_aug = augment_data(X, y, n_copies=1)
+        assert X_aug.shape[0] == 20 * 2
+        assert X_aug.shape[1] == 5, "特征列数不应变化"
+
+    def test_zero_copies_returns_original(self):
+        """23. n_copies=0 → 返回原始数据（形状和值完全相同）。"""
+        X, y = self._make_xy(n=15, f=6)
+        X_aug, y_aug = augment_data(X, y, n_copies=0)
+        assert X_aug.shape == X.shape
+        assert y_aug.shape == y.shape
+        np.testing.assert_array_equal(X_aug, X)
+        np.testing.assert_array_equal(y_aug, y)
+
+    def test_zero_sigma_copies_identical_to_original(self):
+        """24. noise_sigma=0 时所有副本与原始数据完全相同（纯复制）。"""
+        X, y = self._make_xy(n=10, f=4)
+        X_aug, y_aug = augment_data(X, y, n_copies=3, noise_sigma=0.0)
+        # 所有 4 份（原始 + 3 副本）应完全相同
+        assert X_aug.shape[0] == 10 * 4
+        for i in range(4):
+            np.testing.assert_array_almost_equal(
+                X_aug[i * 10: (i + 1) * 10], X,
+                decimal=6,
+                err_msg=f"第 {i} 份副本与原始不同（sigma=0 应完全相同）",
+            )
+
+    def test_labels_unchanged(self):
+        """25. 标签 y 不加噪声，所有副本与原始 y 完全一致。"""
+        X, y = self._make_xy(n=25, f=7)
+        X_aug, y_aug = augment_data(X, y, n_copies=4, noise_sigma=0.1)
+        # y_aug 是 5 份 y 拼接，每份应与原始 y 完全相同
+        for i in range(5):
+            np.testing.assert_array_equal(
+                y_aug[i * 25: (i + 1) * 25], y,
+                err_msg=f"副本 {i} 的标签被意外修改",
+            )
+
+    def test_train_factor_cnn_augment_smoke(self):
+        """26. train_factor_cnn(augment_copies=2) smoke test 正常返回。"""
+        panel = _make_mini_panel(n_quarters=3, n_stocks=40)
+        result = train_factor_cnn(
+            panel,
+            n_train_quarters=1,
+            n_val_quarters=1,
+            epochs=3,
+            batch_size=40,
+            augment_copies=2,
+            augment_sigma=0.05,
+            device="cpu",
+        )
+        assert hasattr(result, "val_ic_mean")
+        assert len(result.folds) >= 1
+
+
+# ─── 测试 27：save_cnn_model ────────────────────────────────────────────────────
+
+def test_save_cnn_model_roundtrip(tmp_path):
+    """27. save_cnn_model 写出文件可被 pickle.load 读回，字段完整。"""
+    import pickle
+    panel  = _make_mini_panel(n_quarters=3, n_stocks=40)
+    result = train_factor_cnn(
+        panel,
+        n_train_quarters=1,
+        n_val_quarters=1,
+        epochs=3,
+        batch_size=40,
+        device="cpu",
+    )
+    out = tmp_path / "test_model.pkl"
+    save_cnn_model(result, out)
+    assert out.is_file(), "文件未创建"
+
+    payload = pickle.loads(out.read_bytes())
+    assert payload["__type__"] == "CNNTrainResult"
+    assert "val_ic_mean" in payload
+    assert "feature_cols" in payload
+    assert "folds" in payload
