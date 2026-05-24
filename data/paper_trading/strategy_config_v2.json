@@ -1,6 +1,6 @@
 {
   "version": "v2_30day_sim_optimized",
-  "updated_at": "2026-05-17T12:06:17.115200",
+  "updated_at": "2026-05-24T19:02:29.403203",
   "source": "30day_sim_2025Q4_全A股",
   "holding_period": {
     "recommended": "3m",
@@ -15,9 +15,9 @@
     "em_factor_weight": 0.2,
     "weights_calibrated": {
       "value": 0.242,
-      "momentum": 0.2229,
-      "quality": 0.3334,
-      "technical": 0.2018
+      "momentum": 0.1,
+      "quality": 0.456,
+      "technical": 0.202
     },
     "weights_previous": {
       "value": 0.3,
@@ -66,6 +66,12 @@
         "quality_score": 0.1405,
         "technical_score": 0.0686
       }
+    },
+    "weights_previous_before_momentum_fix": {
+      "value": 0.242,
+      "momentum": 0.2229,
+      "quality": 0.3334,
+      "technical": 0.2018
     }
   },
   "system3_updates": {
@@ -140,5 +146,29 @@
     "turnover_limit": 0.6,
     "risk_aversion": 1.0,
     "_comment": "行业主动暴露≤30%，风格暴露≤50%，换手率L1≤60%"
+  },
+  "momentum_fix_2026_05_24": {
+    "diagnosis": {
+      "momentum_1m_IC_21d": -0.026,
+      "momentum_1m_IC_63d": -0.024,
+      "momentum_12m_skip_1m_IC_63d": 0.025,
+      "relative_strength_csi300_IC": -0.029,
+      "momentum_score_IC_in_selected_universe": 0.203
+    },
+    "conclusion": "A股均值回复：短期(1m)动量为负，长期(12m_skip_1m)为正。降低 momentum 权重，新增 momentum_pure 因子",
+    "regime_weights_corrected": {
+      "bull": {
+        "momentum": 0.1,
+        "quality": 0.456
+      },
+      "neutral": {
+        "momentum": 0.12,
+        "quality": 0.4
+      },
+      "bear": {
+        "momentum": 0.08,
+        "quality": 0.35
+      }
+    }
   }
 }

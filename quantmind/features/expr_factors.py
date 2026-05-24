@@ -246,6 +246,22 @@ EXPR_FACTORS: dict[str, ExprFactor] = {
         panel_equiv= "bollinger_position",
         eval_fn    = lambda ctx: _bollinger_position(ctx["close"], n=20),
     ),
+
+    # 8. 纯动量因子（2026-05-24 IC 诊断新增）
+    # = 长期动量(12m_skip_1m) - 短期动量(1m)
+    # 经济含义：捕捉"有长期趋势支撑但近期回调"的股票
+    #   momentum_12m_skip_1m IC=+0.025 ✅（长期正向）
+    #   momentum_1m          IC=-0.024 ❌（短期反转）→ 减去（超买修正）
+    # 即：Ref(close,21)/Ref(close,252) - close/Ref(close,21)
+    "momentum_pure": ExprFactor(
+        name       = "momentum_pure",
+        expr_str   = "Ref($close,21)/Ref($close,252) - $close/Ref($close,21)",
+        panel_equiv= None,   # 无直接对应 panel 列，新因子
+        eval_fn    = lambda ctx: (
+            Ref(ctx["close"], 21) / Ref(ctx["close"], 252)
+            - ctx["close"] / Ref(ctx["close"], 21)
+        ),
+    ),
 }
 
 EXPR_FACTOR_NAMES: list[str] = list(EXPR_FACTORS.keys())

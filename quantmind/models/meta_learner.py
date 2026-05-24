@@ -80,10 +80,15 @@ AGENT_PROXY_CONFIG: dict[str, list[tuple[str, float]]] = {
         ("earnings_yield",    0.40),  # 高盈利收益率 = 便宜
         ("dividend_yield_ttm", 0.25), # 高股息率 = 便宜
     ],
+    # 2026-05-24 IC 诊断修正：
+    #   momentum_12m_skip_1m IC=+0.025 (63d) ✅ → 长期动量有效
+    #   momentum_6m          IC≈0 → 中性，轻权
+    #   momentum_1m          IC=-0.024 ❌ → 短期反转，负权重（超买回调）
+    #   relative_strength_vs_csi300_60d IC=-0.029 ❌ → 移除（方向相反）
     "momentum": [
-        ("momentum_6m",                      0.40),
-        ("momentum_3m",                      0.35),
-        ("relative_strength_vs_csi300_60d",  0.25),
+        ("momentum_12m_skip_1m",  0.50),  # 长期动量（12m skip 1m），IC>0 ✅
+        ("momentum_6m",           0.20),  # 中期，IC≈0，轻权
+        ("momentum_1m",          -0.30),  # 短期反转因子（负权 = 低短期超买更好）
     ],
     "quality": [
         ("ocf_to_revenue_ttm",  0.60),  # 高现金流质量 = 好

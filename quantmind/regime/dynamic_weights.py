@@ -11,10 +11,20 @@ HMM 将市场划分为 bull / neutral / bear 三种状态。
   neutral: quality IC=+0.011  momentum IC=-0.031  value IC=+0.008
   bear   : quality IC=-0.018  momentum IC=-0.015  value IC=+0.023
 
+动量因子细分诊断（2026-05-24 修正，29季×300+只股票）：
+  momentum_1m          IC=-0.026  IC>0=41% ❌ → 短期超买回调（均值回复）
+  momentum_3m          IC=-0.010  IC>0=52% ⚠️ → 弱负，无显著信号
+  momentum_6m (21d)    IC=-0.008  IC>0=55% ⚠️ → 近零，无可靠预测力
+  momentum_6m (63d)    IC=+0.007  IC>0=57% ⚠️ → 轻微正向，不稳定
+  momentum_12m_skip_1m IC=+0.025  IC>0=61% ✅ → 长期动量有效！(63d标签)
+  rel_str_csi300_60d   IC=-0.029  IC>0=38% ❌ → 超额动量反向
+
 结论：
   - Bull regime：质量因子最有效 → CNN（擅长质量特征）权重上调
   - Bear regime：价值因子相对最有效 → 防御模式，LGBM 主导
-  - 动量因子全 regime 为负（A股均值回归效应）→ 保守配置
+  - 动量因子：短期(1m/3m)为负（A股均值回归）→ 大幅降低权重
+    长期(12m_skip_1m)为正 → 在 meta-learner proxy 中纳入
+    修正后：bull 0.10 / neutral 0.12 / bear 0.08，节省权重加到 quality
 
 管理三类权重
 ------------
@@ -42,11 +52,13 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
     "bull": {
-        # System2 四维权重（IC 校准 + quality 偏高）
+        # System2 四维权重（IC 校准 2026-05-24 动量修正版）
+        # momentum_1m IC=-0.026 → 大幅降低权重；节省部分加到 quality
+        # bull: value=0.242 mom=0.100 qual=0.456 tech=0.202 (sum=1.000)
         "system2": {
             "value": 0.242,
-            "momentum": 0.223,
-            "quality": 0.333,
+            "momentum": 0.100,
+            "quality": 0.456,
             "technical": 0.202,
         },
         # Ensemble 权重：bull 下 CNN 权重最高（质量模式识别能力强）
@@ -60,10 +72,11 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
         "em_factor": 0.25,
     },
     "neutral": {
+        # neutral: value=0.280 mom=0.120 qual=0.400 tech=0.200 (sum=1.000)
         "system2": {
             "value": 0.280,
-            "momentum": 0.220,
-            "quality": 0.300,
+            "momentum": 0.120,
+            "quality": 0.400,
             "technical": 0.200,
         },
         "ensemble": {
@@ -74,11 +87,12 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
         "em_factor": 0.20,
     },
     "bear": {
-        # Bear 下价值因子 IC 最高 → 提高 value 权重，降低 momentum
+        # Bear 下价值因子 IC 最高 → 提高 value 权重，大幅降低 momentum
+        # bear: value=0.350 mom=0.080 qual=0.350 tech=0.220 (sum=1.000)
         "system2": {
             "value": 0.350,
-            "momentum": 0.150,
-            "quality": 0.280,
+            "momentum": 0.080,
+            "quality": 0.350,
             "technical": 0.220,
         },
         # 防御模式：LGBM 更稳健，CNN 权重最低
