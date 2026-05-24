@@ -57,6 +57,17 @@ from quantmind.features.text_sentiment import (
     run_full_pipeline as run_text_sentiment_pipeline,
     score_announcements,
 )
+from quantmind.features.north_flow import (
+    NORTH_FLOW_FACTORS,
+    apply_north_flow_regime_correction,
+    build_market_flow_factor,
+    build_north_flow_factor,
+    compute_north_ic,
+    discretize_market_flow,
+    fetch_hk_hold_monthly,
+    fetch_market_north_flow,
+    get_latest_market_north_flow,
+)
 from quantmind.features.standardize import (
     cross_section_rank,
     cross_section_zscore,
@@ -140,6 +151,16 @@ __all__ = [
     "run_text_sentiment_pipeline",
     "score_announcements",
     "text_sentiment_ic",
+    # north flow factor (A-2)
+    "NORTH_FLOW_FACTORS",
+    "apply_north_flow_regime_correction",
+    "build_market_flow_factor",
+    "build_north_flow_factor",
+    "compute_north_ic",
+    "discretize_market_flow",
+    "fetch_hk_hold_monthly",
+    "fetch_market_north_flow",
+    "get_latest_market_north_flow",
     "CATEGORICAL_EXPOSURE_FIELDS",
     "EXPANSION_FACTORS",
     "FUNDAMENTAL_FACTORS",

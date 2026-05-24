@@ -450,8 +450,9 @@ class RegimeHMM:
 
     def predict_regime(
         self,
-        df:    Optional[pd.DataFrame],
-        as_of: pd.Timestamp,
+        df:                Optional[pd.DataFrame],
+        as_of:             pd.Timestamp,
+        north_flow_5d:     Optional[float] = None,
     ) -> str:
         """Return the most-likely regime label for a given date.
 
@@ -460,8 +461,14 @@ class RegimeHMM:
 
         Parameters
         ----------
-        df    : Unused (kept for API symmetry with possible online variants).
-        as_of : Query timestamp.
+        df            : Unused (kept for API symmetry with possible online variants).
+        as_of         : Query timestamp.
+        north_flow_5d : Optional near-5-day northbound net inflow (M yuan).
+                        When provided, applies auxiliary regime correction from
+                        ``quantmind.features.north_flow``:
+                        - > +5000 M yuan (50亿) and not 'bear'  → 'bull'
+                        - < -5000 M yuan (-50亿) and not 'bull' → 'bear'
+                        Omit (None) to use the pure HMM prediction.
 
         Returns
         -------
@@ -475,7 +482,19 @@ class RegimeHMM:
             return "neutral"
         idx       = min(idx, len(self._states) - 1)
         state_int = int(self._states[idx])
-        return self._label_map.get(state_int, "neutral")
+        regime    = self._label_map.get(state_int, "neutral")
+
+        # ── 北向资金辅助校正（可选）─────────────────────────────────────────────
+        if north_flow_5d is not None:
+            try:
+                from quantmind.features.north_flow import (
+                    apply_north_flow_regime_correction,
+                )
+                regime = apply_north_flow_regime_correction(regime, north_flow_5d)
+            except Exception as exc:  # pragma: no cover
+                logger.warning(f"north_flow 辅助信号应用失败，维持 HMM 原始判断: {exc}")
+
+        return regime
 
     def get_weights(self, regime: str) -> Dict[str, float]:
         """Return the calibrated factor weight dictionary for *regime*."""

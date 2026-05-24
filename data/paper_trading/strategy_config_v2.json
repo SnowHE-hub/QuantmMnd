@@ -139,6 +139,10 @@
     "after_expansion": "~380 条 (30天×10只)",
     "action": "重训 meta-learner，预期 R² 显著提升"
   },
+  "north_flow_weight": 0.5,
+  "_north_flow_comment": "north_net_buy_5d 相对权重（最终乘以 text_factor_weight/3），IC 验证后接入主流水线",
+  "north_flow_hmm_threshold_m_yuan": 5000,
+  "_north_flow_hmm_comment": "HMM 辅助信号阈值：|net_inflow_5d| > 5000 M yuan (50亿元) 时触发 regime 校正",
   "ensemble_lgbm_weight": 0.65,
   "ensemble_cnn_weight": 0.35,
   "ensemble_version": "v2_augmented",
