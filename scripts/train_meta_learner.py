@@ -312,7 +312,10 @@ def save_model(result: dict, out_path: Path) -> None:
 
     meta = {k: v for k, v in result.items() if k != "pipeline"}
     meta["trained_at"] = datetime.now().isoformat(timespec="seconds")
-    meta["version"] = "v2"
+    # 版本号从输出路径推断（meta_learner_v3.pkl → "v3"）
+    stem = out_path.stem  # e.g. "meta_learner_v3"
+    version = stem.split("_")[-1] if stem.startswith("meta_learner_") else "v3"
+    meta["version"] = version
 
     meta_path = out_path.with_suffix(".meta.json")
     with open(meta_path, "w") as f:
@@ -325,11 +328,11 @@ def save_model(result: dict, out_path: Path) -> None:
 # ─── 主流程 ──────────────────────────────────────────────────────────────────
 
 def main(argv: Optional[list[str]] = None) -> None:
-    p = argparse.ArgumentParser(description="MetaLearner v2 重训（正确数据源版）")
+    p = argparse.ArgumentParser(description="MetaLearner v3 重训（前向持仓结算扩充版）")
     p.add_argument("--pnl",   type=Path, default=_PNL,   help="realized_pnl.parquet 路径")
     p.add_argument("--panel", type=Path, default=_PANEL, help="alpha_panel_v4.parquet 路径")
     p.add_argument("--out",   type=Path,
-                   default=ROOT / "data" / "meta_learner" / "meta_learner_v2.pkl",
+                   default=ROOT / "data" / "meta_learner" / "meta_learner_v3.pkl",
                    help="输出路径")
     p.add_argument("--features", nargs="+", default=AGENT_COLS,
                    help="使用的代理分列（默认全部 6 个）")
