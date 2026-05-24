@@ -31,7 +31,7 @@
 
 ---
 
-## 〇、阶段 2 成果摘要（2026-05-23 完成）
+## 〇、阶段 2/3 成果摘要（2026-05-24 更新）
 
 ### 新增模块
 
@@ -39,28 +39,37 @@
 |------|------|------|
 | **analyst_revision** | `quantmind/features/analyst_revision.py` | 研报评级因子：Tushare拉取 + 数字化 + analyst_revision_score |
 | **FactorCNN** | `quantmind/models/factor_cnn.py` | 4分支 Inception CNN + IC Loss + Walk-Forward训练 + ensemble_scores() |
+| **FactorCNN v2** | `quantmind/models/factor_cnn.py` | 高斯噪声数据增强（copies=4, σ=0.02），augment_data() + save_cnn_model() |
 | **归因报告** | `scripts/generate_attribution_report.py` | 4张发表级图表（NAV/IC热图/Regime/Barra），PDF+PNG+JPG |
 | **em_fundamental** | `quantmind/features/em_fundamental.py` | 纯NumPy GMM（K=3）EM隐变量基本面质量因子 |
-| **expr_factors** | `quantmind/features/expr_factors.py` | 轻量Qlib表达式引擎，9算子，7内置因子，无pyqlib依赖 |
+| **expr_factors** | `quantmind/features/expr_factors.py` | 轻量Qlib表达式引擎，9算子，8内置因子（含momentum_pure），无pyqlib依赖 |
 
 ### 关键指标
 
 | 指标 | 数值 | 备注 |
 |------|------|------|
-| FactorCNN Fold1 IC | **0.030** | forward_return_63d，Walk-Forward |
+| FactorCNN v1 Fold1 IC | **0.030** | forward_return_63d，Walk-Forward |
+| **FactorCNN v2 val_IC 均值** | **+0.0331** | 数据增强后（copies=4, σ=0.02），vs baseline +0.0002 |
+| **FactorCNN v2 ICIR** | **1.787** | vs baseline 0.003，提升 596× |
+| **FactorCNN v2 Fold2 IC** | **+0.0174** | 原 -0.004（regime切换 fold），转正 |
+| **FactorCNN v2 Fold3 IC** | **+0.0285** | 原 -0.060，转正 |
 | EM因子 IC>0 占比 | **60.7%** | 28季 Spearman，超过55%阈值 |
 | ann_contrarian_5d IC | **+0.131** | p=0.025，294样本（反向情绪因子） |
-| 表达式引擎一致性 | **1.000** | 7/7因子 Spearman=1.0 vs 参考Python |
-| 测试套件 | **590 passed** | 13个预存失败（与阶段2无关） |
+| 表达式引擎一致性 | **1.000** | 8/8因子 Spearman=1.0 vs 参考Python |
+| 测试套件 | **702 passed** | 13 integration deselected，0 failures |
 
 ### 配置变更
 
-- `strategy_config_v2.json`：新增 `system2_updates.em_factor_weight = 0.2`
+- `strategy_config_v2.json`：新增 `system2_updates.em_factor_weight = 0.2`；新增 ensemble 字段（lgbm_weight/cnn_weight/cnn_model_path）
 - `quantmind/features/__init__.py`：注册 EM + ExprFactor 全部符号
 - `.claude/CLAUDE.md`：新增完整"因子添加指南"（方式A表达式 / 方式B快照）
+- `quantmind/regime/dynamic_weights.py`：Ensemble 权重 7:3→6:4 (bull) / 7:3→6.5:3.5 (neutral) / 8:2→7.5:2.5 (bear)
+- `scripts/daily_update.py`：新增 Step5c TODO 注释（CNN ensemble 融合预留接口）
+- `.github/workflows/ci.yml`：新增 GitHub Actions CI（unit + weekly integration）
 
 ### 待完成（阶段3后）
 
+- **FactorCNN v2 推理接入 daily_update.py**：Step5c 已预留接口，需加载 `models/factor_cnn_v2_augmented.pkl` 并调用 `ensemble_scores(lgbm, cnn, lgbm_weight, cnn_weight)`
 - FactorCNN Regime 分层重训：Bull/Bear/Neutral 各训一个子模型，集成时按 HMM 状态切换
 - analyst_revision 真实 IC 验证：Tushare 积分升级后拉取完整研报数据
 - EM 因子均值 IC 提升：当前 0.015，接近但未达 0.02 阈值；A股基本面噪声限制

@@ -139,6 +139,15 @@
     "after_expansion": "~380 条 (30天×10只)",
     "action": "重训 meta-learner，预期 R² 显著提升"
   },
+  "ensemble_lgbm_weight": 0.65,
+  "ensemble_cnn_weight": 0.35,
+  "ensemble_version": "v2_augmented",
+  "cnn_model_path": "models/factor_cnn_v2_augmented.pkl",
+  "ensemble_regime_weights": {
+    "bull":    {"lgbm": 0.60, "cnn": 0.40},
+    "neutral": {"lgbm": 0.65, "cnn": 0.35},
+    "bear":    {"lgbm": 0.75, "cnn": 0.25}
+  },
   "barra_constrained": false,
   "barra_constraints": {
     "industry_limit": 0.3,

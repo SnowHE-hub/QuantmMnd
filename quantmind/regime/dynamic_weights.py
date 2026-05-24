@@ -30,6 +30,8 @@ HMM 将市场划分为 bull / neutral / bear 三种状态。
 ------------
 1. System2 四维权重（value / momentum / quality / technical）
 2. Model ensemble 权重（LGBM vs FactorCNN）
+   v2更新(2026-05-24): FactorCNN v2 数据增强后 ICIR=1.787（vs baseline 0.003）
+   → bull 6:4 / neutral 6.5:3.5 / bear 7.5:2.5（原 7:3 / 7:3 / 8:2）
 3. Factor 补充权重（EM 因子、文本因子叠加强度）
 
 热更新
@@ -62,9 +64,10 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
             "technical": 0.202,
         },
         # Ensemble 权重：bull 下 CNN 权重最高（质量模式识别能力强）
+        # v2更新(2026-05-24): FactorCNN v2 增强后 ICIR=1.787 → CNN权重上调
         "ensemble": {
-            "lgbm": 0.65,
-            "cnn": 0.35,
+            "lgbm": 0.60,
+            "cnn": 0.40,
         },
         # 文本反转因子权重（bull 情绪高涨时反转信号更弱）
         "text_factor": 0.04,
@@ -79,9 +82,10 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
             "quality": 0.400,
             "technical": 0.200,
         },
+        # neutral: 适度上调 CNN（ICIR提升但不及bull激进）
         "ensemble": {
-            "lgbm": 0.70,
-            "cnn": 0.30,
+            "lgbm": 0.65,
+            "cnn": 0.35,
         },
         "text_factor": 0.05,
         "em_factor": 0.20,
@@ -95,10 +99,10 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
             "quality": 0.350,
             "technical": 0.220,
         },
-        # 防御模式：LGBM 更稳健，CNN 权重最低
+        # 防御模式：LGBM 更稳健，bear 数据量最少 CNN 权重保守
         "ensemble": {
-            "lgbm": 0.80,
-            "cnn": 0.20,
+            "lgbm": 0.75,
+            "cnn": 0.25,
         },
         # Bear 下情绪反转信号弱（恐慌持续），文本因子权重低
         "text_factor": 0.03,
@@ -128,7 +132,7 @@ class DynamicWeightManager:
     >>> mgr = DynamicWeightManager()
     >>> w = mgr.get_weights("bull")
     >>> w["ensemble"]["cnn"]
-    0.35
+    0.4
     >>> mgr.log_current_weights("bull")
     """
 

@@ -1168,6 +1168,17 @@ def main() -> int:
     if _done("step5"):
         return _finalize(step_results, t_start, log_file, stop_after=args.stop_after)
 
+    # ── Step 5c（预留）: FactorCNN ensemble 融合 ─────────────────────────────
+    # TODO(A-4): 当 FactorCNN v2 推理接入后，在此处加载 CNN 模型并与 LGBM 融合
+    # CNN 模型路径从 strategy_config_v2.json["cnn_model_path"] 读取，
+    # 当前指向 "models/factor_cnn_v2_augmented.pkl"。
+    # 融合权重由 DynamicWeightManager.get_ensemble_weights(regime) 控制：
+    #   bull: lgbm=0.60, cnn=0.40
+    #   neutral: lgbm=0.65, cnn=0.35
+    #   bear: lgbm=0.75, cnn=0.25
+    # 融合函数: ensemble_scores(lgbm_score, cnn_score, lgbm_weight, cnn_weight)
+    # ──────────────────────────────────────────────────────────────────────────
+
     # ── Step 5b ───────────────────────────────────────────────────────────────
     try:
         ok, candidates = step5b_position_sizing(as_of, candidates, args)
