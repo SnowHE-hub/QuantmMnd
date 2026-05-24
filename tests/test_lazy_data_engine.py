@@ -98,6 +98,7 @@ def test_batch_requests_split_by_50(engine):
 
     with patch("time.sleep", side_effect=fake_sleep), \
          patch.object(engine, "_load_prices_from_local", return_value=pd.DataFrame()), \
+         patch.object(engine, "_fetch_prices_tushare", return_value=pd.DataFrame()), \
          patch.object(engine, "_fetch_prices_akshare", side_effect=fake_akshare_batch):
 
         # 重置内存缓存，确保不命中
@@ -106,6 +107,8 @@ def test_batch_requests_split_by_50(engine):
 
     # 100只 → 2批（每批50），应该有 sleep 调用（批间等待）
     # sleep 在 _fetch_prices_akshare 内部，但这里我们 mock 了整个方法
+    # 注：_fetch_prices_tushare 也需要 mock，防止 TUSHARE_TOKEN 在环境中时
+    # 触发真实网络调用（本测试为纯单元测试，不依赖外部 API）
     # 验证：被调用了（无论分批逻辑在哪里）
     assert True  # 只要不崩溃即可
 
