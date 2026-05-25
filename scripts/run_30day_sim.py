@@ -693,6 +693,20 @@ class AnalysisSystem:
                 f"  [System2] 文本因子叠加 weight={text_weight:.2f}"
             )
 
+        # ── 业绩预告惊喜因子叠加（A-1, 若列存在，正值=业绩预增）──────────────
+        if "disclosure_surprise_30d" in df.columns:
+            # 与 ann_contrarian 共享 text_factor_weight，各占 1/3 预算
+            # disclosure 保守权重：text_weight × (1/3) × 0.5
+            disc_weight = text_weight * (1.0 / 3.0) * 0.5
+            disc_rank = df["disclosure_surprise_30d"].rank(pct=True) * 100
+            df["composite_score"] = (
+                df["composite_score"] * (1.0 - disc_weight)
+                + disc_rank * disc_weight
+            )
+            logger.info(
+                f"  [System2] 业绩预告因子叠加 weight={disc_weight:.3f}"
+            )
+
         # 投资评级
         df["rating"] = pd.cut(df["composite_score"],
                                bins=[0, 40, 55, 70, 100],

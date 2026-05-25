@@ -68,6 +68,14 @@ from quantmind.features.north_flow import (
     fetch_market_north_flow,
     get_latest_market_north_flow,
 )
+from quantmind.features.irm_sentiment import (
+    IRM_SENTIMENT_FACTORS,
+    build_disclosure_factor,
+    compute_disclosure_ic,
+    compute_correlation_with_ann_contrarian,
+    fetch_forecast_data,
+    score_forecast_records,
+)
 from quantmind.features.standardize import (
     cross_section_rank,
     cross_section_zscore,
@@ -161,6 +169,13 @@ __all__ = [
     "fetch_hk_hold_monthly",
     "fetch_market_north_flow",
     "get_latest_market_north_flow",
+    # IRM / disclosure surprise factor (A-1)
+    "IRM_SENTIMENT_FACTORS",
+    "build_disclosure_factor",
+    "compute_disclosure_ic",
+    "compute_correlation_with_ann_contrarian",
+    "fetch_forecast_data",
+    "score_forecast_records",
     "CATEGORICAL_EXPOSURE_FIELDS",
     "EXPANSION_FACTORS",
     "FUNDAMENTAL_FACTORS",
