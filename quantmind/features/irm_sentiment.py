@@ -8,7 +8,7 @@ A-1：业绩预告惊喜因子（方案 B）
 业绩预告是比文本情绪更硬的信号：它披露的是公司对本期业绩变动幅度的官方预判，
 而非普通公告的语气或措辞，因此与 ann_contrarian_5d 理论上构成独立信号源。
 
-因子：disclosure_surprise_30d
+因子：disclosure_contrarian_30d
 ------------------------------
 = 近 30 日业绩预告综合得分均值
 = Σ(type_score × flag_weight) / 有效公告数
@@ -76,7 +76,7 @@ _FACTOR_CACHE     = _TEXT_DIR / "disclosure_surprise_factor.parquet"
 _RETURNS_PATH     = _ROOT / "data" / "sim30d" / "stock_returns.parquet"
 
 # 公开因子名
-IRM_SENTIMENT_FACTORS: list[str] = ["disclosure_surprise_30d"]
+IRM_SENTIMENT_FACTORS: list[str] = ["disclosure_contrarian_30d"]
 
 # ── 打分映射 ──────────────────────────────────────────────────────────────────
 
@@ -284,9 +284,13 @@ def build_disclosure_factor(
     use_cache: bool = True,
     window_days: int = 30,
 ) -> pd.Series:
-    """构造 disclosure_surprise_30d 因子。
+    """构造 disclosure_contrarian_30d 因子（逆向业绩预告）。
 
-    = 近 window_days 日业绩预告综合得分均值（按 ts_code 滚动）
+    实测 IC = -0.154（预增→后续跑输），存在均值回归效应，与 ann_contrarian_5d
+    逻辑一致。取反后 IC ≈ +0.154，语义变为"逆向"：近期业绩悲观预告的股票
+    后续表现反而较强（市场过度反应）。
+
+    = −1 × 近 window_days 日业绩预告综合得分均值（按 ts_code 滚动）
     无预告记录的股票在该截面填 0（中性）。
 
     Parameters
@@ -299,8 +303,8 @@ def build_disclosure_factor(
     Returns
     -------
     pd.Series
-        MultiIndex(ts_code, ann_date)，name='disclosure_surprise_30d'
-        每个 (ts_code, ann_date) 是该股票在该截面的近 30 日均分。
+        MultiIndex(ts_code, ann_date)，name='disclosure_contrarian_30d'
+        每个 (ts_code, ann_date) 是该股票在该截面的近 30 日均分取反后的值。
     """
     start_ts = pd.to_datetime(start_date).strftime("%Y%m%d")
     end_ts = (
@@ -316,7 +320,7 @@ def build_disclosure_factor(
 
     if raw.empty:
         logger.warning("forecast 数据为空，返回空因子")
-        return pd.Series(dtype=float, name="disclosure_surprise_30d")
+        return pd.Series(dtype=float, name="disclosure_contrarian_30d")
 
     scored = score_forecast_records(raw)
 
@@ -342,7 +346,7 @@ def build_disclosure_factor(
         rolled = (
             grp_ts.rolling(f"{window_days}D", min_periods=1)
             .mean()
-            .rename("disclosure_surprise_30d")
+            .rename("disclosure_contrarian_30d")
         )
         # 过滤到目标日期范围
         rolled = rolled[(rolled.index >= start_filter) & (rolled.index <= end_filter)]
@@ -355,14 +359,18 @@ def build_disclosure_factor(
         )
 
     if not results:
-        return pd.Series(dtype=float, name="disclosure_surprise_30d")
+        return pd.Series(dtype=float, name="disclosure_contrarian_30d")
 
     factor_df = pd.concat(results, ignore_index=True)
     factor_df["ann_date"] = pd.to_datetime(factor_df["ann_date"])
     factor = (
-        factor_df.set_index(["ts_code", "ann_date"])["disclosure_surprise_30d"]
+        factor_df.set_index(["ts_code", "ann_date"])["disclosure_contrarian_30d"]
         .fillna(0.0)
     )
+
+    # IC = -0.154（预增→后续跑输），取反后 IC ≈ +0.154，均值回归逆向因子
+    factor = factor * -1.0
+    factor.name = "disclosure_contrarian_30d"
 
     # 缓存因子
     factor.reset_index().to_parquet(_FACTOR_CACHE, index=False)
@@ -370,7 +378,7 @@ def build_disclosure_factor(
     n_stocks = factor.index.get_level_values("ts_code").nunique()
     n_dates  = factor.index.get_level_values("ann_date").nunique()
     logger.info(
-        f"disclosure_surprise_30d：{n_stocks} 只股票，{n_dates} 个截面"
+        f"disclosure_contrarian_30d：{n_stocks} 只股票，{n_dates} 个截面"
     )
     return factor
 
@@ -382,7 +390,7 @@ def compute_disclosure_ic(
     returns: Optional[pd.DataFrame] = None,
     returns_path: Path = _RETURNS_PATH,
 ) -> dict:
-    """Spearman IC(disclosure_surprise_30d, return_3m)。
+    """Spearman IC(disclosure_contrarian_30d, return_3m)。
 
     接口与 compute_north_ic / text_sentiment.compute_ic 保持一致。
 
@@ -453,7 +461,7 @@ def compute_disclosure_ic(
         "valid": bool(valid),
     }
     logger.info(
-        f"IC(disclosure_surprise_30d, return_3m) = {ic:+.4f}  "
+        f"IC(disclosure_contrarian_30d, return_3m) = {ic:+.4f}  "
         f"p={p_val:.4f}  n={n}  "
         f"→ {'有效信号 ✅' if valid else '信号弱 ⚠️'}"
     )
@@ -466,7 +474,7 @@ def compute_correlation_with_ann_contrarian(
     disclosure_factor: pd.Series,
     ann_contrarian_factor: Optional[pd.Series] = None,
 ) -> dict:
-    """计算 disclosure_surprise_30d 与 ann_contrarian_5d 的截面相关性。
+    """计算 disclosure_contrarian_30d 与 ann_contrarian_5d 的截面相关性。
 
     按 ts_code 对齐后计算 Spearman 相关。
     相关性 < 0.5 认为两因子提供独立信号，值得同时使用。

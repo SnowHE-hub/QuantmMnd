@@ -71,8 +71,8 @@ def _make_returns_df(n: int = 50) -> pd.DataFrame:
 # ── 1. 常量 ───────────────────────────────────────────────────────────────────
 
 def test_irm_sentiment_factors_list():
-    """IRM_SENTIMENT_FACTORS 包含 disclosure_surprise_30d."""
-    assert "disclosure_surprise_30d" in IRM_SENTIMENT_FACTORS
+    """IRM_SENTIMENT_FACTORS 包含 disclosure_contrarian_30d."""
+    assert "disclosure_contrarian_30d" in IRM_SENTIMENT_FACTORS
 
 
 def test_type_score_all_known_types():
@@ -199,7 +199,7 @@ def test_score_forecast_default_flag_weight():
 # ── 3. build_disclosure_factor 格式 ───────────────────────────────────────────
 
 def test_build_disclosure_factor_multiindex():
-    """输出为 MultiIndex(ts_code, ann_date)，name='disclosure_surprise_30d'."""
+    """输出为 MultiIndex(ts_code, ann_date)，name='disclosure_contrarian_30d'."""
     raw = _make_forecast_df(n=5)
     scored = score_forecast_records(raw)
 
@@ -211,7 +211,7 @@ def test_build_disclosure_factor_multiindex():
         )
 
     assert isinstance(factor, pd.Series)
-    assert factor.name == "disclosure_surprise_30d"
+    assert factor.name == "disclosure_contrarian_30d"
     assert factor.index.names == ["ts_code", "ann_date"]
 
 
@@ -222,7 +222,7 @@ def test_build_disclosure_factor_empty_on_no_data():
         factor = build_disclosure_factor(use_cache=False)
 
     assert factor.empty
-    assert factor.name == "disclosure_surprise_30d"
+    assert factor.name == "disclosure_contrarian_30d"
 
 
 def test_build_disclosure_factor_rolling_window():
@@ -244,16 +244,16 @@ def test_build_disclosure_factor_rolling_window():
             window_days=30,
         )
 
-    # 所有截面均值应为 1.0（预增 type=1.0, flag=1.0）
+    # 因子已取反（IC=-0.154 均值回归），预增 type_score=+1.0 取反后应为 -1.0
     vals = factor[factor.index.get_level_values("ts_code") == "000001.SZ"].values
-    np.testing.assert_allclose(vals, 1.0, atol=1e-6)
+    np.testing.assert_allclose(vals, -1.0, atol=1e-6)
 
 
 # ── 4. compute_disclosure_ic ─────────────────────────────────────────────────
 
 def test_compute_disclosure_ic_empty():
     """空因子返回 nan, valid=False."""
-    result = compute_disclosure_ic(pd.Series(dtype=float, name="disclosure_surprise_30d"))
+    result = compute_disclosure_ic(pd.Series(dtype=float, name="disclosure_contrarian_30d"))
     assert np.isnan(result["ic"])
     assert result["valid"] is False
     assert result["n"] == 0
@@ -268,7 +268,7 @@ def test_compute_disclosure_ic_with_returns():
     factor = pd.Series(
         rng.normal(0, 1, n),
         index=pd.MultiIndex.from_arrays([codes, dates], names=["ts_code", "ann_date"]),
-        name="disclosure_surprise_30d",
+        name="disclosure_contrarian_30d",
     )
     returns = pd.DataFrame({
         "ts_code":   codes,
@@ -291,7 +291,7 @@ def test_compute_disclosure_ic_small_sample():
             [codes, [pd.Timestamp("2025-07-15")] * n],
             names=["ts_code", "ann_date"],
         ),
-        name="disclosure_surprise_30d",
+        name="disclosure_contrarian_30d",
     )
     returns = pd.DataFrame({
         "ts_code":   codes[:5],
@@ -374,7 +374,7 @@ def test_correlation_high_correlation_not_independent():
 # ── 6. 与 run_30day_sim 的接口兼容性 ─────────────────────────────────────────
 
 def test_disclosure_factor_column_name_matches_pipeline():
-    """因子 Series.name 等于 pipeline 中检查的列名 'disclosure_surprise_30d'."""
+    """因子 Series.name 等于 pipeline 中检查的列名 'disclosure_contrarian_30d'."""
     raw = _make_forecast_df(n=3)
     with patch("quantmind.features.irm_sentiment.fetch_forecast_data", return_value=raw):
         factor = build_disclosure_factor(
@@ -382,5 +382,5 @@ def test_disclosure_factor_column_name_matches_pipeline():
             end_date="2025-08-01",
             use_cache=False,
         )
-    # 因子 name 必须与 run_30day_sim.py 中 "disclosure_surprise_30d" in df.columns 匹配
-    assert factor.name == "disclosure_surprise_30d"
+    # 因子 name 必须与 run_30day_sim.py 中 "disclosure_contrarian_30d" in df.columns 匹配
+    assert factor.name == "disclosure_contrarian_30d"

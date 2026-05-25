@@ -54,6 +54,7 @@ _STEP_NAMES = {
     "step7": "保存推荐 JSON",
     "step7a": "6-Agent 投资分析",
     "step8": "生成 HTML 报告",
+    "step11": "每日预警推送",
 }
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -98,6 +99,8 @@ def parse_args() -> argparse.Namespace:
                    help="下载快照时限制股票数（调试加速）")
     p.add_argument("--no-agent", action="store_true",
                    help="跳过 step7a 6-Agent 分析（加快 daily_update，适合调试）")
+    p.add_argument("--no-alert", action="store_true",
+                   help="跳过 step11 每日预警推送（企业微信/邮件）")
     p.add_argument("--agent-top", type=int, default=10,
                    help="step7a 中对多少只 top 股票做 Agent 分析（默认 10）")
     p.add_argument("--agent-provider", default="none",
@@ -1248,7 +1251,61 @@ def main() -> int:
             logger.warning(f"[Step10] ⚠️ 漏斗统计异常，跳过: {e}")
             step_results["step10"] = False
 
+    # ── Step 11（每日预警推送：企业微信 + 邮件，可选；不影响退出码）─────────
+    if args.stop_after is None and not getattr(args, "no_alert", False):
+        try:
+            _step11_daily_alert(as_of, top10)
+            step_results["step11"] = True
+        except Exception as e:
+            logger.warning(f"[Step11] ⚠️ 预警推送异常，跳过: {e}")
+            step_results["step11"] = False
+
     return _finalize(step_results, t_start, log_file, stop_after=args.stop_after)
+
+
+def _step11_daily_alert(as_of, top10: list[dict]) -> None:
+    """Step 11: 每日预警推送（企业微信 Webhook + SMTP 邮件）."""
+    from quantmind.notify.daily_alert import DailyAlertSender
+    from quantmind.features.north_flow import get_latest_market_north_flow
+
+    logger.info("[Step11] 准备每日预警推送...")
+
+    # 构建 picks DataFrame
+    picks_rows = []
+    for item in top10:
+        picks_rows.append({
+            "ticker":          item.get("ticker", ""),
+            "name":            item.get("name", ""),
+            "composite_score": item.get("composite_score", float("nan")),
+            "rating":          item.get("rating", ""),
+            "industry":        item.get("industry", ""),
+        })
+    picks_df = pd.DataFrame(picks_rows) if picks_rows else pd.DataFrame()
+
+    # 获取 Regime（HMM 或 neutral 兜底）
+    try:
+        from quantmind.regime import RegimeHMM, build_observations
+        import pathlib
+        obs_path = str(pathlib.Path(_ROOT) / "data" / "raw" / "index_daily_panel.parquet")
+        hmm  = RegimeHMM()
+        obs  = build_observations(obs_path)
+        regime = hmm.predict_regime(obs, pd.Timestamp(as_of)) if obs is not None else "neutral"
+    except Exception as exc:
+        logger.warning(f"[Step11] HMM Regime 获取失败，使用 neutral: {exc}")
+        regime = "neutral"
+
+    # 北向资金辅助信号
+    try:
+        market_flow = get_latest_market_north_flow()
+    except Exception:
+        market_flow = 0.0
+
+    sender = DailyAlertSender()
+    ok = sender.send_daily_picks(picks_df, regime=regime, market_flow=market_flow)
+    if ok:
+        logger.info("[Step11] ✅ 每日预警推送完成")
+    else:
+        logger.warning("[Step11] ⚠️ 所有推送通道均失败（可能未配置 WECOM_WEBHOOK_URL / SMTP_*）")
 
 
 def _step10_funnel_stats(as_of, args) -> None:
@@ -1315,6 +1372,10 @@ def _finalize(
         s10 = step_results["step10"]
         icon = "✅" if s10 else "⚠️"
         logger.info(f"  {icon}  step10 漏斗统计（universe=full_a，不影响退出码）")
+    if stop_after is None and "step11" in step_results:
+        s11 = step_results["step11"]
+        icon = "✅" if s11 else "⚠️"
+        logger.info(f"  {icon}  step11 每日预警推送（可选，不影响退出码）")
 
     logger.info(f"{'─'*60}")
     logger.info(f"  总耗时：{total:.1f}s  |  日志：{log_file}")
