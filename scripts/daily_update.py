@@ -101,6 +101,8 @@ def parse_args() -> argparse.Namespace:
                    help="跳过 step7a 6-Agent 分析（加快 daily_update，适合调试）")
     p.add_argument("--no-alert", action="store_true",
                    help="跳过 step11 每日预警推送（企业微信/邮件）")
+    p.add_argument("--no-cnn", action="store_true",
+                   help="跳过 step5c FactorCNN ensemble，仅使用 LGBM 排序")
     p.add_argument("--agent-top", type=int, default=10,
                    help="step7a 中对多少只 top 股票做 Agent 分析（默认 10）")
     p.add_argument("--agent-provider", default="none",
@@ -438,6 +440,201 @@ def step5_lgbm_rank(
     except Exception as e:
         logger.error(f"[Step5] ❌ LGBM 粗排失败：{e}")
         return False, []
+
+
+# ── Step 5c helpers ───────────────────────────────────────────────────────────
+
+_CNN_MODEL_PATH = _ROOT / "models" / "factor_cnn_v2_augmented.pkl"
+
+# Regime → (lgbm_weight, cnn_weight)，与 strategy_config_v2.json 保持一致
+_ENSEMBLE_WEIGHTS: dict[str, tuple[float, float]] = {
+    "bull":    (0.60, 0.40),
+    "neutral": (0.65, 0.35),
+    "bear":    (0.75, 0.25),
+}
+
+
+def _load_cnn_model(pkl_path: Path):
+    """从 save_cnn_model 生成的 pkl 中重建 FactorCNN 并返回 (model, feature_cols).
+
+    文件不存在 → 返回 (None, []) 并记录 WARNING。
+    """
+    import pickle
+
+    from quantmind.models.factor_cnn import FactorCNN
+
+    if not pkl_path.is_file():
+        logger.warning(
+            f"[Step5c] ⚠ FactorCNN pkl 不存在：{pkl_path}，降级为纯 LGBM 排序"
+        )
+        return None, []
+
+    with open(pkl_path, "rb") as fh:
+        payload = pickle.load(fh)
+
+    if payload.get("__type__") != "CNNTrainResult":
+        logger.warning("[Step5c] ⚠ pkl 类型不符（期望 CNNTrainResult），降级为纯 LGBM")
+        return None, []
+
+    model_state  = payload.get("model_state")
+    model_config = payload.get("model_config") or {}
+    feature_cols = payload.get("feature_cols") or []
+
+    if model_state is None or not feature_cols:
+        logger.warning("[Step5c] ⚠ pkl 缺少 model_state 或 feature_cols，降级为纯 LGBM")
+        return None, []
+
+    model = FactorCNN(**model_config)
+    model.load_state_dict(model_state)
+    model.eval()
+    logger.info(
+        f"[Step5c] FactorCNN 加载成功（val_ic={payload.get('val_ic_mean', float('nan')):.4f}，"
+        f"特征数={len(feature_cols)}）"
+    )
+    return model, list(feature_cols)
+
+
+def ensemble_scores(
+    lgbm_score: float,
+    cnn_score: float,
+    lgbm_weight: float,
+    cnn_weight: float,
+) -> float:
+    """加权融合两个已归一化到 [0,1] 的排名分数.
+
+    任一分数为 NaN → 返回另一个（全 NaN 则返回 NaN）。
+    """
+    import math
+
+    lgbm_nan = math.isnan(lgbm_score)
+    cnn_nan  = math.isnan(cnn_score)
+    if lgbm_nan and cnn_nan:
+        return float("nan")
+    if lgbm_nan:
+        return float(cnn_score)
+    if cnn_nan:
+        return float(lgbm_score)
+    return lgbm_weight * lgbm_score + cnn_weight * cnn_score
+
+
+def step5c_cnn_ensemble(
+    as_of: date,
+    feat_path: "Path | None",
+    candidates: list[dict],
+    *,
+    cnn_pkl: "Path | None" = None,
+) -> list[dict]:
+    """Step 5c: FactorCNN rank-based ensemble（6:4）.
+
+    Parameters
+    ----------
+    as_of      : 当前交易日
+    feat_path  : step4 输出的因子 parquet 路径（全宇宙）
+    candidates : step5 输出的 Top-N 候选列表，每条含 ticker / lgbm_score
+    cnn_pkl    : CNN 模型 pkl 路径；None = 使用默认路径
+
+    Returns
+    -------
+    按 ensemble_score 降序重排的候选列表；每条新增：
+      cnn_score       : CNN rank 百分位 [0,1]
+      ensemble_score  : lgbm_w × lgbm_score + cnn_w × cnn_score
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quantmind.models.factor_cnn import predict_cnn
+    from quantmind.utils.score_order import order_preserving_pct_rank
+
+    if not candidates:
+        return candidates
+
+    pkl_path = cnn_pkl or _CNN_MODEL_PATH
+    model, feature_cols = _load_cnn_model(pkl_path)
+    if model is None:
+        # 降级：保留原始 lgbm_score 作为 ensemble_score
+        for c in candidates:
+            c.setdefault("cnn_score", float("nan"))
+            c["ensemble_score"] = c.get("lgbm_score", float("nan"))
+        return candidates
+
+    # ── 读取全宇宙因子表 ───────────────────────────────────────────────────────
+    df: pd.DataFrame | None = None
+    if feat_path and Path(feat_path).exists():
+        df = pd.read_parquet(feat_path)
+    else:
+        logger.warning("[Step5c] ⚠ 因子文件不存在，CNN 无法推理，降级纯 LGBM")
+        for c in candidates:
+            c.setdefault("cnn_score", float("nan"))
+            c["ensemble_score"] = c.get("lgbm_score", float("nan"))
+        return candidates
+
+    # 只保留 CNN 需要的特征列（缺失列填 NaN）
+    available = [col for col in feature_cols if col in df.columns]
+    missing   = [col for col in feature_cols if col not in df.columns]
+    if missing:
+        logger.warning(
+            f"[Step5c] 因子表缺少 {len(missing)} 列（前 5：{missing[:5]}），用 NaN 填充"
+        )
+        for col in missing:
+            df[col] = np.nan
+
+    # ── CNN 推理（全宇宙）─────────────────────────────────────────────────────
+    try:
+        cnn_raw: pd.Series = predict_cnn(model, df, feature_cols, device="cpu")
+    except Exception as exc:
+        logger.warning(f"[Step5c] ⚠ predict_cnn 失败（{exc}），降级纯 LGBM")
+        for c in candidates:
+            c.setdefault("cnn_score", float("nan"))
+            c["ensemble_score"] = c.get("lgbm_score", float("nan"))
+        return candidates
+
+    # ── 排名归一化（与 LGBM order_pct_rank 对齐）──────────────────────────────
+    cnn_rank: pd.Series = order_preserving_pct_rank(cnn_raw)   # [0,1]，全宇宙
+
+    # ── Regime 权重 ───────────────────────────────────────────────────────────
+    regime = "neutral"
+    try:
+        from quantmind.regime.hmm import RegimeHMM, build_observations
+        hmm = RegimeHMM()
+        obs_path = str(_ROOT / "data" / "raw" / "index_daily_panel.parquet")
+        obs = build_observations(obs_path)
+        if obs is not None and len(obs) > 0:
+            regime = hmm.predict_regime(obs, pd.Timestamp(as_of))
+    except Exception as exc:
+        logger.debug(f"[Step5c] HMM Regime 获取失败，使用 neutral: {exc}")
+
+    lgbm_w, cnn_w = _ENSEMBLE_WEIGHTS.get(str(regime), _ENSEMBLE_WEIGHTS["neutral"])
+    logger.info(
+        f"[Step5c] Regime={regime}，融合权重 LGBM:{lgbm_w:.2f} / CNN:{cnn_w:.2f}"
+    )
+
+    # ── 计算 ensemble_score 并更新候选列表 ────────────────────────────────────
+    for c in candidates:
+        ticker = c["ticker"]
+        lgbm_s = float(c.get("lgbm_score", float("nan")))
+        # cnn_rank 的 index 可能是 ts_code string 或 ticker
+        cnn_s  = float(cnn_rank.get(ticker, float("nan")))
+        c["cnn_score"]      = round(cnn_s,  6) if not np.isnan(cnn_s)  else float("nan")
+        c["ensemble_score"] = round(
+            ensemble_scores(lgbm_s, cnn_s, lgbm_w, cnn_w), 6
+        )
+
+    # 按 ensemble_score 降序重排
+    candidates.sort(
+        key=lambda c: c.get("ensemble_score") or float("-inf"),
+        reverse=True,
+    )
+    # 更新 lgbm_rank → ensemble_rank
+    for i, c in enumerate(candidates, start=1):
+        c["lgbm_rank"] = c.get("lgbm_rank", i)   # 保留原始 LGBM rank
+        c["ensemble_rank"] = i
+
+    n_cnn_valid = sum(1 for c in candidates if not np.isnan(c.get("cnn_score", float("nan"))))
+    logger.info(
+        f"[Step5c] ✅ CNN ensemble 完成，有效 CNN 分数={n_cnn_valid}/{len(candidates)}，"
+        f"Top-1={candidates[0]['ticker'] if candidates else 'N/A'}"
+    )
+    return candidates
 
 
 def step5b_position_sizing(
@@ -1171,16 +1368,12 @@ def main() -> int:
     if _done("step5"):
         return _finalize(step_results, t_start, log_file, stop_after=args.stop_after)
 
-    # ── Step 5c（预留）: FactorCNN ensemble 融合 ─────────────────────────────
-    # TODO(A-4): 当 FactorCNN v2 推理接入后，在此处加载 CNN 模型并与 LGBM 融合
-    # CNN 模型路径从 strategy_config_v2.json["cnn_model_path"] 读取，
-    # 当前指向 "models/factor_cnn_v2_augmented.pkl"。
-    # 融合权重由 DynamicWeightManager.get_ensemble_weights(regime) 控制：
-    #   bull: lgbm=0.60, cnn=0.40
-    #   neutral: lgbm=0.65, cnn=0.35
-    #   bear: lgbm=0.75, cnn=0.25
-    # 融合函数: ensemble_scores(lgbm_score, cnn_score, lgbm_weight, cnn_weight)
-    # ──────────────────────────────────────────────────────────────────────────
+    # ── Step 5c: FactorCNN ensemble 融合（rank-based 6:4）────────────────────
+    if not getattr(args, "no_cnn", False):
+        try:
+            candidates = step5c_cnn_ensemble(as_of, feat_path, candidates)
+        except Exception as e:
+            logger.warning(f"[Step5c] ⚠ CNN ensemble 异常（{e}），维持 LGBM 顺序")
 
     # ── Step 5b ───────────────────────────────────────────────────────────────
     try:
