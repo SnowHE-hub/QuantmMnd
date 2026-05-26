@@ -1,6 +1,6 @@
 """tests/test_board_router.py — BoardModelRouter 单元测试.
 
-共 14 个测试，覆盖：
+共 18 个测试，覆盖：
   - 板块识别规则（688→STAR, 300→GEM, 000/600/8→MAIN）
   - 专用模型不存在时降级 fallback
   - predict() 输出 index 与输入完全一致
@@ -9,6 +9,9 @@
   - router.status() / which_model() 功能
   - 自定义模型路径 / 覆盖配置
   - 多次 predict() 懒加载缓存（不重复加载）
+  - direction=-1 质量门禁：_get_model 加载时降级 fallback（测试 15-16）
+  - direction=-1 二次防御：predict() 内部兜底切换 fallback（测试 17）
+  - direction gate 全板块降级集成场景（测试 18）
 """
 from __future__ import annotations
 
@@ -43,9 +46,13 @@ def _make_features(
 
 
 def _mock_model(scores: np.ndarray | None = None) -> MagicMock:
-    """返回一个 predict() 固定分数的 mock FactorModel。"""
+    """返回一个 predict() 固定分数的 mock FactorModel。
+
+    显式设置 direction=1，确保通过 BoardModelRouter 的方向质量门禁。
+    """
     m = MagicMock()
     m._feature_names = [f"f{i}" for i in range(10)]
+    m.direction = 1                # ← 必须显式设置，MagicMock 默认属性 != 1
     if scores is not None:
         m.predict.return_value = scores
     else:
@@ -127,14 +134,17 @@ def test_predict_preserves_input_order():
 def test_predict_routes_to_correct_board():
     """各板块模型返回固定值，验证路由逻辑正确。"""
     main_model = MagicMock()
+    main_model.direction = 1                                  # 通过方向质量门禁
     main_model._feature_names = [f"f{i}" for i in range(10)]
     main_model.predict.return_value = np.array([1.0, 2.0])   # 2 只主板股
 
     gem_model = MagicMock()
+    gem_model.direction = 1
     gem_model._feature_names = [f"f{i}" for i in range(10)]
     gem_model.predict.return_value = np.array([9.0])          # 1 只创业板股
 
     star_model = MagicMock()
+    star_model.direction = 1
     star_model._feature_names = [f"f{i}" for i in range(10)]
     star_model.predict.return_value = np.array([5.0])         # 1 只科创板股
 
@@ -298,6 +308,7 @@ def test_full_mixed_cross_section_no_nan():
     # 给每个 board 注入不同维度的 mock 模型
     def make_mock(n_feat=5):
         m = MagicMock()
+        m.direction = 1           # 通过方向质量门禁
         m._feature_names = [f"f{i}" for i in range(n_feat)]
         m.predict.side_effect = lambda X: np.ones(len(X)) * len(X)
         return m
@@ -312,3 +323,130 @@ def test_full_mixed_cross_section_no_nan():
     assert len(scores) == len(tickers)
     assert not scores.isna().any(), f"出现 NaN: {scores[scores.isna()]}"
     assert list(scores.index) == tickers
+
+
+# ── 测试 15：_get_model() direction=-1 → 质量门禁降级 fallback ────────────────
+
+def test_get_model_direction_minus_one_degrades_to_fallback():
+    """_get_model 加载到 direction=-1 的模型时，应返回 fallback 而非该模型。
+
+    FactorModel 在 _get_model 内是局部导入的，所以要 patch
+    'quantmind.models.factor_model.FactorModel'。
+    """
+    bad_model = MagicMock()
+    bad_model.direction = -1                        # ← 触发门禁
+    bad_model._feature_names = [f"f{i}" for i in range(10)]
+    bad_model.predict.return_value = np.array([77.0])
+
+    fallback_model = _mock_model(np.array([55.0]))  # direction=1（已在 _mock_model 设置）
+
+    router = BoardModelRouter()
+    router._fallback = fallback_model
+
+    # 模拟文件存在 + FactorModel.load 返回 direction=-1 的模型
+    fake_path = Path("/fake/gem_bad.pkl")
+    router._path_map["GEM"] = fake_path
+
+    # FactorModel 在 board_router 中通过局部 import 引用，
+    # 需要 patch 其原始所在模块 quantmind.models.factor_model
+    with patch("quantmind.models.factor_model.FactorModel") as MockFM:
+        MockFM.load.return_value = bad_model
+        with patch.object(Path, "is_file", return_value=True):
+            result = router._get_model("GEM")
+
+    # direction=-1 → 门禁触发 → 应该返回 fallback，不是 bad_model
+    assert result is fallback_model, (
+        "direction=-1 模型应被门禁拦截，_get_model 应返回 fallback"
+    )
+    bad_model.predict.assert_not_called()           # bad_model.predict 不应被调用
+
+
+# ── 测试 16：_get_model() direction=+1 → 正常使用板块专用模型 ────────────────
+
+def test_get_model_direction_plus_one_uses_board_model():
+    """_get_model 加载到 direction=+1 的模型时，应正常缓存并返回该模型。"""
+    good_model = MagicMock()
+    good_model.direction = 1                        # ← 通过门禁
+    good_model._feature_names = [f"f{i}" for i in range(10)]
+    good_model.predict.return_value = np.array([42.0])
+
+    router = BoardModelRouter()
+    fake_path = Path("/fake/main_good.pkl")
+    router._path_map["MAIN"] = fake_path
+
+    with patch("quantmind.models.factor_model.FactorModel") as MockFM:
+        MockFM.load.return_value = good_model
+        with patch.object(Path, "is_file", return_value=True):
+            result = router._get_model("MAIN")
+
+    # direction=+1 → 正常通过，返回板块专用模型
+    assert result is good_model, "direction=+1 模型应正常通过门禁"
+
+
+# ── 测试 17：predict() 二次防御 — 已缓存 direction=-1 模型时兜底 fallback ─────
+
+def test_predict_secondary_defense_catches_direction_minus_one():
+    """predict() 内部二次防御：若 _models 中存在 direction=-1 模型应切换 fallback。"""
+    bad_model = MagicMock()
+    bad_model.direction = -1
+    bad_model._feature_names = [f"f{i}" for i in range(10)]
+    bad_model.predict.return_value = np.array([99.0])   # 不应被调用
+
+    fallback_model = MagicMock()
+    fallback_model.direction = 1
+    fallback_model._feature_names = [f"f{i}" for i in range(10)]
+    fallback_model.predict.return_value = np.array([33.0])
+
+    # 直接把 direction=-1 的模型注入 _models（绕过 _get_model 门禁，模拟异常注入）
+    router = BoardModelRouter()
+    router._models   = {"GEM": bad_model}
+    router._fallback = fallback_model
+
+    tickers = ["300750.SZ"]
+    feat_df = _make_features(tickers)
+    scores  = router.predict(feat_df)
+
+    # 二次防御应捕获，使用 fallback 打分
+    assert scores["300750.SZ"] == pytest.approx(33.0), (
+        "predict() 二次防御应拦截 direction=-1 模型并改用 fallback"
+    )
+    bad_model.predict.assert_not_called()
+
+
+# ── 测试 18：direction gate 集成 — 全板块 direction=-1 均降级，无 NaN ─────────
+
+def test_direction_gate_all_boards_degrade_gracefully():
+    """三个板块全部 direction=-1 时，全部降级 fallback，结果无 NaN、index 完整。"""
+    def make_bad_model():
+        m = MagicMock()
+        m.direction = -1
+        m._feature_names = [f"f{i}" for i in range(5)]
+        m.predict.return_value = np.array([])  # 不应被调用
+        return m
+
+    fallback = MagicMock()
+    fallback.direction = 1
+    fallback._feature_names = [f"f{i}" for i in range(5)]
+    fallback.predict.side_effect = lambda X: np.ones(len(X)) * 7.0
+
+    tickers = ["600519.SH", "300750.SZ", "688001.SH"]
+    feat_df = _make_features(tickers, n_feats=5)
+
+    # 注入三个 direction=-1 的坏模型
+    router = BoardModelRouter()
+    router._models   = {
+        "MAIN": make_bad_model(),
+        "GEM":  make_bad_model(),
+        "STAR": make_bad_model(),
+    }
+    router._fallback = fallback
+
+    scores = router.predict(feat_df)
+
+    assert len(scores) == 3
+    assert not scores.isna().any(), f"出现 NaN: {scores[scores.isna()]}"
+    assert list(scores.index) == tickers
+    # 全部由 fallback 打分，值应为 7.0
+    assert np.allclose(scores.values, 7.0), (
+        f"全板块 direction=-1 应全部用 fallback 打分（期望值=7.0），实际={scores.values}"
+    )

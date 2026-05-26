@@ -237,9 +237,23 @@ def train_one_board(
             min_train_periods = min_train_periods,
         )
 
-    # 保存模型
+    # ── direction 质量校验 ────────────────────────────────────────────────────
+    direction = last_model.direction
+    direction_warning = direction != 1
+    if direction_warning:
+        print(
+            f"\n  ⚠️  [direction 警告] {display_name} 模型 direction={direction}。\n"
+            f"     raw IC 为负，auto_flip 已反转信号。\n"
+            f"     建议检查标签方向或增加训练数据量。\n"
+            f"     BoardModelRouter 在推理时会将此模型降级为 fallback（lgbm_v6_alpha），\n"
+            f"     模型文件仍会保存以供分析，但不会在生产中自动使用。"
+        )
+    else:
+        print(f"\n  ✅ direction=+1，模型可直接部署到 BoardModelRouter。")
+
+    # 保存模型（direction=-1 时仍保存，供离线分析；生产路由器有门禁会自动跳过）
     last_model.save(model_path)
-    print(f"\n  ✅ 已保存 → {model_path}（耗时 {elapsed:.0f}s）")
+    print(f"  ✅ 已保存 → {model_path}（耗时 {elapsed:.0f}s）")
 
     improvement = board_ic - mixed_ic if not np.isnan(mixed_ic) else float("nan")
     print(f"\n  IC 对比：混训={mixed_ic:+.4f}  专用={board_ic:+.4f}  "
@@ -247,20 +261,22 @@ def train_one_board(
           else f"\n  专用模型 IC={board_ic:+.4f}（混训 IC 不可用）")
 
     return {
-        "board":       board_name,
-        "display":     display_name,
-        "n_tickers":   n_tickers,
-        "n_rows":      n_rows,
-        "mixed_ic":    round(mixed_ic, 5) if not np.isnan(mixed_ic) else None,
-        "board_ic":    round(board_ic, 5),
-        "improvement": round(improvement, 5) if not np.isnan(improvement) else None,
-        "ic_std":      round(result.ic_std, 5),
-        "ic_ir":       round(result.effective_ic_ir, 5) if not np.isnan(result.effective_ic_ir) else None,
-        "ic_win_rate": round(result.ic_win_rate, 3),
-        "n_folds":     result.n_folds,
-        "direction":   last_model.direction,
-        "model_path":  str(model_path),
-        "elapsed_s":   round(elapsed, 1),
+        "board":             board_name,
+        "display":           display_name,
+        "n_tickers":         n_tickers,
+        "n_rows":            n_rows,
+        "mixed_ic":          round(mixed_ic, 5) if not np.isnan(mixed_ic) else None,
+        "board_ic":          round(board_ic, 5),
+        "improvement":       round(improvement, 5) if not np.isnan(improvement) else None,
+        "ic_std":            round(result.ic_std, 5),
+        "ic_ir":             round(result.effective_ic_ir, 5) if not np.isnan(result.effective_ic_ir) else None,
+        "ic_win_rate":       round(result.ic_win_rate, 3),
+        "n_folds":           result.n_folds,
+        "direction":         direction,
+        "direction_warning": direction_warning,
+        "production_ready":  not direction_warning,
+        "model_path":        str(model_path),
+        "elapsed_s":         round(elapsed, 1),
     }
 
 
@@ -336,18 +352,25 @@ def main() -> None:
         print("\n" + "="*70)
         print("  板块专用模型 vs 混训模型 IC 对比表")
         print("="*70)
-        header = f"{'板块':<10}{'股票数':>7}{'样本数':>8}{'混训IC':>10}{'专用IC':>10}{'改善':>10}{'IC_IR':>8}"
+        header = f"{'板块':<10}{'股票数':>7}{'样本数':>8}{'混训IC':>10}{'专用IC':>10}{'改善':>10}{'IC_IR':>8}{'生产':>6}"
         print(header)
-        print("-"*70)
+        print("-"*78)
         for r in results:
             mixed_str  = f"{r['mixed_ic']:+.4f}" if r["mixed_ic"] is not None else "   N/A"
             board_str  = f"{r['board_ic']:+.4f}"
             impr_str   = f"{r['improvement']:+.4f}" if r["improvement"] is not None else "   N/A"
             ir_str     = f"{r['ic_ir']:+.4f}" if r["ic_ir"] is not None else "   N/A"
-            flag = "🔺" if (r["improvement"] or 0) > 0 else "🔻"
+            flag       = "🔺" if (r["improvement"] or 0) > 0 else "🔻"
+            prod_flag  = "✅" if r.get("production_ready") else "⚠️ fallback"
             print(f"  {r['display']:<10}{r['n_tickers']:>6}{r['n_rows']:>8}  "
-                  f"{mixed_str:>9}  {board_str:>9}  {flag}{impr_str:>8}  {ir_str:>7}")
-        print("="*70)
+                  f"{mixed_str:>9}  {board_str:>9}  {flag}{impr_str:>8}  {ir_str:>7}  {prod_flag}")
+        print("="*78)
+        # 如有 direction 警告，汇总提示
+        warned = [r["display"] for r in results if r.get("direction_warning")]
+        if warned:
+            print(f"\n  ⚠️  以下板块 direction=-1，BoardModelRouter 推理时将自动降级 fallback：")
+            for d in warned:
+                print(f"     · {d}")
 
         # 保存结果 JSON
         result_path = out_dir / "board_model_results.json"
