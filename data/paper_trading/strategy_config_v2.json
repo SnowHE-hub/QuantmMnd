@@ -200,5 +200,12 @@
   "ollama_model": "qwen2.5:7b",
   "ollama_timeout": 60,
   "agent_max_steps": 5,
-  "_ollama_comment": "auto=有Ollama用LLM,无则规则; full=强制LLM; fast=强制规则"
+  "_ollama_comment": "auto=有Ollama用LLM,无则规则; full=强制LLM; fast=强制规则",
+  "use_board_models": true,
+  "board_model_paths": {
+    "MAIN": "models/lgbm_v6_main.pkl",
+    "GEM":  "models/lgbm_v6_gem.pkl",
+    "STAR": "models/lgbm_v6_star.pkl"
+  },
+  "_board_comment": "板块专用模型路由：主板/创业板/科创板各用专属LGBM; 模型不存在时自动降级到lgbm_v6_alpha"
 }

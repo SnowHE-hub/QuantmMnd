@@ -405,9 +405,23 @@ def step5_lgbm_rank(
                 f"[Step5] ❌ 因子表缺特征（前 5 个）：{missing[:5]} … 共 {len(missing)} 个"
             )
             return False, []
-        X = df[list(feat_names)].to_numpy(dtype=np.float32, copy=True)
-        scores_raw = model.predict(X)
-        ser_raw = pd.Series(scores_raw, index=df.index, dtype=np.float64)
+        # ── Board-specific routing（如已启用）────────────────────────────────
+        _use_board = getattr(args, "use_board_models", False)
+        if _use_board:
+            try:
+                from quantmind.models.board_router import BoardModelRouter
+                _router = BoardModelRouter()
+                ser_raw = _router.predict(df[list(feat_names)]).astype(np.float64)
+                scores_raw = ser_raw.to_numpy(dtype=np.float64)
+                logger.info("[Step5] 🗂️ 使用 BoardModelRouter 分板块打分 (%s)", _router)
+            except Exception as _board_exc:
+                logger.warning("[Step5] ⚠ BoardModelRouter 失败（%s），降级单模型", _board_exc)
+                _use_board = False
+
+        if not _use_board:
+            X = df[list(feat_names)].to_numpy(dtype=np.float32, copy=True)
+            scores_raw = model.predict(X)
+            ser_raw = pd.Series(scores_raw, index=df.index, dtype=np.float64)
         rank_sel = order_preserving_pct_rank(ser_raw)
         score_norm = rank_sel.to_numpy(dtype=np.float64)
         norm_by_ticker = dict(zip(df.index.astype(str), score_norm))
