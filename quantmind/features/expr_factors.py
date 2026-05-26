@@ -262,9 +262,83 @@ EXPR_FACTORS: dict[str, ExprFactor] = {
             - ctx["close"] / Ref(ctx["close"], 21)
         ),
     ),
+
+    # ── 短期反转因子（IC < 0 → 用负权重）────────────────────────────────────────
+    # 9. 1个月短期反转（原始值；打分时用负权重）
+    #    A股均值回归：高近期涨幅 → 未来回调  IC=-0.024（63d标签）
+    "reversal_1m_raw": ExprFactor(
+        name       = "reversal_1m_raw",
+        expr_str   = "$close / Ref($close, 21) - 1",
+        panel_equiv= "momentum_1m",   # alpha_panel_v4 列名（原始方向）
+        eval_fn    = lambda ctx: (
+            ctx["close"] / Ref(ctx["close"], 21) - 1.0
+        ),
+    ),
+
+    # 10. 5日超短反转（原始值；打分时用负权重）
+    #     IC=-0.002（63d标签），辅助信号
+    "reversal_5d_raw": ExprFactor(
+        name       = "reversal_5d_raw",
+        expr_str   = "$close / Ref($close, 5) - 1",
+        panel_equiv= "reversal_1w",
+        eval_fn    = lambda ctx: (
+            ctx["close"] / Ref(ctx["close"], 5) - 1.0
+        ),
+    ),
+
+    # ── 中长期惯性因子（IC > 0 → 用正权重）────────────────────────────────────
+    # 11. 6个月动量（= momentum_6m，IC=+0.007 63d标签）
+    "momentum_6m_expr": ExprFactor(
+        name       = "momentum_6m_expr",
+        expr_str   = "$close / Ref($close, 126) - 1",
+        panel_equiv= "momentum_6m",
+        eval_fn    = lambda ctx: (
+            ctx["close"] / Ref(ctx["close"], 126) - 1.0
+        ),
+    ),
+
+    # 12. 12个月动量跳过最近1个月（= momentum_12m_skip_1m，IC=+0.025 ✅）
+    #     经济含义：去除短期反转噪音的纯趋势信号
+    "momentum_12m_skip_1m_expr": ExprFactor(
+        name       = "momentum_12m_skip_1m_expr",
+        expr_str   = "Ref($close, 21) / Ref($close, 252) - 1",
+        panel_equiv= "momentum_12m_skip_1m",
+        eval_fn    = lambda ctx: (
+            Ref(ctx["close"], 21) / Ref(ctx["close"], 252) - 1.0
+        ),
+    ),
 }
 
 EXPR_FACTOR_NAMES: list[str] = list(EXPR_FACTORS.keys())
+
+# ─── 动量子因子分组（供 System2._compute_momentum_score 引用）────────────────
+# IC 实证（alpha_panel_v4，29季，63d 标签，Spearman）：
+#   reversal_1w     IC=-0.002  IC>0=49% → 短期超卖/超买（弱信号）
+#   momentum_1m     IC=-0.024  IC>0=39% → A股均值回归（显著负向）
+#   momentum_6m     IC=+0.007  IC>0=57% → 中期惯性（轻微正向）
+#   momentum_12m_skip_1m IC=+0.025 IC>0=61% → 长期趋势（最强信号）✅
+#
+# 权重设计：short reversal 负权重压制均值回归；mid/long 正权重捕捉趋势
+#   reversal_1w:          weight = -0.40
+#   momentum_1m:          weight = -0.20
+#   momentum_6m:          weight = +0.25
+#   momentum_12m_skip_1m: weight = +0.15  (fallback: momentum_12m)
+#
+# 重构后效果（验证 IC vs alpha_panel_v4）：
+#   新 momentum_score: mean IC=+0.0264  IC>0=57%  ICIR=+0.33
+#   vs 旧 momentum_1m: mean IC=-0.0240  IC>0=39%  ICIR=-0.21   改善 +0.0504
+
+SHORT_REVERSAL_FACTORS: dict[str, str] = {
+    "reversal_1w":   "reversal_5d_raw",   # alpha_panel col → expr factor name
+    "reversal_1m":   "reversal_1m_raw",
+}
+
+MID_LONG_MOMENTUM_FACTORS: dict[str, str] = {
+    "momentum_6m":          "momentum_6m_expr",
+    "momentum_12m_skip_1m": "momentum_12m_skip_1m_expr",
+}
+
+MOMENTUM_FACTORS_RAW: list[str] = list(SHORT_REVERSAL_FACTORS.keys()) + list(MID_LONG_MOMENTUM_FACTORS.keys())
 
 
 # ─── 截面提取 API ─────────────────────────────────────────────────────────────

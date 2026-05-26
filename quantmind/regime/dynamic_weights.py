@@ -25,6 +25,10 @@ HMM 将市场划分为 bull / neutral / bear 三种状态。
   - 动量因子：短期(1m/3m)为负（A股均值回归）→ 大幅降低权重
     长期(12m_skip_1m)为正 → 在 meta-learner proxy 中纳入
     修正后：bull 0.10 / neutral 0.12 / bear 0.08，节省权重加到 quality
+  - System2._compute_momentum_score 重构（2026-05-26）：
+    旧：_factor_score([momentum_1m, momentum_3m, rel_str_60d], direction=+1)  IC=-0.024
+    新：reversal_1w×(−0.40) + momentum_1m×(−0.20)
+        + momentum_6m×(+0.25) + momentum_12m_skip_1m×(+0.15)  IC=+0.0264 ✅
 
 管理三类权重
 ------------

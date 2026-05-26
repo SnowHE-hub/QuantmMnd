@@ -622,9 +622,11 @@ class AnalysisSystem:
         val_factors = ["earnings_yield", "book_to_market", "dividend_yield_ttm"]
         df["value_score"] = self._factor_score(df, val_factors, direction=1)
 
-        # 动量得分：短中期动量综合
-        mom_factors = ["momentum_1m", "momentum_3m", "relative_strength_vs_csi300_60d"]
-        df["momentum_score"] = self._factor_score(df, mom_factors, direction=1)
+        # 动量得分：短期反转（负权）+ 中长期惯性（正权）
+        # A股均值回归修正：momentum_1m IC=-0.024 → 用负权重
+        # 长期动量有效：momentum_12m_skip_1m IC=+0.025 → 用正权重
+        # 重构后 IC=+0.0264 vs 旧 IC=-0.0240（改善 +0.0504）
+        df["momentum_score"] = self._compute_momentum_score(df)
 
         # 质量得分：ROE/流动性
         qual_factors = ["roe_approx", "free_float_ratio"]
@@ -717,6 +719,54 @@ class AnalysisSystem:
         df["suggested_horizon"] = df.apply(self._suggest_horizon, axis=1)
 
         return df.sort_values("composite_score", ascending=False)
+
+    @staticmethod
+    def _compute_momentum_score(df: pd.DataFrame) -> pd.Series:
+        """重构后的动量评分：短期反转（负权）+ 中长期惯性（正权）.
+
+        权重设计基于 alpha_panel_v4 实证 IC（29季，63d 标签，Spearman）：
+          reversal_1w:          IC=-0.002  weight=-0.40
+          momentum_1m:          IC=-0.024  weight=-0.20  (A股均值回归)
+          momentum_6m:          IC=+0.007  weight=+0.25
+          momentum_12m_skip_1m: IC=+0.025  weight=+0.15  ✅
+
+        重构后整体：mean IC=+0.0264  IC>0=57%  ICIR=+0.33
+        vs 旧方案：  mean IC=-0.0240  IC>0=39%  ICIR=-0.21
+
+        Returns
+        -------
+        pd.Series
+            百分位排名 × 100，范围 [0, 100]，与 _factor_score 输出对齐。
+        """
+        def _zscore(s: pd.Series) -> pd.Series:
+            """截面 z-score；全 NaN 列返回全零（neutral），不传播 NaN。"""
+            valid = s.dropna()
+            if len(valid) < 2:
+                return pd.Series(0.0, index=s.index)
+            mu, std = valid.mean(), valid.std()
+            if std > 1e-8:
+                return ((s - mu) / std).fillna(0.0)
+            return pd.Series(0.0, index=s.index)
+
+        score = pd.Series(0.0, index=df.index)
+
+        # 短期反转：IC < 0 → 负权重（A股均值回归效应）
+        if "reversal_1w" in df.columns:
+            score += -0.40 * _zscore(df["reversal_1w"])
+        if "momentum_1m" in df.columns:
+            score += -0.20 * _zscore(df["momentum_1m"])
+
+        # 中长期惯性：IC > 0 → 正权重
+        if "momentum_6m" in df.columns:
+            score += +0.25 * _zscore(df["momentum_6m"])
+        if "momentum_12m_skip_1m" in df.columns:
+            score += +0.15 * _zscore(df["momentum_12m_skip_1m"])
+        elif "momentum_12m" in df.columns:
+            # fallback：部分候选池不含 skip_1m 列
+            score += +0.15 * _zscore(df["momentum_12m"])
+
+        # 转换为 [0,100] 百分位排名，与 _factor_score 输出格式一致
+        return score.rank(pct=True) * 100
 
     @staticmethod
     def _factor_score(df: pd.DataFrame, factors: list, direction: int = 1) -> pd.Series:
