@@ -101,7 +101,15 @@ class SentimentAgent(BaseInvestmentAgent):
             logger.warning(f"[SentimentAgent] bert_v3 文件不存在: {path}")
         return super()._load_model(record)
 
-    def analyze(self) -> AgentSignal:
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """情绪分析主入口（mode='auto'/'full' → LLM；'fast' → FinBERT/规则）."""
+        use_llm = (mode == "full") or (mode == "auto" and self._ollama_available())
+        if use_llm:
+            try:
+                return self._analyze_with_llm()
+            except Exception as e:
+                logger.warning("[SentimentAgent] LLM 失败，降级规则: %s", e)
+
         active_version = (
             self._model_record.model_version if self._model_record else "rules_v1"
         )
@@ -520,3 +528,122 @@ class SentimentAgent(BaseInvestmentAgent):
         """rules_v1 路径的 LLM 辅助信号（保持向后兼容）。"""
         score, _ = self._get_llm_synthesis(news_texts[:3])
         return score
+
+    # ─── Ollama ReAct 路径 ────────────────────────────────────────────────────
+
+    def _analyze_with_llm(self) -> AgentSignal:
+        """Ollama qwen2.5 ReAct 情绪/舆论分析（公告 + 研报 + 股东变动）."""
+        from quantmind.agents.ollama_client import OllamaReActClient
+
+        tools = [
+            {
+                "name": "get_recent_announcements",
+                "description": "获取个股最近 N 天的重要公告列表（含公告类型和关键词），识别正/负面催化剂",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "days":   {"type": "integer", "default": 30},
+                    },
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_kb_analyst_views",
+                "description": "检索知识库中该股票的近期研报观点摘要，获取机构评级和目标价",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_shareholder_change",
+                "description": "获取主要股东最近增减持记录，判断内部人对公司未来的看法",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+        ]
+
+        def _tool_announcements(ticker: str, days: int = 30, **kw):
+            ann_text = self._get_snapshot_text("snapshot_announcements")
+            news_text = self._get_snapshot_text("snapshot_news")
+            combined = (ann_text + "\n" + news_text)[:1500]
+            return {
+                "ticker":   ticker,
+                "days":     days,
+                "content":  combined if combined.strip() else "暂无公告数据",
+                "note":     "来自 snapshot_announcements + snapshot_news",
+            }
+
+        def _tool_kb_views(ticker: str, **kw):
+            report_text = self._get_snapshot_text("snapshot_analyst_reports")
+            return {
+                "ticker":  ticker,
+                "content": report_text[:1000] if report_text.strip() else "知识库暂无该股研报",
+            }
+
+        def _tool_shareholder(ticker: str, **kw):
+            sh_text = self._get_snapshot_text("snapshot_shareholder")
+            return {
+                "ticker":  ticker,
+                "content": sh_text[:800] if sh_text.strip() else "暂无股东增减持数据",
+            }
+
+        system_prompt = """你是一位 A 股市场情绪与舆论分析专家。
+
+分析框架（按顺序）：
+1. 近期公告：是否有业绩预告、重组、增持等正面催化剂？是否有违规、减持等负面信号？（调用工具）
+2. 机构观点：研报评级偏多还是偏空？目标价隐含上行空间？（调用工具）
+3. 股东行为：大股东/高管增减持方向？内部人行为往往领先市场（调用工具）
+4. 综合判断：将以上三个维度加权综合，注意负面信号的不对称性（负面更大权重）
+
+注意：
+- 增持公告 → 正面信号；减持公告 → 负面信号（尤其是大幅减持）
+- 业绩预增 → 正面；业绩预减或下调 → 负面
+- 研报密集覆盖且评级买入 → 正面
+
+输出格式：
+SIGNAL: <-1到+1，正数情绪偏多>
+CONFIDENCE: <0到1>
+SUMMARY: <2-3句话的中文情绪判断>
+KEY_RISK: <最主要的情绪风险（如大股东减持、业绩下调等）>"""
+
+        user_message = f"""请分析 {self.ticker} 的市场情绪和舆论。
+
+请依次调用三个工具：get_recent_announcements、get_kb_analyst_views、get_shareholder_change，
+综合三个维度给出情绪信号。
+
+行业：{self.context.get('industry', 'N/A')}
+分析日期：{self.as_of}"""
+
+        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        result = client.chat_with_tools(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            tools=tools,
+            tool_executors={
+                "get_recent_announcements": _tool_announcements,
+                "get_kb_analyst_views":     _tool_kb_views,
+                "get_shareholder_change":   _tool_shareholder,
+            },
+        )
+
+        if result["fallback"]:
+            return self._analyze_rules()
+
+        return AgentSignal(
+            agent_name      = "SentimentAgent",
+            ticker          = self.ticker,
+            signal          = self._clamp(result["signal"]),
+            confidence      = max(0.0, min(1.0, result["confidence"])),
+            summary         = result["final_answer"][:100],
+            evidence        = {"method": "ollama_react", "tools": result["tools_called"]},
+            warnings        = [],
+            reasoning_trace = result["reasoning_trace"],
+            tools_called    = result["tools_called"],
+            llm_mode        = True,
+        )

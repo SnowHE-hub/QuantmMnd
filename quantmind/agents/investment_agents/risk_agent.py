@@ -18,7 +18,19 @@ _PRICE_FILE = _ROOT / "data" / "raw" / "alpha_prices_panel.parquet"
 class RiskAgent(BaseInvestmentAgent):
     """风险评估 Agent — 波动率 + 财务 + 流动性 + 北向资金 + 可选 GARCH v2."""
 
-    def analyze(self) -> AgentSignal:
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """风险分析主入口（mode='auto'/'full' → LLM；'fast' → GARCH/规则）."""
+        use_llm = (mode == "full") or (mode == "auto" and self._ollama_available())
+        if use_llm:
+            try:
+                return self._analyze_with_llm()
+            except Exception as e:
+                logger.warning("[RiskAgent] LLM 失败，降级规则: %s", e)
+
+        return self._rule_based_analyze()
+
+    def _rule_based_analyze(self) -> AgentSignal:
+        """原始规则 + GARCH 风险分析逻辑。"""
         evidence: dict = {}
         warnings: list[str] = []
         signal = 0.0
@@ -282,3 +294,146 @@ class RiskAgent(BaseInvestmentAgent):
             if m:
                 return self._safe_float(m.group(1))
         return None
+
+    # ─── Ollama ReAct 路径 ────────────────────────────────────────────────────
+
+    def _analyze_with_llm(self) -> AgentSignal:
+        """Ollama qwen2.5 ReAct 风险分析（波动率 + 流动性 + Beta）."""
+        from quantmind.agents.ollama_client import OllamaReActClient
+
+        mkt_text = self._get_snapshot_text("snapshot_latest_market_metrics")
+        fi_text  = self._get_snapshot_text("snapshot_financial_indicator_summary")
+        combined = mkt_text + "\n" + fi_text
+
+        tools = [
+            {
+                "name": "get_volatility_regime",
+                "description": "计算股票历史波动率的分位数位置，判断当前波动率处于历史高/中/低位",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_liquidity_risk",
+                "description": "评估股票流动性风险：换手率、成交量稳定性、Amihud 非流动性指标",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_correlation_with_market",
+                "description": "计算股票与沪深300的 Beta 系数和滚动相关性，评估系统性风险敞口",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+        ]
+
+        def _tool_vol_regime(ticker: str, **kw):
+            # 从 context 读预计算波动率
+            vol_63d = self._parse_numeric(combined, ["vol_63d", "volatility_3m", "波动率"])
+            garch   = self._parse_numeric(combined, ["garch_vol", "garch_volatility"])
+            eff_vol = garch or vol_63d
+            level = (
+                "高波动 (>0.40)" if eff_vol and eff_vol > 0.40 else
+                "中波动 (0.20-0.40)" if eff_vol and eff_vol > 0.20 else
+                "低波动 (<0.20)" if eff_vol else "数据不足"
+            )
+            return {
+                "ticker":          ticker,
+                "vol_63d":         round(vol_63d, 4) if vol_63d else None,
+                "garch_vol":       round(garch, 6) if garch else None,
+                "volatility_level": level,
+                "risk_flag": "⚠️ 高波动，风险溢价上升" if eff_vol and eff_vol > 0.40 else "✅ 波动率可控",
+            }
+
+        def _tool_liquidity(ticker: str, **kw):
+            turnover = self._parse_numeric(combined, ["turnover_rate", "换手率", "turn"])
+            volume   = self._parse_numeric(combined, ["volume_ratio", "量比"])
+            amihud   = self._parse_numeric(combined, ["amihud", "amihud_illiquidity"])
+            return {
+                "ticker":       ticker,
+                "turnover_rate": round(turnover, 2) if turnover else None,
+                "volume_ratio":  round(volume, 2) if volume else None,
+                "amihud":        round(amihud, 6) if amihud else None,
+                "liquidity_flag": (
+                    "⚠️ 流动性偏低（换手率<1%）" if turnover and turnover < 1.0 else
+                    "⚠️ 流动性过热（换手率>10%）" if turnover and turnover > 10.0 else
+                    "✅ 流动性正常"
+                ),
+            }
+
+        def _tool_beta(ticker: str, **kw):
+            beta    = self._parse_numeric(combined, ["beta", "beta_252d"])
+            corr    = self._parse_numeric(combined, ["correlation_252d", "market_corr"])
+            return {
+                "ticker":    ticker,
+                "beta":      round(beta, 3) if beta else None,
+                "market_corr": round(corr, 3) if corr else None,
+                "sys_risk":  (
+                    "高系统性风险 (Beta>1.5)" if beta and beta > 1.5 else
+                    "中等系统性风险 (0.8-1.5)" if beta and beta > 0.8 else
+                    "低系统性风险 (Beta<0.8)" if beta else "Beta 数据不足"
+                ),
+            }
+
+        system_prompt = """你是一位 A 股量化风险管理专家，专注于个股风险评估。
+
+分析框架（按顺序）：
+1. 波动率风险：当前波动率处于历史什么分位？GARCH 模型预测方向？（调用工具）
+2. 流动性风险：换手率、成交量是否异常？能否承受正常仓位的进出？（调用工具）
+3. 系统性风险：Beta 系数？在市场下跌时的敞口？（调用工具）
+4. 财务风险：资产负债率、商誉风险、经营杠杆水平
+5. 综合评价：风险溢价是否合理？当前时点的风险性价比
+
+注意：
+- 风险 Agent 的 signal 为负 → 看空/回避（风险过高）
+- signal 为正 → 风险可控，可以正常持有
+- signal 范围 [-1, 0] 区间为主
+
+输出格式：
+SIGNAL: <-1到+1，负数表示风险高，建议回避>
+CONFIDENCE: <0到1>
+SUMMARY: <2-3句话的中文风险评价>
+KEY_RISK: <最主要的风险因子>"""
+
+        user_message = f"""请评估 {self.ticker} 的当前风险水平。
+
+请依次调用工具：get_volatility_regime、get_liquidity_risk、get_correlation_with_market。
+
+行业：{self.context.get('industry', 'N/A')}
+分析日期：{self.as_of}"""
+
+        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        result = client.chat_with_tools(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            tools=tools,
+            tool_executors={
+                "get_volatility_regime":       _tool_vol_regime,
+                "get_liquidity_risk":          _tool_liquidity,
+                "get_correlation_with_market": _tool_beta,
+            },
+        )
+
+        if result["fallback"]:
+            return self._rule_based_analyze()
+
+        return AgentSignal(
+            agent_name      = "RiskAgent",
+            ticker          = self.ticker,
+            signal          = self._clamp(result["signal"]),
+            confidence      = max(0.0, min(1.0, result["confidence"])),
+            summary         = result["final_answer"][:100],
+            evidence        = {"method": "ollama_react", "tools": result["tools_called"]},
+            warnings        = [],
+            reasoning_trace = result["reasoning_trace"],
+            tools_called    = result["tools_called"],
+            llm_mode        = True,
+        )

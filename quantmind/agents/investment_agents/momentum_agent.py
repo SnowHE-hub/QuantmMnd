@@ -69,7 +69,18 @@ class MomentumAgent(BaseInvestmentAgent):
             raise RuntimeError("AgentModelRegistry unavailable")
         return reg
 
-    def analyze(self) -> AgentSignal:
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """动量分析主入口.
+
+        mode='auto'/'full' → LLM ReAct；mode='fast' → 原规则/LGBM/LSTM。
+        """
+        use_llm = (mode == "full") or (mode == "auto" and self._ollama_available())
+        if use_llm:
+            try:
+                return self._analyze_with_llm()
+            except Exception as e:
+                logger.warning("[MomentumAgent] LLM 失败，降级规则: %s", e)
+
         reg = self._get_registry()
         active_rec = reg.get_active(self.__class__.__name__) if reg else self._model_record
         rec = active_rec or self._model_record
@@ -523,3 +534,132 @@ class MomentumAgent(BaseInvestmentAgent):
         except Exception as e:
             logger.warning(f"[MomentumAgent] 价格数据读取失败: {e}")
             return None
+
+    # ─── LLM ReAct 路径 ────────────────────────────────────────────────────────
+
+    def _analyze_with_llm(self) -> AgentSignal:
+        """Ollama qwen2.5 ReAct 动量分析（工具调用）."""
+        from quantmind.agents.ollama_client import OllamaReActClient
+
+        tech_text = self._get_snapshot_text("snapshot_latest_market_metrics")
+
+        tools = [
+            {
+                "name": "get_price_momentum_analysis",
+                "description": "计算股票多周期价格动量（5/21/63/126/252日），识别趋势强度和方向",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ticker":  {"type": "string"},
+                        "windows": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                            "description": "时间窗口（交易日数）",
+                        },
+                    },
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_north_flow_trend",
+                "description": "获取北向资金最近 N 日净流入趋势，判断外资态度",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "days":   {"type": "integer", "default": 30},
+                    },
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_sector_rotation_context",
+                "description": "获取当前市场热点板块和行业轮动方向，判断股票所在行业的资金流向",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                },
+            },
+        ]
+
+        def _tool_momentum(ticker: str, windows: list | None = None, **kw):
+            series = self._load_price_series()
+            if series is None or len(series) < 10:
+                return {"error": "价格数据不可用"}
+            wins = windows or [5, 21, 63, 126, 252]
+            result = {}
+            for w in wins:
+                if len(series) > w:
+                    ret = float(series.iloc[-1] / series.iloc[-w - 1] - 1)
+                    result[f"ret_{w}d"] = round(ret * 100, 2)
+            # RSI(14)
+            if len(series) >= 15:
+                result["rsi_14"] = round(_rsi(series), 1)
+            return result
+
+        def _tool_north_flow(ticker: str, days: int = 30, **kw):
+            north_text = self._get_snapshot_text("snapshot_north_flow")
+            return {
+                "ticker": ticker,
+                "days":   days,
+                "note":   north_text[:300] if north_text else "北向资金数据不在 context 中",
+            }
+
+        def _tool_sector_rotation(**kw):
+            regime_text = self._get_snapshot_text("snapshot_macro")
+            return {
+                "note": regime_text[:300] if regime_text else "当前板块轮动数据不在 context 中",
+            }
+
+        system_prompt = """你是一位 A 股技术面和动量分析专家。
+
+分析框架（按顺序）：
+1. 多周期动量：5日/21日/63日/126日/252日各期收益率 → 短中长期趋势
+2. 趋势判断：短期(5-21d)与中期(63d)是否同向？是否出现反转信号？
+3. RSI：是否超买(>70)或超卖(<30)？
+4. 北向资金：外资最近是否持续净买入/净卖出？
+5. 板块轮动：所在行业当前是否处于资金流入阶段？
+6. 综合判断：结合 A股均值回归特性（短期动量负向）+ 长期趋势（正向）
+
+注意：A 股短期（1个月内）存在均值回归，长期（6-12月）趋势有效。
+
+输出格式：
+SIGNAL: <-1到+1，正数趋势看多>
+CONFIDENCE: <0到1>
+SUMMARY: <2-3句话的中文动量判断>
+KEY_RISK: <主要风险（如超买、北向流出等）>"""
+
+        user_message = f"""请分析 {self.ticker} 的价格动量和趋势。
+
+请先调用 get_price_momentum_analysis 工具获取多周期动量数据，再综合分析。
+行业：{self.context.get('industry', 'N/A')}
+分析日期：{self.as_of}"""
+
+        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        result = client.chat_with_tools(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            tools=tools,
+            tool_executors={
+                "get_price_momentum_analysis": _tool_momentum,
+                "get_north_flow_trend":        _tool_north_flow,
+                "get_sector_rotation_context": _tool_sector_rotation,
+            },
+        )
+
+        if result["fallback"]:
+            return self._analyze_rules()
+
+        return AgentSignal(
+            agent_name      = "MomentumAgent",
+            ticker          = self.ticker,
+            signal          = self._clamp(result["signal"]),
+            confidence      = max(0.0, min(1.0, result["confidence"])),
+            summary         = result["final_answer"][:100],
+            evidence        = {"method": "ollama_react", "tools": result["tools_called"]},
+            warnings        = [],
+            reasoning_trace = result["reasoning_trace"],
+            tools_called    = result["tools_called"],
+            llm_mode        = True,
+        )

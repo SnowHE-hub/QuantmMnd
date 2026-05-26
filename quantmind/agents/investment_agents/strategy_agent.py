@@ -76,8 +76,15 @@ class StrategyAgent(BaseInvestmentAgent):
         self.provider = provider
         self.model = model
 
-    def analyze(self) -> AgentSignal:
-        """实现抽象方法，返回综合信号（轻量版，供 Pipeline 使用）."""
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """综合策略分析主入口（mode='auto'/'full' → Ollama ReAct；'fast' → 原逻辑）."""
+        use_llm = (mode == "full") or (mode == "auto" and self._ollama_available())
+        if use_llm:
+            try:
+                return self._analyze_with_llm_react()
+            except Exception as e:
+                logger.warning("[StrategyAgent] Ollama ReAct 失败，降级原逻辑: %s", e)
+        # 原逻辑：内部 LLM thesis 生成（基于 Anthropic/本地 LLM，非 ReAct）
         strategy = self.analyze_with_llm()
         return AgentSignal(
             agent_name="StrategyAgent",
@@ -397,3 +404,167 @@ class StrategyAgent(BaseInvestmentAgent):
             logger.warning(f"[StrategyAgent] LLM thesis 生成失败，使用模板: {e}")
 
         return template[:200], False, None
+
+    # ─── Ollama ReAct 路径 ────────────────────────────────────────────────────
+
+    def _analyze_with_llm_react(self) -> AgentSignal:
+        """Ollama qwen2.5 ReAct 综合策略分析（读取各 Agent 信号 + Regime）."""
+        from quantmind.agents.ollama_client import OllamaReActClient
+
+        tools = [
+            {
+                "name": "get_all_agent_signals",
+                "description": (
+                    "运行其他 5 个分析 Agent（Valuation/Momentum/Quality/Sentiment/Risk）"
+                    "，获取各自的 signal、confidence 和 summary"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_regime_context",
+                "description": "获取当前 HMM 宏观 Regime（bull/neutral/bear）和各因子权重建议",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                },
+            },
+            {
+                "name": "get_position_sizing_advice",
+                "description": "根据综合信号和置信度给出仓位建议（Kelly/ATR 方法）",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "signal":     {"type": "number"},
+                        "confidence": {"type": "number"},
+                    },
+                    "required": ["signal", "confidence"],
+                },
+            },
+        ]
+
+        def _tool_agent_signals(ticker: str, **kw):
+            """串行运行 5 个子 Agent（fast 模式避免递归调用 LLM）."""
+            try:
+                from quantmind.agents.investment_agents import (
+                    ValuationAgent, MomentumAgent, QualityAgent,
+                    SentimentAgent, RiskAgent,
+                )
+                results = {}
+                for cls in [ValuationAgent, MomentumAgent, QualityAgent,
+                             SentimentAgent, RiskAgent]:
+                    try:
+                        ag  = cls(ticker, self.as_of, self.context)
+                        sig = ag.analyze(mode="fast")   # fast 避免递归
+                        results[cls.__name__] = {
+                            "signal":     round(sig.signal, 3),
+                            "confidence": round(sig.confidence, 3),
+                            "summary":    sig.summary[:60],
+                        }
+                    except Exception as e:
+                        results[cls.__name__] = {"error": str(e)[:60]}
+                return results
+            except Exception as e:
+                return {"error": str(e)}
+
+        def _tool_regime(**kw):
+            regime_text = self._get_snapshot_text("snapshot_macro")
+            composite, confidence = self._calc_composite_signal()
+            return {
+                "composite_signal": round(composite, 3),
+                "composite_confidence": round(confidence, 3),
+                "regime_info": regime_text[:300] if regime_text else "Regime 数据不在 context 中",
+                "weight_schema": {
+                    "ValuationAgent": 0.25, "MomentumAgent": 0.20,
+                    "QualityAgent": 0.25, "SentimentAgent": 0.15, "RiskAgent": 0.15,
+                },
+            }
+
+        def _tool_position(signal: float, confidence: float, **kw):
+            abs_sig = abs(signal)
+            if abs_sig > 0.5 and confidence > 0.7:
+                pos = "重仓(5-8%)"
+            elif abs_sig > 0.3 and confidence > 0.6:
+                pos = "标准(3-5%)"
+            elif abs_sig > 0.15:
+                pos = "轻仓(1-3%)"
+            else:
+                pos = "观察，不建仓"
+            return {
+                "signal":        signal,
+                "confidence":    confidence,
+                "position_size": pos,
+                "kelly_fraction": round(min(0.08, abs_sig * confidence * 0.1), 3),
+            }
+
+        system_prompt = """你是 A 股多因子量化策略综合分析师。
+
+你的任务是综合 5 个专项 Agent 的信号（估值/动量/质量/情绪/风险），
+结合当前宏观 Regime，给出最终的综合投资建议。
+
+分析框架：
+1. 调用 get_all_agent_signals 获取各维度信号
+2. 调用 get_regime_context 获取 Regime 背景
+3. 分析各 Agent 信号的一致性：多数 bull 还是 bear？分歧在哪里？
+4. 给出综合判断：是否具备 α 机会？仓位建议如何？
+5. 调用 get_position_sizing_advice 给出仓位建议
+
+注意：
+- RiskAgent 信号为负代表风险高，是否值得持有需综合考量
+- 各 Agent 信号高度一致（std 小）→ 置信度高
+- Regime=bear 时整体信号需打折，更加谨慎
+
+输出格式：
+SIGNAL: <-1到+1，综合看多/看空>
+CONFIDENCE: <0到1>
+SUMMARY: <3句话综合投资结论，包含评级和仓位建议>
+KEY_RISK: <最主要的综合风险>"""
+
+        user_message = f"""请综合分析 {self.ticker} 的投资价值，给出策略建议。
+
+请依次调用：get_all_agent_signals（获取各维度信号）→ get_regime_context（获取宏观背景）
+→ get_position_sizing_advice（给出仓位建议）
+
+行业：{self.context.get('industry', 'N/A')}
+分析日期：{self.as_of}"""
+
+        client = OllamaReActClient(model="qwen2.5:7b", timeout=90, max_steps=6)
+        result = client.chat_with_tools(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            tools=tools,
+            tool_executors={
+                "get_all_agent_signals":     _tool_agent_signals,
+                "get_regime_context":        _tool_regime,
+                "get_position_sizing_advice": _tool_position,
+            },
+        )
+
+        if result["fallback"]:
+            strategy = self.analyze_with_llm()
+            return AgentSignal(
+                agent_name="StrategyAgent",
+                ticker=self.ticker,
+                signal=strategy.composite_signal,
+                confidence=strategy.confidence,
+                summary=f"{strategy.rating}，综合信号{strategy.composite_signal:+.2f}",
+                evidence={"rating": strategy.rating, "method": "fallback_to_template"},
+                warnings=strategy.key_risks[:3],
+            )
+
+        return AgentSignal(
+            agent_name      = "StrategyAgent",
+            ticker          = self.ticker,
+            signal          = self._clamp(result["signal"]),
+            confidence      = max(0.0, min(1.0, result["confidence"])),
+            summary         = result["final_answer"][:100],
+            evidence        = {"method": "ollama_react", "tools": result["tools_called"]},
+            warnings        = [],
+            reasoning_trace = result["reasoning_trace"],
+            tools_called    = result["tools_called"],
+            llm_mode        = True,
+        )

@@ -180,14 +180,16 @@ class DebateOrchestrator:
         model_version_overrides:  Optional[Dict[str, str]] = None,
         parallel:                 bool = True,
         timeout:                  float = _ROUND1_TIMEOUT,
+        agent_mode:               str = "fast",
     ) -> None:
         self.ticker  = ticker
         self.as_of   = as_of
         self.context = context
         self.regime  = regime.lower() if regime else "neutral"
-        self._overrides = model_version_overrides or {}
-        self._parallel  = parallel
-        self._timeout   = timeout
+        self._overrides   = model_version_overrides or {}
+        self._parallel    = parallel
+        self._timeout     = timeout
+        self._agent_mode  = agent_mode   # 'auto' | 'full' | 'fast'
 
         # 导入 Agent 类（延迟，避免循环依赖）
         from quantmind.agents.investment_agents import (
@@ -275,10 +277,10 @@ class DebateOrchestrator:
 
     def _run_single_agent(self, agent_cls) -> Optional[AgentStance]:
         """实例化并运行单个 Agent，转换为 AgentStance。"""
-        name = agent_cls.__name__
-        mv   = self._overrides.get(name, "active")
+        name  = agent_cls.__name__
+        mv    = self._overrides.get(name, "active")
         agent = agent_cls(self.ticker, self.as_of, self.context, model_version=mv)
-        sig   = agent.analyze()
+        sig   = agent.analyze(mode=self._agent_mode)
 
         # signal → stance
         if sig.signal > _STANCE_THRESH:
@@ -601,7 +603,8 @@ def run_debate_filter(
     top_n:                int = 10,
     model_version_overrides: Optional[Dict[str, str]] = None,
     parallel_agents:      bool = True,
-    parallel_tickers:     bool = False,   # True 时各股票也并行（CPU 密集慎用）
+    parallel_tickers:     bool = False,
+    agent_mode:           str = "fast",   # 'auto'/'full'/'fast' — 传给各 Agent
 ) -> "pd.DataFrame":
     """对候选股票列表跑辩论，添加 debate_confidence 列并过滤。
 
@@ -659,6 +662,7 @@ def run_debate_filter(
             model_version_overrides=model_version_overrides,
             parallel=parallel_agents,
             timeout=_ROUND1_TIMEOUT,
+            agent_mode=agent_mode,
         )
         res = orch.run_debate()
         return ticker, res

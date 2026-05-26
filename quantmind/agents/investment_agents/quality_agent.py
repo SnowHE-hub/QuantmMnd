@@ -27,7 +27,15 @@ _QUALITY_FEATURES = [
 class QualityAgent(BaseInvestmentAgent):
     """财务质量分析 Agent — LGBM v2 / Piotroski v2 / 规则基线."""
 
-    def analyze(self) -> AgentSignal:
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """财务质量分析主入口（mode='auto'/'full' → LLM；'fast' → 原逻辑）."""
+        use_llm = (mode == "full") or (mode == "auto" and self._ollama_available())
+        if use_llm:
+            try:
+                return self._analyze_with_llm()
+            except Exception as e:
+                logger.warning("[QualityAgent] LLM 失败，降级规则: %s", e)
+
         rec = self._model_record
         version = rec.model_version if rec is not None else "rules_v1"
 
@@ -455,3 +463,162 @@ class QualityAgent(BaseInvestmentAgent):
             if m:
                 return self._safe_float(m.group(1))
         return None
+
+    # ─── LLM ReAct 路径 ────────────────────────────────────────────────────────
+
+    def _analyze_with_llm(self) -> "AgentSignal":
+        """Ollama qwen2.5 ReAct 财务质量分析."""
+        from quantmind.agents.ollama_client import OllamaReActClient
+        from quantmind.agents.investment_agents.base_agent import AgentSignal
+
+        fi_text  = self._get_snapshot_text("snapshot_financial_indicator_summary")
+        mkt_text = self._get_snapshot_text("snapshot_latest_market_metrics")
+        combined = fi_text + "\n" + mkt_text
+
+        roe   = self._parse_numeric(combined, ["roe_ttm", "roe"])
+        roa   = self._parse_numeric(combined, ["roa_ttm", "roa"])
+        gm    = self._parse_numeric(combined, ["grossprofit_margin", "毛利率"])
+        nm    = self._parse_numeric(combined, ["netprofit_margin", "净利率"])
+        da    = self._parse_numeric(combined, ["debt_to_assets", "资产负债率"])
+        rv    = self._parse_numeric(combined, ["or_yoy", "revenue_yoy", "营收同比"])
+        np_   = self._parse_numeric(combined, ["netprofit_yoy", "净利润同比"])
+        ocf   = self._parse_numeric(combined, ["ocf_to_revenue_ttm", "经营现金流收入比"])
+
+        tools = [
+            {
+                "name": "get_dupont_decomposition",
+                "description": "对 ROE 进行杜邦三因素分解：净利率 × 资产周转率 × 权益乘数，识别盈利质量来源",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_goodwill_risk",
+                "description": "评估商誉占净资产比例和应收账款风险，识别财务造假或减值风险",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+            {
+                "name": "get_cashflow_quality",
+                "description": "比较经营现金流与净利润的匹配程度，评估盈利质量（现金含量）",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "required": ["ticker"],
+                },
+            },
+        ]
+
+        def _tool_dupont(ticker, **kw):
+            nm_f = self._pct_to_float(nm) if nm is not None else None
+            at   = self._parse_numeric(combined, ["asset_turnover", "资产周转率"])
+            em   = 1.0 / (1.0 - (self._pct_to_float(da) or 0.5) + 1e-9)
+            return {
+                "ticker":          ticker,
+                "net_margin":      round(nm_f * 100, 2) if nm_f else "N/A",
+                "asset_turnover":  round(at, 3) if at else "N/A",
+                "equity_multiplier": round(em, 2),
+                "roe_reconstructed": (
+                    round(nm_f * (at or 0.5) * em * 100, 2)
+                    if nm_f else "N/A"
+                ),
+                "note": "资产周转率缺失时使用行业中位数 0.5",
+            }
+
+        def _tool_goodwill(ticker, **kw):
+            gw  = self._parse_numeric(combined, ["goodwill", "商誉"])
+            ar  = self._parse_numeric(combined, ["accounts_receivable", "应收账款"])
+            na  = self._parse_numeric(combined, ["net_assets", "net_asset", "净资产"])
+            return {
+                "ticker":           ticker,
+                "goodwill":         round(gw, 2) if gw else "N/A",
+                "accounts_receivable": round(ar, 2) if ar else "N/A",
+                "net_assets":       round(na, 2) if na else "N/A",
+                "goodwill_ratio":   (
+                    round(gw / na * 100, 1)
+                    if gw and na and na > 0 else "N/A"
+                ),
+                "risk_flag":        (
+                    "⚠️ 商誉占净资产>30%，减值风险高"
+                    if gw and na and na > 0 and gw / na > 0.3
+                    else "✅ 商誉风险可控"
+                ),
+            }
+
+        def _tool_cashflow(ticker, **kw):
+            np_val = self._parse_numeric(combined, ["n_income_attr_p", "净利润"])
+            ocf_val = self._parse_numeric(combined, ["n_cashflow_act", "经营活动现金流"])
+            ratio  = ocf_val / np_val if ocf_val and np_val and np_val != 0 else None
+            return {
+                "ticker":         ticker,
+                "net_profit":     np_val,
+                "operating_cashflow": ocf_val,
+                "cash_to_profit_ratio": round(ratio, 2) if ratio else "N/A",
+                "quality_signal": (
+                    "✅ 高质量盈利（现金流充裕）" if ratio and ratio > 1.1 else
+                    "⚠️ 盈利质量一般（<1）" if ratio and ratio < 1.0 else
+                    "现金流数据不足"
+                ),
+                "ocf_to_revenue_ttm": ocf,
+            }
+
+        system_prompt = """你是一位 A 股财务质量分析专家，专注于识别高质量企业。
+
+分析框架（按顺序）：
+1. 盈利能力：ROE/ROA/毛利率/净利率 → 是否具备竞争优势？
+2. 杜邦分解：ROE 由哪个因素驱动？（利润率型 vs 周转率型）（调用工具）
+3. 财务健康：资产负债率、商誉风险（调用工具）
+4. 现金流质量：经营现金流 vs 净利润，判断盈利含金量（调用工具）
+5. 成长质量：收入/利润增速是否真实且可持续？
+6. 综合评价：是否符合"高 ROE + 低负债 + 高现金流"的优质企业标准？
+
+输出格式：
+SIGNAL: <-1到+1，正数质量优良>
+CONFIDENCE: <0到1>
+SUMMARY: <2-3句话的中文质量评价>
+KEY_RISK: <最主要的财务风险（如商誉减值、现金流恶化等）>"""
+
+        user_message = f"""请分析 {self.ticker} 的财务质量。
+
+当前财务数据：
+ROE_TTM: {roe}%  ROA_TTM: {roa}%
+毛利率: {gm}%   净利率: {nm}%
+资产负债率: {da}%
+营收YoY: {rv}%  净利润YoY: {np_}%
+经营现金流/收入: {ocf}
+行业: {self.context.get('industry', 'N/A')}
+
+请调用工具分析杜邦分解、商誉风险和现金流质量。"""
+
+        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        result = client.chat_with_tools(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            tools=tools,
+            tool_executors={
+                "get_dupont_decomposition": _tool_dupont,
+                "get_goodwill_risk":        _tool_goodwill,
+                "get_cashflow_quality":     _tool_cashflow,
+            },
+        )
+
+        if result["fallback"]:
+            return self._analyze_piotroski()
+
+        return AgentSignal(
+            agent_name      = "QualityAgent",
+            ticker          = self.ticker,
+            signal          = self._clamp(result["signal"]),
+            confidence      = max(0.0, min(1.0, result["confidence"])),
+            summary         = result["final_answer"][:100],
+            evidence        = {"method": "ollama_react", "tools": result["tools_called"]},
+            warnings        = [],
+            reasoning_trace = result["reasoning_trace"],
+            tools_called    = result["tools_called"],
+            llm_mode        = True,
+        )

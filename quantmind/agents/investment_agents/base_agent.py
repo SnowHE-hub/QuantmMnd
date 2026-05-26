@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,10 @@ if TYPE_CHECKING:
 
 _ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
+# Ollama 可用性缓存（60 秒 TTL，避免每次 analyze() 都发网络请求）
+_OLLAMA_CACHE: dict[str, Any] = {"available": None, "ts": 0.0}
+_OLLAMA_TTL = 60.0
+
 
 @dataclass
 class AgentSignal:
@@ -27,6 +32,10 @@ class AgentSignal:
     summary: str           # 一句话摘要（中文，≤50字）
     evidence: dict = field(default_factory=dict)    # 支撑数据
     warnings: list[str] = field(default_factory=list)  # 风险提示
+    # LLM ReAct 扩展字段（规则模式下保持空列表/False）
+    reasoning_trace: list = field(default_factory=list)  # 完整推理链
+    tools_called: list[str] = field(default_factory=list)  # 调用的工具名
+    llm_mode: bool = False   # True 表示本次通过 LLM 分析（非规则降级）
 
 
 class BaseInvestmentAgent(ABC):
@@ -142,11 +151,38 @@ class BaseInvestmentAgent(ABC):
         except Exception as e:
             logger.debug(f"[BaseAgent] 记录性能失败: {e}")
 
+    # ── Ollama 可用性检查 ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _ollama_available(base_url: str = "", model: str = "qwen2.5:7b") -> bool:
+        """快速检查 Ollama 服务是否可用（结果缓存 60s，避免频繁网络探测）."""
+        now = time.monotonic()
+        if _OLLAMA_CACHE["available"] is not None:
+            if now - _OLLAMA_CACHE["ts"] < _OLLAMA_TTL:
+                return bool(_OLLAMA_CACHE["available"])
+        # 缓存过期或首次调用
+        try:
+            from quantmind.agents.ollama_client import OllamaReActClient
+            result = OllamaReActClient.is_available(base_url=base_url, model=model)
+        except Exception:
+            result = False
+        _OLLAMA_CACHE["available"] = result
+        _OLLAMA_CACHE["ts"] = now
+        return result
+
     # ── 抽象接口 ─────────────────────────────────────────────────────────────
 
     @abstractmethod
-    def analyze(self) -> AgentSignal:
-        """执行分析，返回 AgentSignal."""
+    def analyze(self, mode: str = "fast") -> AgentSignal:
+        """执行分析，返回 AgentSignal.
+
+        Parameters
+        ----------
+        mode : str
+            'auto'  — 有 Ollama 时用 LLM，无时降级规则（默认行为）
+            'full'  — 强制 LLM ReAct 模式
+            'fast'  — 强制规则模式（调试/批量运行用）
+        """
 
     # ── 工具方法 ─────────────────────────────────────────────────────────────
 
