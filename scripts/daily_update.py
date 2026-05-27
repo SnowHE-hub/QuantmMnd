@@ -957,33 +957,116 @@ def _generate_market_summary(top10: list[dict]) -> str:
     return summary
 
 
+def _debate_result_to_strategy(
+    result: "DebateResult",
+    date_str: str,
+) -> "InvestmentStrategy":
+    """将 DebateResult 桥接为 InvestmentStrategy，保持后续报告/验证流程不变。"""
+    from quantmind.agents.investment_agents.strategy_agent import InvestmentStrategy
+
+    # recommendation → rating 映射
+    _rating_map = {
+        "强烈买入": "积极关注",
+        "买入":     "积极关注",
+        "观察":     "谨慎关注",
+        "回避":     "回避",
+        "卖出":     "回避",
+    }
+    rating = _rating_map.get(result.recommendation, "观察")
+
+    # confidence → position_size 映射
+    if result.final_confidence >= 0.75:
+        position_size = "重仓(5-8%)"
+    elif result.final_confidence >= 0.60:
+        position_size = "标准(3-5%)"
+    elif result.final_confidence >= 0.45:
+        position_size = "轻仓(1-3%)"
+    else:
+        position_size = "不建仓"
+
+    return InvestmentStrategy(
+        ticker=result.ticker,
+        as_of=date_str,
+        rating=rating,
+        composite_signal=round(result.avg_signal, 4),
+        confidence=result.final_confidence,
+        entry_price_range=(0.0, 0.0),
+        target_price_1m=0.0,
+        target_price_3m=0.0,
+        stop_loss_price=0.0,
+        position_size=position_size,
+        holding_horizon=result.holding_period,
+        investment_thesis=result.debate_summary,
+        key_risks=[result.key_debate_point] if result.key_debate_point else [],
+        key_catalysts=result.bull_agents[:3],
+        agent_signals={
+            s.agent_name: float(s.signal_raw) for s in (result.stances or [])
+        },
+        llm_used=True,
+    )
+
+
 def step7a_agent_analysis(
     as_of: date,
     top10: list[dict],
     args,
 ) -> bool:
-    """Step 7a: 对 Top-N 候选运行 6-Agent 投资分析.
+    """Step 7a: 对 Top-N 候选运行 6-Agent 投资分析（DebateOrchestrator 驱动）.
+
+    agent_mode 解析优先级：
+      1. strategy_config_v2.json → ``agent_mode`` 字段
+      2. CLI ``--agent-provider none`` 兼容逻辑（legacy fallback）
+
+    auto  → 探测 Ollama 是否可用，可用→full，不可用→fast
+    full  → 强制 Ollama LLM 分析
+    fast  → 纯规则/ML 打分（无 LLM 调用）
 
     产出：
       reports/investment_pipeline/<date>/strategies.json
       reports/investment_pipeline/<date>/strategies/<ticker>_strategy.json
       reports/investment_pipeline/<date>/final_recommendations.md
       reports/investment_pipeline/<date>/validations.json
+      reports/investment_pipeline/<date>/agent_stats.json
 
     失败时不影响后续 step8，仅记录 warning。
     """
     from scripts.run_investment_pipeline import (
         _load_price_df,
         generate_final_report,
-        run_six_agents,
         save_strategy,
         _strategy_to_dict,
     )
     from scripts.validate_strategies import batch_validate
-    from quantmind.agents.investment_agents.strategy_agent import (
-        InvestmentStrategy,
-        StrategyAgent,
-    )
+    from quantmind.agents.debate_orchestrator import DebateOrchestrator
+
+    # ── 1. 读取 agent_mode 配置 ───────────────────────────────────────────────
+    cfg_path = _ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+    config: dict = {}
+    if cfg_path.is_file():
+        try:
+            with open(cfg_path, encoding="utf-8") as _f:
+                config = json.load(_f)
+        except Exception as _e:
+            logger.warning(f"[Step7a] 读取 strategy_config 失败（{_e}），使用默认值")
+
+    agent_mode_requested = config.get("agent_mode", "fast")
+    ollama_model  = config.get("ollama_model",  "qwen2.5:7b")
+    ollama_timeout = int(config.get("ollama_timeout", 60))
+
+    # ── 2. auto 模式：探测 Ollama 可用性 ─────────────────────────────────────
+    agent_mode = agent_mode_requested
+    if agent_mode in ("auto", "full"):
+        try:
+            import requests as _req
+            _req.get("http://localhost:11434/api/tags", timeout=3)
+            if agent_mode == "auto":
+                agent_mode = "full"
+            logger.info(f"[Step7a] Ollama 可用，agent_mode={agent_mode}")
+        except Exception:
+            logger.warning(
+                f"[Step7a] Ollama 不可用，{agent_mode_requested} → fast 降级"
+            )
+            agent_mode = "fast"
 
     date_str = as_of.isoformat()
     n = min(args.agent_top, len(top10))
@@ -995,54 +1078,61 @@ def step7a_agent_analysis(
 
     logger.info(
         f"[Step7a] 开始 6-Agent 分析，共 {len(tickers)} 只股票"
-        f"（provider={args.agent_provider}）"
+        f"（agent_mode={agent_mode}, ollama={ollama_model}）"
     )
 
-    # 加载价格宽表（供 validate_strategies 用）
+    # ── 3. 加载价格宽表（供 validate_strategies 用）──────────────────────────
     try:
         price_df = _load_price_df()
     except Exception as e:
         logger.warning(f"[Step7a] 价格面板加载失败（{e}），跳过回测验证")
         price_df = None
 
-    all_strategies: list[InvestmentStrategy] = []
+    all_strategies = []
     errors: list[str] = []
 
+    # ── 4. 对每只股票运行 DebateOrchestrator ─────────────────────────────────
     for i, ticker in enumerate(tickers, start=1):
         logger.info(f"[Step7a] [{i}/{len(tickers)}] 分析 {ticker} ...")
         t0 = time.monotonic()
         try:
+            # 从 top10 候选 dict 构建 snapshot（提供基础数值上下文）
+            cand = next((c for c in top10 if c.get("ticker") == ticker), {})
+            snapshot = cand.get("key_factors", {})
             context: dict = {
-                "ticker": ticker,
-                "as_of": date_str,
-                "news": [],
-                "reports": [],
-                "snapshot": {},
+                "ticker":   ticker,
+                "as_of":    date_str,
+                "news":     [],
+                "reports":  [],
+                "snapshot": snapshot,
+                # 注入各类分值供 Agent 规则路径使用
+                "lgbm_score":      cand.get("lgbm_score", 0.0),
+                "composite_score": cand.get("composite_score", 0.0),
+                "regime":          cand.get("regime", "neutral"),
             }
+            # 注入 snapshot_* 格式（ValuationAgent 等期望的注入格式）
+            for k, v in snapshot.items():
+                context[f"snapshot_{k}"] = v
 
-            signals = run_six_agents(
+            orch = DebateOrchestrator(
                 ticker=ticker,
                 as_of=date_str,
                 context=context,
-                provider=args.agent_provider,
-                model=args.agent_model,
+                regime=cand.get("regime", "neutral"),
+                agent_mode=agent_mode,
+                timeout=float(ollama_timeout),
             )
+            debate_result = orch.run_debate()
 
-            strategy_agent = StrategyAgent(
-                ticker=ticker,
-                as_of=date_str,
-                context=context,
-                agent_signals=signals,
-                provider=args.agent_provider,
-                model=args.agent_model,
-            )
-            strategy = strategy_agent.analyze_with_llm()
+            # 桥接为 InvestmentStrategy（保持下游报告/验证流程不变）
+            strategy = _debate_result_to_strategy(debate_result, date_str)
             all_strategies.append(strategy)
             save_strategy(strategy, ticker_dir)
 
             elapsed = time.monotonic() - t0
             logger.info(
                 f"[Step7a]   {ticker} ✅ rating={strategy.rating} "
+                f"conf={debate_result.final_confidence:.2f} "
                 f"signal={strategy.composite_signal:+.2f} ({elapsed:.1f}s)"
             )
         except Exception as e:
@@ -1119,6 +1209,32 @@ def step7a_agent_analysis(
 
     ok_count = len(all_strategies)
     fail_count = len(errors)
+
+    # ── 保存 agent_stats.json（供 Streamlit 控制台展示）─────────────────────
+    try:
+        avg_conf = (
+            sum(s.confidence for s in all_strategies) / ok_count
+            if ok_count > 0 else 0.0
+        )
+        agent_stats = {
+            "date":                  date_str,
+            "agent_mode_requested":  agent_mode_requested,
+            "agent_mode_actual":     agent_mode,
+            "stocks_analyzed":       ok_count,
+            "stocks_failed":         fail_count,
+            "ollama_used":           agent_mode == "full",
+            "ollama_model":          ollama_model if agent_mode == "full" else None,
+            "avg_confidence":        round(avg_conf, 4),
+        }
+        stats_path = out_dir / "agent_stats.json"
+        stats_path.write_text(
+            json.dumps(agent_stats, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        logger.info(f"[Step7a] ✅ agent_stats.json 已写入：{stats_path}")
+        logger.info(f"[Step7a] {agent_stats}")
+    except Exception as _e:
+        logger.warning(f"[Step7a] agent_stats.json 写入失败（{_e}）")
+
     logger.info(
         f"[Step7a] 完成：{ok_count} 只成功，{fail_count} 只失败"
         + (f"（失败：{errors[:3]}）" if errors else "")

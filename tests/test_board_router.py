@@ -556,3 +556,70 @@ def test_get_routing_status_returns_all_boards():
         assert "不存在" in info["reason"] or "fallback" in info["reason"].lower(), (
             f"{board} reason 描述不符合预期：{info['reason']}"
         )
+
+
+# ── 测试 21：_should_use_board_model — IC 比较门禁③ ──────────────────────────
+
+def test_gem_ic_below_fallback_triggers_degradation():
+    """GEM 专用模型 IC < fallback IC × 0.9 时 _should_use_board_model 返回 False。"""
+    gem_model      = MagicMock()
+    gem_model.direction = 1
+    gem_model.ic_mean   = 0.024   # 低于混训 0.075 × 0.9 = 0.0675
+
+    fallback_model      = MagicMock()
+    fallback_model.direction = 1
+    fallback_model.ic_mean   = 0.075
+
+    router = BoardModelRouter()
+    router._fallback = fallback_model
+
+    result = router._should_use_board_model(gem_model, fallback_model, "GEM")
+    assert result is False, (
+        f"GEM IC={gem_model.ic_mean:.4f} < fallback {fallback_model.ic_mean:.4f}×0.9，应降级"
+    )
+
+
+def test_star_ic_at_boundary_below_threshold():
+    """边界：STAR IC = fallback × 0.89（刚好低于容忍线），应降级。"""
+    star_model           = MagicMock()
+    star_model.direction = 1
+    star_model.ic_mean   = 0.075 * 0.89   # 0.06675 < 0.075 × 0.9 = 0.0675
+
+    fallback_model       = MagicMock()
+    fallback_model.ic_mean = 0.075
+
+    router = BoardModelRouter()
+    router._fallback = fallback_model
+    assert router._should_use_board_model(star_model, fallback_model, "STAR") is False, (
+        f"STAR IC={star_model.ic_mean:.5f} 在容忍线以下，应降级"
+    )
+
+
+def test_main_ic_above_threshold_uses_board_model():
+    """MAIN 专用 IC 足够高（≥ fallback × 0.9），_should_use_board_model 返回 True。"""
+    main_model           = MagicMock()
+    main_model.direction = 1
+    main_model.ic_mean   = 0.070   # 0.070 > 0.065 × 0.9 = 0.0585 ✅
+
+    fallback_model       = MagicMock()
+    fallback_model.ic_mean = 0.065
+
+    router = BoardModelRouter()
+    router._fallback = fallback_model
+    assert router._should_use_board_model(main_model, fallback_model, "MAIN") is True, (
+        f"MAIN IC={main_model.ic_mean:.3f} 高于阈值，应使用专用模型"
+    )
+
+
+def test_should_use_board_model_no_ic_attribute_skips_gate():
+    """专用模型无 ic_mean 属性（None）→ 跳过本门禁，返回 True。"""
+    model_no_ic          = MagicMock(spec=[])   # 无任何属性
+    fallback_model       = MagicMock()
+    fallback_model.ic_mean = 0.05
+
+    router = BoardModelRouter()
+    router._fallback = fallback_model
+    # getattr(model_no_ic, "ic_mean", None) → None → 跳过门禁
+    assert router._should_use_board_model(model_no_ic, fallback_model, "GEM") is True, (
+        "无 ic_mean 属性时应跳过 IC 比较门禁，返回 True"
+    )

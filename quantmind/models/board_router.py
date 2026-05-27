@@ -208,10 +208,70 @@ class BoardModelRouter:
 
     # ── 私有：模型懒加载 ──────────────────────────────────────────────────────
 
+    def _should_use_board_model(
+        self,
+        board_model: Any,
+        fallback_model: Any,
+        board: str,
+    ) -> bool:
+        """IC 相对比较门禁：专用模型 IC 须高于混训 × 0.9 才被使用。
+
+        规则
+        ----
+        - 专用模型 ic_mean ≤ 0 → 无预测力，返回 False。
+        - fallback ic_mean > 0 且专用模型 ic_mean < fallback × 0.9 →
+          专用模型性能显著落后于混训，降级。容忍 10% 波动，避免随机噪声触发切换。
+        - 专用模型 ic_mean 缺失（None/0 属性不存在）→ 跳过本门禁，返回 True
+          （由调用方的双重门禁兜底）。
+
+        Parameters
+        ----------
+        board_model :
+            候选专用模型。
+        fallback_model :
+            混训 fallback 模型。
+        board : str
+            板块名称（用于日志）。
+
+        Returns
+        -------
+        bool
+            True → 使用专用模型；False → 降级 fallback。
+        """
+        board_ic    = getattr(board_model,    "ic_mean", None)
+        fallback_ic = getattr(fallback_model, "ic_mean", None)
+
+        # 只处理数值型 ic_mean；非数值（None / MagicMock / str）→ 跳过本门禁
+        if not isinstance(board_ic, (int, float)):
+            return True
+        if not isinstance(fallback_ic, (int, float)):
+            fallback_ic = None
+
+        # 专用 IC ≤ 0 → 无预测力
+        if board_ic <= 0:
+            log.warning(
+                "[BoardRouter] %s 专用模型 ic_mean=%.4f ≤ 0 → IC 比较门禁③：降级 fallback",
+                board, board_ic,
+            )
+            return False
+
+        # 若混训 IC 有效，要求专用 IC 不低于混训 × 0.9
+        if fallback_ic is not None and fallback_ic > 0:
+            threshold = fallback_ic * 0.9
+            if board_ic < threshold:
+                log.warning(
+                    "[BoardRouter] %s 专用 IC=%.4f < 混训 IC=%.4f × 0.9=%.4f"
+                    " → IC 比较门禁③：降级到混训模型",
+                    board, board_ic, fallback_ic, threshold,
+                )
+                return False
+
+        return True
+
     def _get_model(self, board: str) -> Any:
         """懒加载指定板块模型；不达质量门禁时返回 fallback.
 
-        质量门禁（双重校验）
+        质量门禁（三重校验）
         --------------------
         加载成功后按以下顺序校验：
 
@@ -223,7 +283,10 @@ class BoardModelRouter:
            ic_mean <= 0 → 有效 IC 非正，模型无预测力；
            记录 WARNING 并降级 fallback。
 
-        通过双重门禁的模型才进入缓存并被实际使用。
+        3. ``_should_use_board_model()`` IC 相对比较
+           专用模型 IC 显著低于混训（< fallback × 0.9）→ 降级 fallback。
+
+        通过三重门禁的模型才进入缓存并被实际使用。
 
         Returns
         -------
@@ -255,6 +318,11 @@ class BoardModelRouter:
                             "建议检查特征质量或增加训练数据量。",
                             board, ic_mean,
                         )
+                        self._models[board] = self._get_fallback()
+                    # 门禁 3：专用模型 IC 须高于混训 × 0.9
+                    elif not self._should_use_board_model(
+                        candidate, self._get_fallback(), board
+                    ):
                         self._models[board] = self._get_fallback()
                     else:
                         self._models[board] = candidate
@@ -366,10 +434,17 @@ class BoardModelRouter:
                     raw = FactorModel.load(path)
                     raw_dir = getattr(raw, "direction", "N/A")
                     raw_ic  = getattr(raw, "ic_mean",   None)
+                    fb_model = self._get_fallback()
                     if raw_dir != 1:
                         reason = f"⚠ direction={raw_dir}，质量门禁①降级"
                     elif raw_ic is not None and raw_ic <= 0:
                         reason = f"⚠ ic_mean={raw_ic:.4f}≤0，质量门禁②降级"
+                    elif not self._should_use_board_model(raw, fb_model, board):
+                        fb_ic = getattr(fb_model, "ic_mean", None)
+                        reason = (
+                            f"⚠ 专用IC={raw_ic:.4f} < 混训IC={fb_ic:.4f}×0.9，"
+                            f"IC比较门禁③降级"
+                        ) if raw_ic is not None and fb_ic is not None else "⚠ IC比较门禁③降级"
                     else:
                         reason = "⚠ 加载异常，降级 fallback"
                 except Exception:
