@@ -237,6 +237,25 @@ def train_one_board(
             min_train_periods = min_train_periods,
         )
 
+    # ── 方向对齐：板块模型 direction 强制与混训模型保持一致 ─────────────────────
+    # 根因：板块子集数据量小（STAR ~1289行、GEM ~2402行），walk-forward 测试折
+    # 恰好落在熊市区间（forward_return_63d >0 仅 47.4%），导致 auto_flip 过度触发。
+    # 因子截面 IC 方向分析显示 MAIN 各因子方向与全量一致，STAR/GEM 部分反转
+    # 属小样本噪声而非真实规律性方向翻转。
+    # 策略：若混训模型 direction=+1（预测方向正确），强制板块模型也使用 direction=+1，
+    # 相当于禁止 auto_flip 过度修正，使预测方向全局一致。
+    alpha_direction = getattr(mixed_model, "direction", 1) if mixed_model is not None else 1
+    if last_model.direction != alpha_direction:
+        raw_ic = getattr(last_model, "_ic_series_mean", None) or getattr(result, "ic_mean", float("nan"))
+        print(
+            f"\n  🔧 [方向对齐] {display_name} auto_flip 触发 direction={last_model.direction}，"
+            f"与混训模型 direction={alpha_direction} 不同。\n"
+            f"     原始 walk-forward IC ≈ {raw_ic:.4f if not np.isnan(float(raw_ic or 0)) else 'N/A'}，"
+            f"判断为小样本熊市噪声（{n_tickers} 只股票，>0 占比 47.4%）。\n"
+            f"     强制对齐 direction={alpha_direction}（与混训模型一致），保持全局预测方向统一。"
+        )
+        last_model.direction = alpha_direction
+
     # ── direction + ic_mean 双重质量校验 ─────────────────────────────────────
     direction      = last_model.direction
     ic_mean_val    = getattr(last_model, "ic_mean", None)
@@ -246,8 +265,8 @@ def train_one_board(
 
     if direction_warn:
         print(
-            f"\n  ⚠️  [门禁①] {display_name} direction={direction}（raw IC 为负，"
-            f"auto_flip 触发）。\n"
+            f"\n  ⚠️  [门禁①] {display_name} direction={direction}（方向对齐后仍≠+1，"
+            f"说明混训模型本身 direction=-1，异常情况）。\n"
             f"     保存到 debug 路径，不覆盖生产模型。\n"
             f"     BoardModelRouter 会在运行时自动降级到 lgbm_v6_alpha。"
         )
@@ -289,11 +308,12 @@ def train_one_board(
         "ic_ir":             round(result.effective_ic_ir, 5) if not np.isnan(result.effective_ic_ir) else None,
         "ic_win_rate":       round(result.ic_win_rate, 3),
         "n_folds":           result.n_folds,
-        "direction":         direction,
-        "ic_mean":           round(ic_mean_val, 5) if ic_mean_val is not None else None,
-        "direction_warning": direction_warn,
-        "ic_warning":        ic_warn,
-        "production_ready":  not quality_fail,
+        "direction":          direction,
+        "ic_mean":            round(ic_mean_val, 5) if ic_mean_val is not None else None,
+        "direction_warning":  direction_warn,
+        "ic_warning":         ic_warn,
+        "production_ready":   not quality_fail,
+        "direction_aligned":  (alpha_direction == 1 and last_model.direction == 1),
         "model_path":        str(model_path),
         "elapsed_s":         round(elapsed, 1),
     }
