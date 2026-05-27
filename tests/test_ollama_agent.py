@@ -361,11 +361,91 @@ def test_orchestrator_passes_mode_to_agents():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 6. Integration tests (需要真实 Ollama，默认跳过)
+# 6. 修复验证：数据注入 / level='ticker' / 中文 signal 解析
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_tool_uses_ticker_level_not_ts_code():
+    """工具函数中不得以 level='ts_code' 方式调用 xs()，必须用 level='ticker'.
+
+    注意：只检查可执行语句中的 level= 参数，注释里出现 'ts_code' 字符串是允许的。
+    """
+    import re
+    import inspect
+    from quantmind.agents.investment_agents.valuation_agent import ValuationAgent
+
+    # 精确模式：检查 level='ts_code' 或 level="ts_code" 的可执行语句
+    bad_pattern  = re.compile(r'level\s*=\s*["\']ts_code["\']')
+    good_pattern = re.compile(r'level\s*=\s*["\']ticker["\']|\.loc\[ticker|in latest\.index')
+
+    for method_name in ("_tool_industry_peers", "_tool_historical_band"):
+        src = inspect.getsource(getattr(ValuationAgent, method_name))
+        assert not bad_pattern.search(src), (
+            f"{method_name} 仍含 level='ts_code'（可执行语句），会导致 KeyError"
+        )
+        assert good_pattern.search(src), (
+            f"{method_name} 中未找到正确的 ticker 定位方式"
+        )
+
+
+def test_user_message_contains_pe_value():
+    """_build_user_message() 能把 context 里的 pe_ttm / pb 注入到消息体中.
+
+    不管 key 是直接格式（pe_ttm）还是 snapshot_ 前缀格式（snapshot_pe_ttm），
+    都应该在 user_message 里出现数值。其余字段缺失时出现 N/A 是正常行为。
+    """
+    from quantmind.agents.investment_agents.valuation_agent import ValuationAgent
+
+    # 两种 key 格式都要支持
+    cases = [
+        {"pe_ttm": 0.109, "pb": 1.04},                   # 直接格式
+        {"snapshot_pe_ttm": 0.109, "snapshot_pb": 1.04}, # snapshot_ 前缀格式
+    ]
+    for context in cases:
+        agent = ValuationAgent.__new__(ValuationAgent)
+        msg = agent._build_user_message("600519.SH", context)
+
+        # pe_ttm 值必须出现在消息中（以任意精度格式）
+        pe_val_present = any(v in msg for v in ("0.109", "0.1090", "0.1100"))
+        assert pe_val_present, (
+            f"context={list(context.keys())} → msg 里找不到 pe_ttm 数值\n{msg[:400]}"
+        )
+        # pb 值必须出现
+        pb_val_present = any(v in msg for v in ("1.04", "1.0400"))
+        assert pb_val_present, (
+            f"context={list(context.keys())} → msg 里找不到 pb 数值\n{msg[:400]}"
+        )
+        # 消息不应该为空
+        assert len(msg) > 50, "user_message 太短，可能构建失败"
+
+
+def test_signal_parsing_from_chinese_text():
+    """中文情感描述（无结构化数字）也能解析出非零 signal."""
+    c = OllamaReActClient()
+
+    # 看多文字 → 正值
+    bullish = "综合来看，该股票估值偏低，具有一定的投资价值，建议买入。"
+    sig_bull = c._parse_signal_from_text(bullish)
+    assert sig_bull > 0, f"看多文字应解析出正 signal，实际={sig_bull}"
+
+    # 看空文字 → 负值
+    bearish = "目前估值偏高，存在较大下行风险，建议卖出观望。"
+    sig_bear = c._parse_signal_from_text(bearish)
+    assert sig_bear < 0, f"看空文字应解析出负 signal，实际={sig_bear}"
+
+    # 结构化格式优先级高于关键词（即使同时含关键词）
+    structured = "该股低估，但综合判断：SIGNAL: -0.3"
+    sig_struct = c._parse_signal_from_text(structured)
+    assert sig_struct == pytest.approx(-0.3), (
+        f"结构化 SIGNAL 应覆盖关键词 fallback，实际={sig_struct}"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 7. Integration tests (需要真实 Ollama，默认跳过)
 # ──────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.integration
-def test_valuation_agent_full_mode_real_ollama():
+def test_valuation_agent_full_mode_real_ollama():  # noqa: F811
     """真实 Ollama 调用 ValuationAgent（需要 qwen2.5:7b 运行中）."""
     agent = _make_agent(ValuationAgent, ticker="000858.SZ")
     result = agent.analyze(mode="full")

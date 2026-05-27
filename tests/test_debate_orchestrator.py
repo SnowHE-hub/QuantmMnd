@@ -83,13 +83,14 @@ def _mock_agent_cls(name: str, signal: float, confidence: float):
 def _make_orchestrator(regime: str = "neutral", parallel: bool = False) -> DebateOrchestrator:
     """构建带 Mock Agents 的 DebateOrchestrator，绕过真实 Agent 导入。"""
     orch = DebateOrchestrator.__new__(DebateOrchestrator)
-    orch.ticker   = "600519.SH"
-    orch.as_of    = pd.Timestamp("2025-10-09")
-    orch.context  = {"pe_ttm": 15.0, "pb": 2.0, "momentum_1m": 0.05}
-    orch.regime   = regime
-    orch._overrides = {}
-    orch._parallel  = parallel
-    orch._timeout   = 30
+    orch.ticker      = "600519.SH"
+    orch.as_of       = pd.Timestamp("2025-10-09")
+    orch.context     = {"pe_ttm": 15.0, "pb": 2.0, "momentum_1m": 0.05}
+    orch.regime      = regime
+    orch._overrides  = {}
+    orch._parallel   = parallel
+    orch._timeout    = 30
+    orch._agent_mode = "fast"          # 修复：__new__ 跳过 __init__，需手动设置
     orch._agent_classes = [
         _mock_agent_cls("ValuationAgent", 0.6, 0.75),
         _mock_agent_cls("MomentumAgent",  0.4, 0.65),

@@ -29,12 +29,25 @@ _SIGNAL_PATTERNS = [
     r"SIGNAL\s*[:：]\s*([+-]?\d+(?:\.\d+)?)",
     r"信号\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
     r"signal\s*[=:]\s*([+-]?\d+(?:\.\d+)?)",
+    # 扩展模式：投资信号、综合信号等中文变体
+    r"投资信号\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
+    r"综合信号\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
+    r"信号值\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
+    r"signal_value\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
 ]
 _CONFIDENCE_PATTERNS = [
     r"CONFIDENCE\s*[:：]\s*([+-]?\d+(?:\.\d+)?)",
     r"置信度\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
     r"confidence\s*[=:]\s*([+-]?\d+(?:\.\d+)?)",
+    # 扩展模式
+    r"可信度\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
+    r"信心度\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
+    r"confidence_score\s*[:：=]\s*([+-]?\d+(?:\.\d+)?)",
 ]
+
+# 中文情感关键词（用于无结构化输出时的 fallback 解析）
+_POSITIVE_WORDS = ["低估", "便宜", "买入", "看多", "推荐", "上涨空间", "低位", "性价比", "值得买", "吸引力"]
+_NEGATIVE_WORDS = ["高估", "昂贵", "卖出", "看空", "风险", "下行", "高位", "泡沫", "偏贵", "谨慎"]
 # ReAct 文本格式（当模型不支持原生工具调用时的 fallback）
 _TEXT_ACTION_PATTERN = re.compile(
     r"Action\s*[:：]\s*(\w+)\s*\nAction\s*Input\s*[:：]\s*(\{.+?\})",
@@ -288,9 +301,11 @@ class OllamaReActClient:
     def _parse_signal_from_text(self, text: str) -> float:
         """从 LLM 输出文本中提取 signal 数值，支持多种格式.
 
-        格式支持：
-          SIGNAL: 0.75  |  SIGNAL: -0.3  |  信号: 0.5  |  signal=0.8
+        格式支持（按优先级）：
+          1. 结构化正则：SIGNAL: 0.75 / 信号: 0.5 / signal=0.8 / 投资信号: 0.6
+          2. 中文情感关键词 fallback：低估/买入 → 正值；高估/卖出 → 负值
         """
+        # ── 优先：结构化数值 ──────────────────────────────────────────────────
         for pattern in _SIGNAL_PATTERNS:
             m = re.search(pattern, text, re.IGNORECASE)
             if m:
@@ -298,6 +313,16 @@ class OllamaReActClient:
                     return max(-1.0, min(1.0, float(m.group(1))))
                 except ValueError:
                     continue
+
+        # ── Fallback：中文情感关键词计数 ──────────────────────────────────────
+        pos_count = sum(1 for w in _POSITIVE_WORDS if w in text)
+        neg_count = sum(1 for w in _NEGATIVE_WORDS if w in text)
+        if pos_count > neg_count:
+            # 保守正向：每多一个关键词 +0.1，最高 +0.8
+            return min(0.3 + (pos_count - neg_count) * 0.1, 0.8)
+        elif neg_count > pos_count:
+            # 保守负向：每多一个关键词 -0.1，最低 -0.8
+            return max(-0.3 - (neg_count - pos_count) * 0.1, -0.8)
         return 0.0
 
     def _parse_confidence_from_text(self, text: str) -> float:
