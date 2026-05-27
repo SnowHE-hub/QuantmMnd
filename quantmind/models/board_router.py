@@ -209,19 +209,26 @@ class BoardModelRouter:
     # ── 私有：模型懒加载 ──────────────────────────────────────────────────────
 
     def _get_model(self, board: str) -> Any:
-        """懒加载指定板块模型；direction=-1 或文件不存在时返回 fallback.
+        """懒加载指定板块模型；不达质量门禁时返回 fallback.
 
-        质量门禁
-        --------
-        加载成功后检查 ``model.direction``：
-        - ``direction == +1`` → 正常使用板块专用模型
-        - ``direction == -1`` → raw IC 为负，auto_flip 触发；
-          记录 WARNING 并降级 fallback，避免使用低质量模型
+        质量门禁（双重校验）
+        --------------------
+        加载成功后按以下顺序校验：
+
+        1. ``direction == +1``
+           direction=-1 → raw IC 为负，auto_flip 已触发但模型质量可疑；
+           记录 WARNING 并降级 fallback。
+
+        2. ``ic_mean > 0``（若属性存在）
+           ic_mean <= 0 → 有效 IC 非正，模型无预测力；
+           记录 WARNING 并降级 fallback。
+
+        通过双重门禁的模型才进入缓存并被实际使用。
 
         Returns
         -------
         Any
-            direction==+1 的模型实例（板块专用 或 fallback）
+            通过质量门禁的模型实例（板块专用 或 fallback）
         """
         if board not in self._models:
             path = self._path_map.get(board)
@@ -230,19 +237,31 @@ class BoardModelRouter:
                     from quantmind.models.factor_model import FactorModel
                     candidate = FactorModel.load(path)
                     direction = getattr(candidate, "direction", 1)
+                    ic_mean   = getattr(candidate, "ic_mean", None)
+
+                    # 门禁 1：direction 必须为 +1
                     if direction != 1:
                         log.warning(
                             "[BoardRouter] %s 专用模型 direction=%d（raw IC 为负，"
-                            "auto_flip 已触发）→ 质量门禁：降级 fallback。"
+                            "auto_flip 已触发）→ 质量门禁①：降级 fallback。"
                             "建议重新训练该板块模型或检查标签方向。",
                             board, direction,
+                        )
+                        self._models[board] = self._get_fallback()
+                    # 门禁 2：若有 ic_mean，必须 > 0
+                    elif ic_mean is not None and ic_mean <= 0:
+                        log.warning(
+                            "[BoardRouter] %s 专用模型 ic_mean=%.4f ≤ 0 → 质量门禁②：降级 fallback。"
+                            "建议检查特征质量或增加训练数据量。",
+                            board, ic_mean,
                         )
                         self._models[board] = self._get_fallback()
                     else:
                         self._models[board] = candidate
                         log.info(
-                            "[BoardRouter] 已加载 %s 模型: %s (direction=+1)",
-                            board, path.name,
+                            "[BoardRouter] 已加载 %s 模型: %s (direction=%d, ic_mean=%s)",
+                            board, path.name, direction,
+                            f"{ic_mean:.4f}" if ic_mean is not None else "N/A",
                         )
                 except Exception as exc:
                     log.warning(
@@ -297,6 +316,75 @@ class BoardModelRouter:
                     result[board] = f"✅ {path.name} (direction=+1)"
             except Exception as exc:
                 result[board] = f"❌ 加载失败({exc}) → fallback"
+        return result
+
+    def get_routing_status(self) -> dict[str, dict]:
+        """返回各板块当前路由状态（懒加载后的实际使用情况）.
+
+        供 Streamlit 控制台页面和 CLI 展示路由决策，格式：
+
+        .. code-block:: python
+
+            {
+              "MAIN": {
+                "model_path": "models/lgbm_v6_main.pkl",
+                "is_fallback": True,
+                "direction": -1,
+                "ic_mean": "N/A",
+                "n_features": 38,
+                "reason": "direction=-1，质量门禁①降级",
+              },
+              ...
+            }
+
+        Returns
+        -------
+        dict[str, dict]
+            每个 board → 详细状态字典
+        """
+        result: dict[str, dict] = {}
+        for board in ("MAIN", "GEM", "STAR"):
+            path  = self._path_map.get(board)
+            model = self._get_model(board)   # 触发懒加载（含门禁校验）
+            fb    = self._get_fallback()
+
+            is_fallback = model is fb
+
+            # 从实际加载的模型读属性（may be fallback）
+            direction  = getattr(model, "direction", "N/A")
+            ic_mean    = getattr(model, "ic_mean",   "N/A")
+            feat_names = getattr(model, "_feature_names", None) or []
+            n_features = len(feat_names)
+
+            # 判断降级原因
+            if not is_fallback:
+                reason = "✅ 专用模型通过质量门禁"
+            elif path and path.is_file():
+                # 文件存在但被降级 → 读原始模型的 direction/ic_mean
+                try:
+                    from quantmind.models.factor_model import FactorModel
+                    raw = FactorModel.load(path)
+                    raw_dir = getattr(raw, "direction", "N/A")
+                    raw_ic  = getattr(raw, "ic_mean",   None)
+                    if raw_dir != 1:
+                        reason = f"⚠ direction={raw_dir}，质量门禁①降级"
+                    elif raw_ic is not None and raw_ic <= 0:
+                        reason = f"⚠ ic_mean={raw_ic:.4f}≤0，质量门禁②降级"
+                    else:
+                        reason = "⚠ 加载异常，降级 fallback"
+                except Exception:
+                    reason = "⚠ 模型加载失败，降级 fallback"
+            else:
+                reason = "❌ 专用模型文件不存在，使用 fallback"
+
+            result[board] = {
+                "model_path": str(path) if path else "",
+                "is_fallback": is_fallback,
+                "direction":   direction,
+                "ic_mean":     ic_mean,
+                "n_features":  n_features,
+                "reason":      reason,
+            }
         return result
 
     def __repr__(self) -> str:

@@ -237,23 +237,40 @@ def train_one_board(
             min_train_periods = min_train_periods,
         )
 
-    # ── direction 质量校验 ────────────────────────────────────────────────────
-    direction = last_model.direction
-    direction_warning = direction != 1
-    if direction_warning:
+    # ── direction + ic_mean 双重质量校验 ─────────────────────────────────────
+    direction      = last_model.direction
+    ic_mean_val    = getattr(last_model, "ic_mean", None)
+    direction_warn = direction != 1
+    ic_warn        = (ic_mean_val is not None) and (ic_mean_val <= 0)
+    quality_fail   = direction_warn or ic_warn
+
+    if direction_warn:
         print(
-            f"\n  ⚠️  [direction 警告] {display_name} 模型 direction={direction}。\n"
-            f"     raw IC 为负，auto_flip 已反转信号。\n"
-            f"     建议检查标签方向或增加训练数据量。\n"
-            f"     BoardModelRouter 在推理时会将此模型降级为 fallback（lgbm_v6_alpha），\n"
-            f"     模型文件仍会保存以供分析，但不会在生产中自动使用。"
+            f"\n  ⚠️  [门禁①] {display_name} direction={direction}（raw IC 为负，"
+            f"auto_flip 触发）。\n"
+            f"     保存到 debug 路径，不覆盖生产模型。\n"
+            f"     BoardModelRouter 会在运行时自动降级到 lgbm_v6_alpha。"
+        )
+    elif ic_warn:
+        print(
+            f"\n  ⚠️  [门禁②] {display_name} ic_mean={ic_mean_val:.4f} ≤ 0，"
+            f"模型无有效预测力。\n"
+            f"     保存到 debug 路径，不覆盖生产模型。"
         )
     else:
-        print(f"\n  ✅ direction=+1，模型可直接部署到 BoardModelRouter。")
+        print(f"\n  ✅ direction=+1, ic_mean={ic_mean_val:.4f if ic_mean_val else 'N/A'}，"
+              f"通过双重质量门禁，部署到生产路径。")
 
-    # 保存模型（direction=-1 时仍保存，供离线分析；生产路由器有门禁会自动跳过）
-    last_model.save(model_path)
-    print(f"  ✅ 已保存 → {model_path}（耗时 {elapsed:.0f}s）")
+    # 保存逻辑：只有通过质量门禁的模型才写入生产路径
+    if quality_fail:
+        # 保存到 debug 路径供离线分析，不覆盖生产模型
+        debug_path = model_path.parent / f"{model_path.stem}_debug{model_path.suffix}"
+        last_model.save(debug_path)
+        print(f"  📦 debug 模型保存 → {debug_path}（耗时 {elapsed:.0f}s）")
+        print(f"  ⏭  跳过生产路径 {model_path.name}（质量门禁未通过）")
+    else:
+        last_model.save(model_path)
+        print(f"  ✅ 已保存 → {model_path}（耗时 {elapsed:.0f}s）")
 
     improvement = board_ic - mixed_ic if not np.isnan(mixed_ic) else float("nan")
     print(f"\n  IC 对比：混训={mixed_ic:+.4f}  专用={board_ic:+.4f}  "
@@ -273,8 +290,10 @@ def train_one_board(
         "ic_win_rate":       round(result.ic_win_rate, 3),
         "n_folds":           result.n_folds,
         "direction":         direction,
-        "direction_warning": direction_warning,
-        "production_ready":  not direction_warning,
+        "ic_mean":           round(ic_mean_val, 5) if ic_mean_val is not None else None,
+        "direction_warning": direction_warn,
+        "ic_warning":        ic_warn,
+        "production_ready":  not quality_fail,
         "model_path":        str(model_path),
         "elapsed_s":         round(elapsed, 1),
     }

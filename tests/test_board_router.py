@@ -450,3 +450,109 @@ def test_direction_gate_all_boards_degrade_gracefully():
     assert np.allclose(scores.values, 7.0), (
         f"全板块 direction=-1 应全部用 fallback 打分（期望值=7.0），实际={scores.values}"
     )
+
+
+# ── 测试 19：ic_mean ≤ 0 触发质量门禁② ─────────────────────────────────────────
+
+def test_negative_ic_triggers_fallback():
+    """_get_model：direction=+1 但 ic_mean ≤ 0 时应降级 fallback（质量门禁②）。"""
+    bad_model = MagicMock()
+    bad_model.direction = 1          # 方向正确
+    bad_model.ic_mean   = -0.003     # IC 为负 → 无预测力
+    bad_model._feature_names = [f"f{i}" for i in range(5)]
+
+    fallback_model = MagicMock()
+    fallback_model.direction = 1
+    fallback_model._feature_names = [f"f{i}" for i in range(5)]
+    fallback_model.predict.return_value = np.array([55.0])
+
+    router = BoardModelRouter()
+    fake_path = Path("/fake/gem_bad_ic.pkl")
+    router._path_map["GEM"] = fake_path
+    router._fallback = fallback_model
+
+    with patch("quantmind.models.factor_model.FactorModel") as MockFM:
+        MockFM.load.return_value = bad_model
+        with patch.object(Path, "is_file", return_value=True):
+            result = router._get_model("GEM")
+
+    # ic_mean ≤ 0 → 质量门禁② → 应返回 fallback
+    assert result is fallback_model, (
+        "ic_mean ≤ 0 的模型应被质量门禁②拦截并降级为 fallback"
+    )
+
+
+def test_zero_ic_also_triggers_fallback():
+    """_get_model：ic_mean == 0 时同样视为无预测力，降级 fallback。"""
+    zero_ic_model = MagicMock()
+    zero_ic_model.direction = 1
+    zero_ic_model.ic_mean   = 0.0    # 边界：等于 0 也应降级
+
+    fallback_model = MagicMock()
+    fallback_model.direction = 1
+
+    router = BoardModelRouter()
+    fake_path = Path("/fake/star_zero_ic.pkl")
+    router._path_map["STAR"] = fake_path
+    router._fallback = fallback_model
+
+    with patch("quantmind.models.factor_model.FactorModel") as MockFM:
+        MockFM.load.return_value = zero_ic_model
+        with patch.object(Path, "is_file", return_value=True):
+            result = router._get_model("STAR")
+
+    assert result is fallback_model, "ic_mean == 0 也应触发质量门禁②"
+
+
+def test_positive_ic_passes_gate():
+    """_get_model：direction=+1 且 ic_mean > 0 时应正常通过两道门禁。"""
+    good_model = MagicMock()
+    good_model.direction = 1
+    good_model.ic_mean   = 0.025     # IC > 0 → 通过
+
+    fallback_model = MagicMock()
+
+    router = BoardModelRouter()
+    fake_path = Path("/fake/main_ok.pkl")
+    router._path_map["MAIN"] = fake_path
+    router._fallback = fallback_model
+
+    with patch("quantmind.models.factor_model.FactorModel") as MockFM:
+        MockFM.load.return_value = good_model
+        with patch.object(Path, "is_file", return_value=True):
+            result = router._get_model("MAIN")
+
+    assert result is good_model, "direction=+1 且 ic_mean>0 应通过双重门禁"
+    assert result is not fallback_model
+
+
+# ── 测试 20：get_routing_status 返回三板块状态字典 ────────────────────────────
+
+def test_get_routing_status_returns_all_boards():
+    """get_routing_status：应返回 MAIN/GEM/STAR 三个 key，每个包含必要字段。"""
+    fallback_model = MagicMock()
+    fallback_model.direction = 1
+    fallback_model.ic_mean   = 0.03
+    fallback_model._feature_names = [f"f{i}" for i in range(8)]
+
+    router = BoardModelRouter()
+    # 三个板块文件均不存在 → 全部使用 fallback
+    for board in ("MAIN", "GEM", "STAR"):
+        router._path_map[board] = Path(f"/nonexistent/{board}.pkl")
+    router._fallback = fallback_model
+
+    with patch.object(Path, "is_file", return_value=False):
+        status = router.get_routing_status()
+
+    assert set(status.keys()) == {"MAIN", "GEM", "STAR"}, (
+        f"get_routing_status 应包含三个板块，实际 keys={set(status.keys())}"
+    )
+    required_fields = {"model_path", "is_fallback", "direction", "ic_mean", "n_features", "reason"}
+    for board, info in status.items():
+        assert required_fields.issubset(info.keys()), (
+            f"{board} 状态字典缺少必要字段，实际={set(info.keys())}"
+        )
+        assert info["is_fallback"] is True, f"{board} 文件不存在时应标记 is_fallback=True"
+        assert "不存在" in info["reason"] or "fallback" in info["reason"].lower(), (
+            f"{board} reason 描述不符合预期：{info['reason']}"
+        )
