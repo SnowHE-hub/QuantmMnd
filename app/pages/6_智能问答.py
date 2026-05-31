@@ -171,12 +171,12 @@ def charts_for_message(msg: str, days, sr, ic_data, rpnl) -> list[tuple[str, go.
     # PnL / 实盘
     if any(k in msg_l for k in ["pnl","实盘","实际","盈亏","损益","收益分布"]):
         try:
-            if not rpnl.empty and "pnl_pct" in rpnl.columns:
+            if not rpnl.empty and "actual_return_63d" in rpnl.columns:
                 fig = go.Figure(go.Histogram(
-                    x=rpnl["pnl_pct"]*100, nbinsx=30,
+                    x=rpnl["actual_return_63d"]*100, nbinsx=30,
                     marker_color="#0984E3", opacity=0.8,
                 ))
-                mean_v = float(rpnl["pnl_pct"].mean())*100
+                mean_v = float(rpnl["actual_return_63d"].mean())*100
                 fig.add_vline(x=mean_v, line_dash="dash", line_color="#D63031",
                               annotation_text=f"均值 {mean_v:+.2f}%")
                 fig.update_layout(title=f"realized PnL分布（{len(rpnl)}条）",

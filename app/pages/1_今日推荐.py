@@ -171,7 +171,7 @@ st.markdown("#### 🎯 个股四维评分雷达图")
 
 s2 = sel_day.get("system2_analysis", {})
 orig_df = sim_day_to_df(sel_day)
-tickers_with_scores = [t for t in orig_df.get("ticker", pd.Series()).tolist() if t in s2] if not orig_df.empty else []
+tickers_with_scores = [t for t in (orig_df["ticker"].tolist() if "ticker" in orig_df.columns else []) if t in s2] if not orig_df.empty else []
 
 if tickers_with_scores and "ticker" in orig_df.columns and "name" in orig_df.columns:
     name_map = dict(zip(orig_df["ticker"], orig_df["name"]))

@@ -115,21 +115,34 @@ def _load_entry_prices(tickers: tuple[str, ...], as_of_str: str) -> dict[str, fl
 
 def _get_regime() -> str:
     """尝试从 HMM 获取当前 Regime，失败时读 strategy_config_v2.json 兜底。"""
+    # 1. 优先读 Regime 页生成的历史缓存（速度快，无需重新训练）
+    regime_cache = ROOT / "data" / "regime" / "regime_history.parquet"
+    if regime_cache.exists():
+        try:
+            rdf = pd.read_parquet(regime_cache)
+            rdf["date"] = pd.to_datetime(rdf["date"])
+            latest_regime = str(rdf.sort_values("date").iloc[-1]["regime"]).lower()
+            if latest_regime in ("bull", "neutral", "bear"):
+                return latest_regime
+        except Exception:
+            pass
+    # 2. 用正确的工厂方法拟合 HMM（首次或缓存缺失时执行）
     try:
-        from quantmind.regime import RegimeHMM, build_observations
-        hmm = RegimeHMM()
-        obs_path = ROOT / "data" / "raw" / "index_daily_panel.parquet"
-        if obs_path.exists():
-            obs = build_observations(str(obs_path))
-            if obs is not None and len(obs) > 0:
-                regime = hmm.predict_regime(obs, pd.Timestamp(TODAY))
-                return str(regime)
+        from quantmind.regime import RegimeHMM
+        hist_path = ROOT / "data" / "raw" / "index_daily_panel.parquet"
+        sim_path  = ROOT / "data" / "sim30d" / "raw" / "index_000300_SH.parquet"
+        hmm = RegimeHMM.fit_from_file(
+            hist_path=hist_path if hist_path.exists() else None,
+            sim_path=sim_path  if sim_path.exists()  else None,
+        )
+        regime = hmm.predict_regime(None, pd.Timestamp(TODAY))
+        return str(regime)
     except Exception:
         pass
+    # 3. 最终兜底
     try:
         cfg_path = ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
         cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-        # strategy_config_v2 不含 current_regime；从 ensemble_regime_weights 推断
         if "ensemble_regime_weights" in cfg:
             return "neutral"
     except Exception:

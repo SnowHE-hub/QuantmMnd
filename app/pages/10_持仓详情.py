@@ -405,21 +405,21 @@ with right_col:
 
 # 指标卡片
 m1, m2, m3, m4 = st.columns(4)
-_na = lambda v: f"{v*100:+.2f}%" if not np.isnan(v) else "N/A"
-_na_neg = lambda v: f"{v*100:.2f}%" if not np.isnan(v) else "N/A"
+_na = lambda v: f"{v*100:+.2f}%" if not pd.isna(v) else "N/A"
+_na_neg = lambda v: f"{v*100:.2f}%" if not pd.isna(v) else "N/A"
 
 with m1:
     st.metric("不止损 · 最终收益", _na(port_ret))
 with m2:
-    st.metric("不止损 · MaxDD",    _na_neg(abs(port_mdd) if not np.isnan(port_mdd) else float("nan")))
+    st.metric("不止损 · MaxDD",    _na_neg(abs(port_mdd) if not pd.isna(port_mdd) else float("nan")))
 with m3:
     st.metric("有止损 · 最终收益", _na(sl_ret),
-              delta=f"{improvement*100:+.2f}%" if not np.isnan(improvement) else None)
+              delta=f"{improvement*100:+.2f}%" if not pd.isna(improvement) else None)
 with m4:
-    st.metric("有止损 · MaxDD",    _na_neg(abs(sl_mdd) if not np.isnan(sl_mdd) else float("nan")))
+    st.metric("有止损 · MaxDD",    _na_neg(abs(sl_mdd) if not pd.isna(sl_mdd) else float("nan")))
 
 # 结论标签
-if not np.isnan(improvement):
+if not pd.isna(improvement):
     if improvement > 0.005:
         st.success(f"🟢 止损**改善**了收益（相对不止损 {improvement*100:+.2f}%），止损策略有效")
     elif improvement < -0.005:

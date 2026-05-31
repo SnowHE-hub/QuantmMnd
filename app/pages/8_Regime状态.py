@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from quantmind.regime import DynamicWeightManager, RegimeHMM, build_observations
+from quantmind.regime import DynamicWeightManager, RegimeHMM
 
 # ─── 页面配置 ──────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -68,12 +68,12 @@ REGIME_EMOJI = {"bull": "🟢", "neutral": "🟡", "bear": "🔴"}
 REGIME_CN    = {"bull": "牛市", "neutral": "中性", "bear": "熊市"}
 
 # ─── 数据加载 ─────────────────────────────────────────────────────────────────
-DATA_DIR   = ROOT / "data"
-PRICES_DIR = DATA_DIR / "daily_prices_panel"
-CONFIG_PATH = ROOT / "strategy_config_v2.json"
+DATA_DIR     = ROOT / "data"
+# Bug#6 fix: config 在 data/paper_trading/ 下，不在项目根目录
+CONFIG_PATH  = ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
 REGIME_CACHE = DATA_DIR / "regime" / "regime_history.parquet"
 
-# 尝试加载价格数据并拟合 HMM
+# 尝试使用正确工厂方法拟合 HMM
 @st.cache_data(ttl=3600, show_spinner="加载 HMM Regime 模型…")
 def load_regime_history() -> tuple[pd.DataFrame, float]:
     """返回 (regime_df, fit_ll)。
@@ -88,31 +88,32 @@ def load_regime_history() -> tuple[pd.DataFrame, float]:
         except Exception:
             pass
 
-    # 从价格数据构建 HMM 特征并拟合
-    price_files = sorted(PRICES_DIR.glob("*.parquet")) if PRICES_DIR.exists() else []
-    if not price_files:
-        return pd.DataFrame(), float("nan")
+    # Bug#7 fix: 使用工厂方法 + 正确数据源（CSI300 指数日线）
+    hist_path = ROOT / "data" / "raw" / "index_daily_panel.parquet"
+    sim_path  = ROOT / "data" / "sim30d" / "raw" / "index_000300_SH.parquet"
 
     try:
-        prices = pd.read_parquet(price_files[0])
-        obs = build_observations(prices)
-        hmm = RegimeHMM(n_states=3, n_iter=200, random_state=42)
-        hmm.fit(obs)
-        proba = hmm.predict_proba(obs)  # (T, 3) [bull, neutral, bear]
-        labels = hmm.predict(obs)
+        model = RegimeHMM.fit_from_file(
+            hist_path=hist_path if hist_path.exists() else None,
+            sim_path=sim_path  if sim_path.exists()  else None,
+        )
 
-        dates = pd.date_range(end=pd.Timestamp.today(), periods=len(labels), freq="B")
+        if not len(model._dates):
+            return pd.DataFrame(), float("nan")
+
+        label_series = [model._label_map[s] for s in model._states]
         df = pd.DataFrame({
-            "date":         dates,
-            "regime":       labels,
-            "bull_prob":    proba[:, 0],
-            "neutral_prob": proba[:, 1],
-            "bear_prob":    proba[:, 2],
+            "date":         model._dates,
+            "regime":       label_series,
+            # Viterbi 确定性预测：用独热概率代替平滑概率
+            "bull_prob":    [1.0 if lbl == "bull"    else 0.0 for lbl in label_series],
+            "neutral_prob": [1.0 if lbl == "neutral" else 0.0 for lbl in label_series],
+            "bear_prob":    [1.0 if lbl == "bear"    else 0.0 for lbl in label_series],
         })
         # 确保缓存目录存在
         REGIME_CACHE.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(REGIME_CACHE, index=False)
-        return df, float(hmm.monitor_.history[-1]) if hasattr(hmm, "monitor_") else float("nan")
+        return df, float("nan")
     except Exception as e:
         st.warning(f"HMM 拟合失败：{e}")
         return pd.DataFrame(), float("nan")
