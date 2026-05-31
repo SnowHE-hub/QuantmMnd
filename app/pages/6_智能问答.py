@@ -84,7 +84,7 @@ def charts_for_message(msg: str, days, sr, ic_data, rpnl) -> list[tuple[str, go.
                 ts = horizon_portfolio_ts(days, hz)
                 if ts.empty: continue
                 fig.add_trace(go.Scatter(
-                    x=ts["date"].dt.strftime("%m-%d"), y=ts["cum_return"]*100,
+                    x=ts["date"].dt.strftime("%Y-%m-%d"), y=ts["cum_return"]*100,
                     name=label, line=dict(color=color, width=2.5),
                     mode="lines+markers", marker_size=3,
                 ))

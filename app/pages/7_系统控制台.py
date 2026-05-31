@@ -861,7 +861,7 @@ with tab_perf:
                 continue
             label, color = HZ_META[hz]
             fig.add_trace(go.Scatter(
-                x=ts["date"].dt.strftime("%m-%d"),
+                x=ts["date"].dt.strftime("%Y-%m-%d"),
                 y=ts["cum_return"] * 100,
                 name=label,
                 line=dict(color=color, width=2.5),

@@ -47,6 +47,17 @@ def _regime_switch_impact(fr: str, to: str) -> str:
     return impacts.get((fr, to), "→ 权重自动调整")
 
 
+def _hex_rgba(hex6: str, alpha: float) -> str:
+    """将 6 位 hex 颜色转为 rgba() 字符串。
+
+    Plotly 不接受 8 位 hex（#RRGGBBAA），必须用 rgba(r,g,b,a) 格式。
+    alpha 取值 0.0~1.0。
+    """
+    h = hex6.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
 # ─── 颜色常量 ─────────────────────────────────────────────────────────────────
 REGIME_COLOR = {
     "bull":    "#00B894",   # 绿
@@ -202,7 +213,7 @@ for r, label_cn, color in [
             name=label_cn,
             stackgroup="prob",
             line=dict(width=0.5, color=color),
-            fillcolor=color + "99",
+            fillcolor=_hex_rgba(color, 0.6),
             hovertemplate="%{y:.1%}<extra>" + label_cn + "</extra>",
         ))
 
@@ -243,7 +254,7 @@ for i, row in enumerate(plot_df.itertuples()):
 for regime, x0, x1 in segments:
     fig_band.add_vrect(
         x0=x0, x1=x1,
-        fillcolor=REGIME_COLOR.get(str(regime).lower(), "#b2bec3") + "55",
+        fillcolor=_hex_rgba(REGIME_COLOR.get(str(regime).lower(), "#b2bec3"), 0.33),
         line_width=0,
         layer="below",
     )

@@ -16,9 +16,16 @@
 from __future__ import annotations
 
 import os
+import socket
 import threading
 import time
 from datetime import date
+
+# 全局 socket 超时兜底：防止底层 TCP 连接无限期挂起
+# DataApi 的 timeout 参数只控制 requests 库的读超时，
+# 但 TCP 三次握手本身不受 requests timeout 保护；
+# socket.setdefaulttimeout 在套接字层面兜底。
+socket.setdefaulttimeout(30)
 
 import pandas as pd
 
@@ -65,7 +72,10 @@ def _get_tushare_pro():
         # 直接用 DataApi(token=token) 而非 ts.pro_api()：
         # ts.pro_api() 内部调用 get_token()，会优先读 TUSHARE_TOKEN 环境变量，
         # 在双 Token 场景中可能取到错误的 token。
-        _tushare_pro = DataApi(token=token, timeout=120)
+        # timeout=15：每次 HTTP 请求最多等 15 秒；
+        # 配合全局 socket.setdefaulttimeout(30) 双重保障，
+        # 避免像 60.205.198.20:80 这类后端节点无限期挂起。
+        _tushare_pro = DataApi(token=token, timeout=15)
         # 若设置了 TUSHARE_HI_URL，切换到高频代理（Token B 专用）
         hi_url = os.getenv("TUSHARE_HI_URL", "").strip()
         if hi_url:
@@ -102,16 +112,29 @@ _TRANSIENT_KEYWORDS = (
     "limit",
     "timeout",
     "timed out",
+    "timed_out",
     "connection",
     "temporarily",
     "503",
     "504",
     "502",
+    "socket",
+    "read timed",
+    "connect timed",
+    "remote end closed",
+    "reset by peer",
+    "broken pipe",
 )
 
 
 def _call(api_name: str, max_attempts: int = 4, **kwargs):
-    """调用 tushare API（带限频 + 重试 + 超时退避）."""
+    """调用 tushare API（带限频 + 重试 + 超时退避）.
+
+    超时策略：
+    - DataApi timeout=15s（HTTP 读超时）
+    - socket.setdefaulttimeout(30)（TCP 层兜底）
+    - 网络抖动时最多重试 4 次，退避 2/4/8s（合计最坏 15*4+14=74s/ticker）
+    """
     pro = _get_tushare_pro()
     fn = getattr(pro, api_name)
     last_exc: Exception | None = None
@@ -122,12 +145,14 @@ def _call(api_name: str, max_attempts: int = 4, **kwargs):
         except Exception as e:  # noqa: BLE001
             last_exc = e
             msg = str(e).lower()
-            transient = any(k in msg for k in _TRANSIENT_KEYWORDS)
+            # socket.timeout 不继承自 OSError 在部分版本，额外检查类型
+            is_socket_timeout = isinstance(e, (TimeoutError, socket.timeout))
+            transient = is_socket_timeout or any(k in msg for k in _TRANSIENT_KEYWORDS)
             if transient and attempt < max_attempts - 1:
-                wait = 2 ** attempt + 1  # 1, 3, 5, 9 ...
+                wait = 2 ** (attempt + 1)  # 2, 4, 8s
                 log.warning(
                     f"tushare {api_name} transient error "
-                    f"(attempt {attempt + 1}/{max_attempts}): {str(e)[:100]}; sleep {wait}s"
+                    f"(attempt {attempt + 1}/{max_attempts}): {str(e)[:120]}; sleep {wait}s"
                 )
                 time.sleep(wait)
                 continue

@@ -78,7 +78,7 @@ with tab1:
         if ts.empty:
             continue
         fig_cum.add_trace(go.Scatter(
-            x=ts["date"].dt.strftime("%m-%d"),
+            x=ts["date"].dt.strftime("%Y-%m-%d"),
             y=ts["cum_return"] * 100,
             name=HZ_LABELS.get(hz, hz),
             line=dict(color=HZ_COLORS.get(hz, "#0984E3"), width=2.5),
