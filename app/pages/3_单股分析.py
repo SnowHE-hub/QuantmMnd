@@ -182,7 +182,7 @@ st.markdown("#### 📅 30日评分时序追踪")
 if not ticker_rows.empty:
     score_ts = ticker_rows[["date", "composite_score", "value_score", "momentum_score",
                               "quality_score", "technical_score", "in_final"]].copy()
-    score_ts["date"] = pd.to_datetime(score_ts["date"]).dt.strftime("%m-%d")
+    score_ts["date"] = pd.to_datetime(score_ts["date"]).dt.strftime("%Y-%m-%d")
 
     fig_ts = go.Figure()
     for col, label, color in [
@@ -228,7 +228,7 @@ st.markdown("#### 💹 综合分 vs 3月实际收益（该股票所有记录）"
 if not final_rows.empty and "composite_score" in final_rows.columns and "return_3m" in final_rows.columns:
     plot_df = final_rows[["date", "composite_score", "return_3m", "rating"]].dropna()
     if not plot_df.empty:
-        plot_df["date_str"] = pd.to_datetime(plot_df["date"]).dt.strftime("%m-%d")
+        plot_df["date_str"] = pd.to_datetime(plot_df["date"]).dt.strftime("%Y-%m-%d")
         plot_df["return_3m_pct"] = plot_df["return_3m"] * 100
 
         fig_sc = px.scatter(

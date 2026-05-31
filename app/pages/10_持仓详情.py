@@ -344,13 +344,23 @@ else:
 
 # 提取数据
 port_nav_raw = display_data.get("portfolio_nav", [])
-sl_nav_raw   = display_data["with_stop_loss"].get("portfolio_nav", [])
 port_ret     = display_data.get("portfolio_final_return", float("nan"))
 port_mdd     = display_data.get("portfolio_max_drawdown", float("nan"))
-sl_ret       = display_data["with_stop_loss"].get("portfolio_final_return", float("nan"))
-sl_mdd       = display_data["with_stop_loss"].get("portfolio_max_drawdown", float("nan"))
-stopped_list = display_data["with_stop_loss"].get("stopped_stocks", [])
-improvement  = display_data["with_stop_loss"].get("improvement_vs_no_stop", float("nan"))
+
+sl_data = display_data.get("with_stop_loss", {})
+if not sl_data:
+    st.info("该批次暂无止损模拟数据")
+    sl_nav_raw   = []
+    sl_ret       = float("nan")
+    sl_mdd       = float("nan")
+    stopped_list = []
+    improvement  = float("nan")
+else:
+    sl_nav_raw   = sl_data.get("portfolio_nav", [])
+    sl_ret       = sl_data.get("portfolio_final_return", float("nan"))
+    sl_mdd       = sl_data.get("portfolio_max_drawdown", float("nan"))
+    stopped_list = sl_data.get("stopped_stocks", [])
+    improvement  = sl_data.get("improvement_vs_no_stop", float("nan"))
 
 port_df = _nav_list_to_df(port_nav_raw)
 sl_df   = _nav_list_to_df(sl_nav_raw)

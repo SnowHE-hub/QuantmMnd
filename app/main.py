@@ -192,7 +192,7 @@ for hz in ["1w", "2w", "21d", "3m"]:
     if ts.empty:
         continue
     fig_cum.add_trace(go.Scatter(
-        x=ts["date"].dt.strftime("%m-%d"), y=ts["cum_return"] * 100,
+        x=ts["date"].dt.strftime("%Y-%m-%d"), y=ts["cum_return"] * 100,
         name=HZ_LABELS[hz], line=dict(color=HZ_COLORS[hz], width=2.5),
         mode="lines+markers", marker_size=4,
     ))

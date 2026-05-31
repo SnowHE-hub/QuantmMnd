@@ -87,8 +87,13 @@ def _run_streaming(
     log_box,
     prog_bar=None,
     timeout: int = 900,
+    env: dict | None = None,
 ) -> tuple[int, str]:
     """在子进程中运行命令，将 stdout+stderr 实时流到 log_box。
+
+    Parameters
+    ----------
+    env : 传给 subprocess.Popen 的环境变量字典；None 表示继承父进程环境。
 
     Returns
     -------
@@ -103,6 +108,7 @@ def _run_streaming(
             encoding="utf-8",
             errors="replace",
             cwd=str(ROOT),
+            env=env,
         )
     except FileNotFoundError as e:
         log_box.error(f"命令不存在：{e}")
@@ -401,7 +407,7 @@ with tab_daily:
         log_box  = st.empty()
 
         with st.spinner("每日更新运行中，请勿关闭页面..."):
-            rc, output = _run_streaming(cmd, log_box, prog_bar, timeout=900)
+            rc, output = _run_streaming(cmd, log_box, prog_bar, timeout=900, env=env)
 
         _record("daily_update", rc, output, "每日更新")
         st.session_state.running_task = None
