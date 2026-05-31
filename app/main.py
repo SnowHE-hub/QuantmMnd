@@ -65,7 +65,7 @@ latest_day = get_latest_sim_day(days) if days else None
 with st.sidebar:
     st.markdown("## ⚙️ 系统状态")
     st.markdown(f"📅 **最新模拟日**：{days[-1]['date'][:4]}-{days[-1]['date'][4:6]}-{days[-1]['date'][6:8]}" if days else "📅 未加载")
-    st.markdown(f"📊 **模拟天数**：{len(days)} 天（全A股5535只）")
+    st.markdown(f"📊 **模拟天数**：{len(days)} 天（Alpha池约1418只）")
     st.markdown(f"🤖 **主模型**：`lgbm_v6_alpha`（38特征）")
     st.markdown(f"📈 **realized_pnl**：{len(rpnl)} 条")
 
@@ -94,7 +94,7 @@ st.markdown("""
             box-shadow:0 4px 20px rgba(9,132,227,0.3)'>
   <h1 style='margin:0;font-size:2rem'>📊 QuantMind</h1>
   <p style='margin:8px 0 0 0;font-size:1.05rem;opacity:.9'>
-    AI 增强量化投资系统 &nbsp;·&nbsp; 全A股5535只三系统选股 &nbsp;·&nbsp;
+    AI 增强量化投资系统 &nbsp;·&nbsp; Alpha池三系统选股 &nbsp;·&nbsp;
     LGBM v6 + 四维分析 + 历史回测验证
   </p>
 </div>

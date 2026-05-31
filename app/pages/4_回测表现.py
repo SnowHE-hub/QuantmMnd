@@ -186,7 +186,7 @@ with tab2:
 
 # ── Tab3: realized PnL ────────────────────────────────────────────────────────
 with tab3:
-    st.markdown("#### 💰 Realized PnL 分析（379条实际持仓记录）")
+    st.markdown(f"#### 💰 Realized PnL 分析（{len(rpnl):,}条实际持仓记录）")
 
     if rpnl.empty:
         st.info("暂无 realized_pnl 数据。")
@@ -207,7 +207,7 @@ with tab3:
             with col_m4:
                 # Distinguish 30d sim vs quarterly
                 n_sim = valid[valid[ret_col] > 0.05].shape[0]
-                st.metric("有效盈利记录", f"{n_sim:,} 条")
+                st.metric("高盈利记录(>5%)", f"{n_sim:,} 条")
 
             st.divider()
             col_hist, col_ts = st.columns([2, 1])

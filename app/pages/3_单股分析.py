@@ -253,8 +253,8 @@ st.markdown("#### 🏭 同行业股票对比（30日平均3月收益）")
 
 industry = stock_info.get("industry", "")
 if industry and not sr.empty and "industry" in sr.columns:
-    # Try to get industry from stock_returns (may need merging)
-    pass
+    # 同行业对比：功能待实现（行业维度需跨日聚合）
+    st.info("同行业横向对比功能正在开发中，敬请期待。")
 
 # Simple: compare across all final picks
 if not sr.empty:

@@ -56,7 +56,10 @@ st.markdown("### 🤖 LGBM v6 模型概览")
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     try:
-        n_feats = len(model._model.feature_name()) if model else "—"
+        if model and hasattr(model, "_model") and model._model is not None:
+            n_feats = len(model._model.feature_name())
+        else:
+            n_feats = len(getattr(model, "feature_names_", [])) or "—"
     except Exception:
         n_feats = "38"
     st.metric("特征维度", f"{n_feats} 维")
@@ -77,8 +80,11 @@ st.markdown("### 📊 模型特征重要性")
 if model is not None:
     try:
         try:
-            feat_names = model._model.feature_name()
-            importances = model._model.feature_importance(importance_type="gain")
+            if hasattr(model, "_model") and model._model is not None:
+                feat_names = model._model.feature_name()
+                importances = model._model.feature_importance(importance_type="gain")
+            else:
+                raise AttributeError("_model not available")
         except Exception:
             feat_names = getattr(model, "feature_names_", [f"feat_{i}" for i in range(38)])
             importances = getattr(model, "feature_importances_", [])

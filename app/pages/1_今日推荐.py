@@ -21,17 +21,6 @@ from app.utils.sim_data import (
 
 st.set_page_config(page_title="今日推荐 · QuantMind", page_icon="📋", layout="wide")
 
-# ── 页面标题 ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style='background:linear-gradient(90deg,#0984E3,#00B894);
-            padding:18px 24px;border-radius:12px;color:white;margin-bottom:20px'>
-  <h2 style='margin:0'>📋 每日选股推荐</h2>
-  <p style='margin:6px 0 0 0;opacity:.85'>
-    全A股 5535只 → 三系统筛选 → 最终10只 &nbsp;|&nbsp; 回测窗口：2025-10-09 ~ 2025-11-19
-  </p>
-</div>
-""", unsafe_allow_html=True)
-
 # ── 加载数据 ─────────────────────────────────────────────────────────────────
 with st.spinner("加载模拟盘数据..."):
     days = load_sim30d_days()
@@ -39,6 +28,21 @@ with st.spinner("加载模拟盘数据..."):
 if not days:
     st.error("未找到 `data/sim30d/daily/` 数据，请先运行 `scripts/run_30day_sim.py`。")
     st.stop()
+
+# ── 页面标题（使用真实日期区间）───────────────────────────────────────────────
+_start = days[0]["date"]
+_end   = days[-1]["date"]
+_range = f"{_start[:4]}-{_start[4:6]}-{_start[6:8]} ~ {_end[:4]}-{_end[4:6]}-{_end[6:8]}"
+_n_days = len(days)
+st.markdown(f"""
+<div style='background:linear-gradient(90deg,#0984E3,#00B894);
+            padding:18px 24px;border-radius:12px;color:white;margin-bottom:20px'>
+  <h2 style='margin:0'>📋 每日选股推荐</h2>
+  <p style='margin:6px 0 0 0;opacity:.85'>
+    Alpha池 → 三系统筛选 → 最终10只 &nbsp;|&nbsp; 模拟窗口：{_range}（{_n_days}天）
+  </p>
+</div>
+""", unsafe_allow_html=True)
 
 # ── 侧栏 ─────────────────────────────────────────────────────────────────────
 date_options = [d["date"] for d in days]

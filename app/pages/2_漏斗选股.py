@@ -26,7 +26,7 @@ st.markdown("""
             padding:18px 24px;border-radius:12px;color:white;margin-bottom:20px'>
   <h2 style='margin:0'>🔻 三系统选股漏斗</h2>
   <p style='margin:6px 0 0 0;opacity:.85'>
-    全A股 5535只 → System1(6层过滤→15只) → System2(四维分析) → System3(历史验证→10只)
+    Alpha池 → System1(6层过滤→15只) → System2(四维分析) → System3(历史验证→10只)
   </p>
 </div>
 """, unsafe_allow_html=True)
@@ -71,23 +71,23 @@ final_df = sim_day_to_df(sel_day)
 # ── 漏斗图 ───────────────────────────────────────────────────────────────────
 st.markdown(f"#### 📊 {_fmt_date(sel_date)} 三系统筛选漏斗")
 
-n_all     = 5535
-n_s1_l1   = int(n_all * 0.72)   # 约排除ST/新股/小市值
-n_s1_l2   = int(n_s1_l1 * 0.7)
-n_s1_l3   = int(n_s1_l2 * 0.8)
-n_s1_l4   = int(n_s1_l3 * 0.65)
+n_all     = 5535                   # 全A股总数（筛选起点）
+n_s1_l1   = int(n_all * 0.72)     # 估算：约排除ST/新股/小市值
+n_s1_l2   = int(n_s1_l1 * 0.7)   # 估算：流动性过滤
+n_s1_l3   = int(n_s1_l2 * 0.8)   # 估算：趋势过滤
+n_s1_l4   = int(n_s1_l3 * 0.65)  # 估算：基本面过滤
 n_s1_l5   = 50
-n_s1_l6   = 15
+n_s1_l6   = len(sel_day.get("system1_candidates", [])) or 15  # 真实数据
 n_s3_out  = len(sel_day.get("system3_final_list", []))
 
 labels = [
-    "全A股（5535只）",
-    "Layer1：质量过滤",
-    "Layer2：流动性",
-    "Layer3：趋势",
-    "Layer4：基本面",
+    "全A股（5535只，筛选起点）",
+    "Layer1：质量过滤（估算）",
+    "Layer2：流动性（估算）",
+    "Layer3：趋势（估算）",
+    "Layer4：基本面（估算）",
     "Layer5：LGBM Top50",
-    "Layer6：行业分散（15只）",
+    f"Layer6：行业分散（{n_s1_l6}只）",
     "System3：回测验证",
 ]
 values = [n_all, n_s1_l1, n_s1_l2, n_s1_l3, n_s1_l4, n_s1_l5, n_s1_l6, n_s3_out]
@@ -112,11 +112,11 @@ with col_funnel:
 with col_stats:
     st.markdown("**筛选统计**")
     stats_data = [
-        ("全市场", n_all, "—"),
-        ("Layer1 质量过滤", n_s1_l1, f"{n_s1_l1/n_all:.1%}"),
-        ("Layer2 流动性", n_s1_l2, f"{n_s1_l2/n_all:.1%}"),
-        ("Layer3 趋势", n_s1_l3, f"{n_s1_l3/n_all:.1%}"),
-        ("Layer4 基本面", n_s1_l4, f"{n_s1_l4/n_all:.1%}"),
+        ("全市场（起点）", n_all, "—"),
+        ("Layer1 质量过滤（估）", n_s1_l1, f"{n_s1_l1/n_all:.1%}"),
+        ("Layer2 流动性（估）", n_s1_l2, f"{n_s1_l2/n_all:.1%}"),
+        ("Layer3 趋势（估）", n_s1_l3, f"{n_s1_l3/n_all:.1%}"),
+        ("Layer4 基本面（估）", n_s1_l4, f"{n_s1_l4/n_all:.1%}"),
         ("Layer5 LGBM", n_s1_l5, f"{n_s1_l5/n_all:.1%}"),
         ("Layer6 行业分散", n_s1_l6, f"{n_s1_l6/n_all:.1%}"),
         ("System3 最终", n_s3_out, f"{n_s3_out/n_all:.2%}"),
