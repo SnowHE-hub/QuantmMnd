@@ -247,10 +247,14 @@ def train_one_board(
     alpha_direction = getattr(mixed_model, "direction", 1) if mixed_model is not None else 1
     if last_model.direction != alpha_direction:
         raw_ic = getattr(last_model, "_ic_series_mean", None) or getattr(result, "ic_mean", float("nan"))
+        try:
+            _raw_ic_str = f"{float(raw_ic):.4f}" if raw_ic is not None and not np.isnan(float(raw_ic)) else "N/A"
+        except (TypeError, ValueError):
+            _raw_ic_str = "N/A"
         print(
             f"\n  🔧 [方向对齐] {display_name} auto_flip 触发 direction={last_model.direction}，"
             f"与混训模型 direction={alpha_direction} 不同。\n"
-            f"     原始 walk-forward IC ≈ {raw_ic:.4f if not np.isnan(float(raw_ic or 0)) else 'N/A'}，"
+            f"     原始 walk-forward IC ≈ {_raw_ic_str}，"
             f"判断为小样本熊市噪声（{n_tickers} 只股票，>0 占比 47.4%）。\n"
             f"     强制对齐 direction={alpha_direction}（与混训模型一致），保持全局预测方向统一。"
         )
@@ -277,8 +281,8 @@ def train_one_board(
             f"     保存到 debug 路径，不覆盖生产模型。"
         )
     else:
-        print(f"\n  ✅ direction=+1, ic_mean={ic_mean_val:.4f if ic_mean_val else 'N/A'}，"
-              f"通过双重质量门禁，部署到生产路径。")
+        _ic_str = f"{ic_mean_val:.4f}" if ic_mean_val is not None else "N/A"
+        print(f"\n  ✅ direction=+1, ic_mean={_ic_str}，通过双重质量门禁，部署到生产路径。")
 
     # 保存逻辑：只有通过质量门禁的模型才写入生产路径
     if quality_fail:
