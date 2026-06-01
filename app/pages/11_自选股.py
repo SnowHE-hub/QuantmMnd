@@ -189,7 +189,7 @@ for row_start in range(0, len(tickers), cols_per_row):
   </div>
   <div style='font-size:.8rem;margin-top:6px;color:#636E72'>
     加入以来：<span style='color:{_color(since_pct)};font-weight:600'>{_pct_fmt(since_pct)}</span>
-    &nbsp;·&nbsp; 加入价：¥{add_px:.2f if add_px else "—"}
+    &nbsp;·&nbsp; 加入价：¥{f"{add_px:.2f}" if add_px else "—"}
   </div>
 </div>
 """, unsafe_allow_html=True)
