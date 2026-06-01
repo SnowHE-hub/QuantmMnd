@@ -10,7 +10,7 @@ set -euo pipefail
 
 PROJ_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="/home/lenovo/miniforge3/envs/quantmind/bin/python"
-CRON_CMD="30 16 * * 1-5 cd ${PROJ_DIR} && ${PYTHON} scripts/daily_update.py --universe alpha --no-llm --auto-regime --position-sizing hrp --agent-top 10 --agent-provider none >> logs/daily_\$(date +\\%F).log 2>&1"
+CRON_CMD="30 16 * * 1-5 cd ${PROJ_DIR} && export TUSHARE_HI_URL= && ${PYTHON} scripts/daily_update.py --universe alpha --lgbm-model models/lgbm_v6_alpha.pkl --lgbm-top 50 --no-llm --no-alert --auto-regime --position-sizing hrp --agent-top 10 --agent-provider none >> logs/daily_\$(date +\\%F).log 2>&1"
 
 echo "QuantMind Cron 配置"
 echo "工作目录: ${PROJ_DIR}"
