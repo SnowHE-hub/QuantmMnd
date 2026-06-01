@@ -68,6 +68,15 @@ _SS_DEFAULTS: dict[str, Any] = {
     "last_results":        {},
     # 执行历史
     "exec_history":        [],
+    # 迭代优化
+    "iter_mode":           "analyze",
+    "iter_sim_dir":        "data/sim30d",
+    "iter_baseline_dir":   "data/sim30d",
+    "iter_new_dir":        "data/sim30d",
+    "iter_top_n":          None,
+    "iter_dry_run":        True,
+    "iter_last_diag":      None,   # 最近一次 SimDiagnosis（to_dict 形式）
+    "iter_last_report":    None,   # 最近一次 ComparisonReport（to_dict 形式）
 }
 for _k, _v in _SS_DEFAULTS.items():
     if _k not in st.session_state:
@@ -282,12 +291,13 @@ if _is_running():
         st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8 大功能 Tab
+# 9 大功能 Tab
 # ─────────────────────────────────────────────────────────────────────────────
 (
     tab_daily, tab_sim, tab_model,
     tab_data,  tab_status,
-    tab_perf,  tab_ic, tab_history,
+    tab_perf,  tab_ic,
+    tab_iter,  tab_history,
 ) = st.tabs([
     "🗓 每日更新",
     "▶ 30日模拟",
@@ -296,6 +306,7 @@ if _is_running():
     "📊 系统状态",
     "📈 收益曲线",
     "🔬 因子分析",
+    "🔄 迭代优化",
     "📋 执行历史",
 ])
 
@@ -1001,7 +1012,182 @@ with tab_ic:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# Tab 8：执行历史
+# Tab 8：迭代优化
+# ═════════════════════════════════════════════════════════════════════════════
+with tab_iter:
+    st.markdown("### 🔄 模拟迭代优化")
+    st.caption(
+        "诊断 30 日模拟结果 → 生成参数建议 → 应用调整 → 对比两轮 — 建立「结果→诊断→参数→验证」闭环"
+    )
+
+    # ── Region A：参数面板 ────────────────────────────────────────────────────
+    with st.expander("⚙️ 运行参数", expanded=True):
+        ia1, ia2 = st.columns(2)
+        with ia1:
+            iter_mode = st.selectbox(
+                "运行模式",
+                options=["analyze", "suggest", "apply", "compare"],
+                index=["analyze","suggest","apply","compare"].index(
+                    st.session_state.iter_mode
+                ),
+                format_func=lambda x: {
+                    "analyze": "🔍 analyze — 诊断当前 sim30d",
+                    "suggest": "💡 suggest — 生成参数建议（只读）",
+                    "apply":   "⚙️  apply   — 应用建议写入配置",
+                    "compare": "📊 compare — 对比两轮结果",
+                }[x],
+                key="iter_mode_sel",
+            )
+            st.session_state.iter_mode = iter_mode
+
+            iter_sim_dir = st.text_input(
+                "模拟结果目录（analyze / suggest / apply）",
+                value=st.session_state.iter_sim_dir,
+                key="iter_sim_dir_inp",
+            )
+            st.session_state.iter_sim_dir = iter_sim_dir
+
+        with ia2:
+            if iter_mode == "compare":
+                iter_baseline = st.text_input(
+                    "基准轮目录 (--baseline)",
+                    value=st.session_state.iter_baseline_dir,
+                    key="iter_baseline_inp",
+                )
+                iter_new = st.text_input(
+                    "新一轮目录 (--new)",
+                    value=st.session_state.iter_new_dir,
+                    key="iter_new_inp",
+                )
+                st.session_state.iter_baseline_dir = iter_baseline
+                st.session_state.iter_new_dir      = iter_new
+            elif iter_mode == "apply":
+                iter_dry_run = st.checkbox(
+                    "Dry-run（只预览，不写入配置文件）",
+                    value=st.session_state.iter_dry_run,
+                    key="iter_dry_run_cb",
+                )
+                st.session_state.iter_dry_run = iter_dry_run
+
+                iter_top_n_raw = st.number_input(
+                    "只应用置信度最高的 N 条（0 = 全部）",
+                    min_value=0, max_value=20,
+                    value=st.session_state.iter_top_n or 0,
+                    step=1, key="iter_top_n_inp",
+                )
+                st.session_state.iter_top_n = int(iter_top_n_raw) or None
+
+    # ── Region B：运行按钮 ────────────────────────────────────────────────────
+    _show_result("iteration")
+    iter_btn_label = {
+        "analyze": "🔍 运行诊断",
+        "suggest": "💡 生成参数建议",
+        "apply":   "⚙️  应用参数建议",
+        "compare": "📊 对比两轮结果",
+    }[iter_mode]
+
+    if _action_button(iter_btn_label, "btn_iter_run", "iteration"):
+        st.session_state.running_task = "iteration"
+        st.rerun()
+
+    if st.session_state.running_task == "iteration":
+        cmd = [
+            PYTHON, "-u",
+            str(ROOT / "scripts" / "run_iteration.py"),
+            "--mode", st.session_state.iter_mode,
+            "--sim-dir", str(ROOT / st.session_state.iter_sim_dir),
+            "--config",  str(ROOT / "data" / "paper_trading" / "strategy_config_v2.json"),
+        ]
+        if iter_mode == "compare":
+            cmd += [
+                "--baseline", str(ROOT / st.session_state.iter_baseline_dir),
+                "--new",      str(ROOT / st.session_state.iter_new_dir),
+            ]
+        elif iter_mode == "apply":
+            if st.session_state.iter_dry_run:
+                cmd.append("--dry-run")
+            if st.session_state.iter_top_n:
+                cmd += ["--top-n", str(st.session_state.iter_top_n)]
+
+        st.info(f"🚀 `{' '.join(cmd)}`")
+        prog_bar = st.progress(0, text="启动中...")
+        log_box  = st.empty()
+
+        with st.spinner("迭代优化运行中，请勿关闭页面..."):
+            rc, output = _run_streaming(cmd, log_box, prog_bar, timeout=300)
+
+        _record("iteration", rc, output, f"迭代优化 ({iter_mode})")
+        st.session_state.running_task = None
+
+        if rc == 0:
+            st.success("✅ 迭代优化完成")
+        else:
+            st.error(f"❌ 失败 (rc={rc})")
+        st.rerun()
+
+    # ── Region C：快捷诊断（in-process，秒级响应）─────────────────────────────
+    st.markdown("---")
+    st.markdown("#### ⚡ 快捷诊断（无需等待子进程）")
+    if st.button("立即诊断当前 sim30d", key="btn_iter_quick", disabled=_is_running()):
+        try:
+            from quantmind.iteration.analyzer import SimulationAnalyzer
+            quick_diag = SimulationAnalyzer(ROOT / st.session_state.iter_sim_dir).analyze()
+            st.session_state.iter_last_diag = quick_diag.to_dict()
+            st.success(f"✅ 诊断完成  ·  {quick_diag.n_days} 个交易日  ·  IR_3m={quick_diag.ir_3m:+.3f}")
+        except Exception as _e:
+            st.error(f"诊断失败：{_e}")
+
+    # ── Region D：结果展示 ─────────────────────────────────────────────────────
+    if st.session_state.iter_last_diag:
+        from quantmind.iteration.analyzer import SimDiagnosis
+        diag_obj = SimDiagnosis.from_dict(st.session_state.iter_last_diag)
+
+        st.markdown("#### 📋 最近诊断报告")
+
+        # KPI 指标条
+        kc1, kc2, kc3, kc4 = st.columns(4)
+        kc1.metric("IR 1周",  f"{diag_obj.ir_1w:+.3f}")
+        kc2.metric("IR 2周",  f"{diag_obj.ir_2w:+.3f}")
+        kc3.metric("IR 21日", f"{diag_obj.ir_21d:+.3f}")
+        kc4.metric("IR 3月",  f"{diag_obj.ir_3m:+.3f}",
+                   f"胜率 {diag_obj.win_rate_3m:.1%}")
+
+        # 因子 IC 柱图（若有）
+        ic3m = diag_obj.ic_summary.get("ic_3m", {})
+        if ic3m:
+            factors_ic = list(ic3m.keys())
+            vals_ic    = [ic3m[f] for f in factors_ic]
+            colors_ic  = ["#00B894" if v > 0 else "#D63031" for v in vals_ic]
+            fig_diag = go.Figure(go.Bar(
+                x=factors_ic, y=vals_ic,
+                marker_color=colors_ic,
+                text=[f"{v:+.4f}" for v in vals_ic],
+                textposition="outside",
+            ))
+            fig_diag.add_hline(y=0, line_dash="dot",
+                               line_color="rgba(178,190,195,0.5)")  # noqa: E501
+            fig_diag.update_layout(
+                title="因子 IC_3m（当前诊断）",
+                height=280, margin=dict(t=40, b=80, l=10, r=10),
+                yaxis_title="Spearman IC",
+                xaxis=dict(tickangle=-25, tickfont_size=10),
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_diag, use_container_width=True)
+
+        # 诊断结论
+        st.markdown("**🩺 诊断结论**")
+        for issue in diag_obj.issues:
+            icon = "⚠️" if "建议" in issue or "不建议" in issue else "✅"
+            st.markdown(f"- {icon} {issue}")
+
+        # 完整 Markdown 报告
+        with st.expander("查看完整诊断报告（Markdown）", expanded=False):
+            st.markdown(diag_obj.to_markdown())
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Tab 9：执行历史
 # ═════════════════════════════════════════════════════════════════════════════
 with tab_history:
     st.markdown("### 📋 本次会话执行历史")
