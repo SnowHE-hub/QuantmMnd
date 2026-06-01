@@ -236,8 +236,8 @@ class ParameterOptimizer:
 
         suggestions: list[ParameterSuggestion] = []
         for k in self.WEIGHT_KEYS:
-            old = round(cur_weights.get(k, 0.25), 4)
-            new = round(new_weights[k], 4)
+            old = float(round(float(cur_weights.get(k, 0.25)), 4))
+            new = float(round(float(new_weights[k]), 4))
             if abs(new - old) < 0.005:
                 continue   # 变化太小，跳过
             ic_val = ic_vals.get(k, float("nan"))
