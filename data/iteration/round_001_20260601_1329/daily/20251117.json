@@ -1,0 +1,447 @@
+{
+  "date": "20251117",
+  "day_index": 28,
+  "system1_candidates": [
+    {
+      "rank": 1,
+      "ticker": "000049.SZ",
+      "name": "德赛电池",
+      "industry": "电气设备",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 2,
+      "ticker": "000533.SZ",
+      "name": "顺钠股份",
+      "industry": "电气设备",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 3,
+      "ticker": "301191.SZ",
+      "name": "菲菱科思",
+      "industry": "通信设备",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 4,
+      "ticker": "301161.SZ",
+      "name": "唯万密封",
+      "industry": "工程机械",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 5,
+      "ticker": "301128.SZ",
+      "name": "强瑞技术",
+      "industry": "专用机械",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 6,
+      "ticker": "300964.SZ",
+      "name": "本川智能",
+      "industry": "元器件",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 7,
+      "ticker": "300930.SZ",
+      "name": "屹通新材",
+      "industry": "小金属",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 8,
+      "ticker": "920060.BJ",
+      "name": "万源通",
+      "industry": "元器件",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 9,
+      "ticker": "300913.SZ",
+      "name": "兆龙互连",
+      "industry": "通信设备",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 10,
+      "ticker": "301225.SZ",
+      "name": "恒勃股份",
+      "industry": "汽车配件",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 11,
+      "ticker": "301230.SZ",
+      "name": "泓博医药",
+      "industry": "生物制药",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 12,
+      "ticker": "301280.SZ",
+      "name": "珠城科技",
+      "industry": "元器件",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 13,
+      "ticker": "301257.SZ",
+      "name": "普蕊斯",
+      "industry": "医疗保健",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 14,
+      "ticker": "301219.SZ",
+      "name": "腾远钴业",
+      "industry": "小金属",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 15,
+      "ticker": "688333.SH",
+      "name": "铂力特",
+      "industry": "机械基件",
+      "lgbm_score": 0.9430678466076696,
+      "lgbm_score_raw": 0.018592241429878625
+    }
+  ],
+  "system2_analysis": {
+    "301219.SZ": {
+      "composite_score": 69.33333333333334,
+      "value_score": 97.77777777777777,
+      "momentum_score": 66.66666666666667,
+      "quality_score": 53.333333333333336,
+      "technical_score": 50.0,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "301128.SZ": {
+      "composite_score": 68.4920634920635,
+      "value_score": 36.82539682539683,
+      "momentum_score": 77.77777777777777,
+      "quality_score": 93.33333333333333,
+      "technical_score": 73.33333333333333,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "301257.SZ": {
+      "composite_score": 66.92063492063491,
+      "value_score": 64.92063492063492,
+      "momentum_score": 71.1111111111111,
+      "quality_score": 66.66666666666666,
+      "technical_score": 65.0,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "301280.SZ": {
+      "composite_score": 66.17460317460316,
+      "value_score": 82.06349206349206,
+      "momentum_score": 42.22222222222222,
+      "quality_score": 80.0,
+      "technical_score": 55.0,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "000049.SZ": {
+      "composite_score": 65.80952380952381,
+      "value_score": 88.25396825396825,
+      "momentum_score": 86.66666666666667,
+      "quality_score": 40.0,
+      "technical_score": 38.33333333333333,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "000533.SZ": {
+      "composite_score": 64.1111111111111,
+      "value_score": 36.66666666666667,
+      "momentum_score": 97.77777777777777,
+      "quality_score": 73.33333333333333,
+      "technical_score": 51.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "920060.BJ": {
+      "composite_score": 53.904761904761905,
+      "value_score": 64.12698412698411,
+      "momentum_score": 26.666666666666668,
+      "quality_score": 86.66666666666667,
+      "technical_score": 31.666666666666668,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "301225.SZ": {
+      "composite_score": 51.0,
+      "value_score": 41.11111111111111,
+      "momentum_score": 53.333333333333336,
+      "quality_score": 60.0,
+      "technical_score": 51.666666666666664,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300913.SZ": {
+      "composite_score": 46.317460317460316,
+      "value_score": 18.09523809523809,
+      "momentum_score": 28.888888888888886,
+      "quality_score": 100.0,
+      "technical_score": 43.333333333333336,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300930.SZ": {
+      "composite_score": 45.34920634920635,
+      "value_score": 58.57142857142858,
+      "momentum_score": 51.11111111111111,
+      "quality_score": 33.33333333333333,
+      "technical_score": 33.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300964.SZ": {
+      "composite_score": 43.95238095238095,
+      "value_score": 38.73015873015873,
+      "momentum_score": 80.0,
+      "quality_score": 6.666666666666667,
+      "technical_score": 53.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "301161.SZ": {
+      "composite_score": 43.74603174603174,
+      "value_score": 45.07936507936508,
+      "momentum_score": 15.555555555555555,
+      "quality_score": 46.666666666666664,
+      "technical_score": 73.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "688333.SH": {
+      "composite_score": 42.269841269841265,
+      "value_score": 29.047619047619047,
+      "momentum_score": 68.8888888888889,
+      "quality_score": 26.666666666666668,
+      "technical_score": 48.333333333333336,
+      "rating": "持有",
+      "suggested_horizon": "2w"
+    },
+    "301191.SZ": {
+      "composite_score": 32.42857142857143,
+      "value_score": 50.31746031746032,
+      "momentum_score": 20.0,
+      "quality_score": 13.333333333333334,
+      "technical_score": 45.0,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "301230.SZ": {
+      "composite_score": 28.857142857142858,
+      "value_score": 43.96825396825397,
+      "momentum_score": 13.333333333333334,
+      "quality_score": 20.0,
+      "technical_score": 36.66666666666667,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    }
+  },
+  "system3_final_list": [
+    {
+      "rank": 1,
+      "ticker": "301219.SZ",
+      "name": "腾远钴业",
+      "industry": "小金属",
+      "composite_score": 69.33333333333334,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5357142857142857,
+      "hist_sharpe": 1.2091604029695615,
+      "hist_maxdd": -0.20754251910278532,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 2,
+      "ticker": "301257.SZ",
+      "name": "普蕊斯",
+      "industry": "医疗保健",
+      "composite_score": 66.92063492063491,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.44642857142857145,
+      "hist_sharpe": 1.3026894898589347,
+      "hist_maxdd": -0.2178438661710037,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 3,
+      "ticker": "301280.SZ",
+      "name": "珠城科技",
+      "industry": "元器件",
+      "composite_score": 66.17460317460316,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.44642857142857145,
+      "hist_sharpe": -0.3291000771082864,
+      "hist_maxdd": -0.1660741493143728,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 4,
+      "ticker": "000049.SZ",
+      "name": "德赛电池",
+      "industry": "电气设备",
+      "composite_score": 65.80952380952381,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.6071428571428571,
+      "hist_sharpe": 2.3168638894213403,
+      "hist_maxdd": -0.10845022237427304,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 5,
+      "ticker": "000533.SZ",
+      "name": "顺钠股份",
+      "industry": "电气设备",
+      "composite_score": 64.1111111111111,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.44642857142857145,
+      "hist_sharpe": 1.8010537899364412,
+      "hist_maxdd": -0.16729088639200995,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 6,
+      "ticker": "301225.SZ",
+      "name": "恒勃股份",
+      "industry": "汽车配件",
+      "composite_score": 51.0,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.4107142857142857,
+      "hist_sharpe": 0.3481287147144143,
+      "hist_maxdd": -0.24262389000286455,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 7,
+      "ticker": "300913.SZ",
+      "name": "兆龙互连",
+      "industry": "通信设备",
+      "composite_score": 46.317460317460316,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.42857142857142855,
+      "hist_sharpe": -0.11756697416376038,
+      "hist_maxdd": -0.2738700987728224,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 8,
+      "ticker": "300930.SZ",
+      "name": "屹通新材",
+      "industry": "小金属",
+      "composite_score": 45.34920634920635,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.44642857142857145,
+      "hist_sharpe": 0.02772849917518654,
+      "hist_maxdd": -0.11382352941176477,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 9,
+      "ticker": "300964.SZ",
+      "name": "本川智能",
+      "industry": "元器件",
+      "composite_score": 43.95238095238095,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.44642857142857145,
+      "hist_sharpe": 1.2187812165283913,
+      "hist_maxdd": -0.1702681072428971,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 10,
+      "ticker": "301161.SZ",
+      "name": "唯万密封",
+      "industry": "工程机械",
+      "composite_score": 43.74603174603174,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.4107142857142857,
+      "hist_sharpe": -0.4657545521261105,
+      "hist_maxdd": -0.2635135135135136,
+      "risk_level": "中",
+      "investable": true
+    }
+  ],
+  "returns": {
+    "1w": {
+      "mean": -0.027101539677786994,
+      "median": -0.03853485557323996,
+      "win_rate": 0.2,
+      "max": 0.1010812780950066,
+      "min": -0.09876543209876552,
+      "n": 10,
+      "entry_date": "2025-11-18",
+      "exit_date": "2025-11-25"
+    },
+    "2w": {
+      "mean": 0.006748706281530933,
+      "median": -0.019454425122353375,
+      "win_rate": 0.5,
+      "max": 0.20240554003158787,
+      "min": -0.09764309764309775,
+      "n": 10,
+      "entry_date": "2025-11-18",
+      "exit_date": "2025-12-02"
+    },
+    "21d": {
+      "mean": 0.012690240539530172,
+      "median": -0.02145214521452146,
+      "win_rate": 0.4,
+      "max": 0.22561049690195592,
+      "min": -0.11485026242667486,
+      "n": 10,
+      "entry_date": "2025-11-18",
+      "exit_date": "2025-12-17"
+    },
+    "3m": {
+      "mean": 0.20894139593656497,
+      "median": 0.14669285554597428,
+      "win_rate": 0.9,
+      "max": 0.5915441623132062,
+      "min": -0.017235056839017195,
+      "n": 10,
+      "entry_date": "2025-11-18",
+      "exit_date": "2026-02-25"
+    }
+  }
+}

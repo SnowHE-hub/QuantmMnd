@@ -1,0 +1,78 @@
+{
+  "round": 2,
+  "start_date": "2026-06-01",
+  "based_on_round": 1,
+  "baseline_sim_dir": "data/iteration/round_001_20260601_1329",
+  "param_changes": [
+    {
+      "parameter": "quality_weight",
+      "path": "system2_updates.weights_calibrated.quality",
+      "from": 0.456,
+      "to": 0.503,
+      "ic_3m": 0.1130,
+      "reason": "IC_3m 最高（+0.113），本轮最有效因子，提权强化"
+    },
+    {
+      "parameter": "value_weight",
+      "path": "system2_updates.weights_calibrated.value",
+      "from": 0.242,
+      "to": 0.150,
+      "ic_3m": -0.0714,
+      "reason": "IC_3m 为负（-0.071），降权；但设 0.15 下限保留熊市安全垫（value_floor 保护）"
+    },
+    {
+      "parameter": "momentum_weight",
+      "path": "system2_updates.weights_calibrated.momentum",
+      "from": 0.100,
+      "to": 0.1385,
+      "ic_3m": 0.0311,
+      "reason": "IC_3m 轻微正向（+0.031），小幅上调"
+    },
+    {
+      "parameter": "technical_weight",
+      "path": "system2_updates.weights_calibrated.technical",
+      "from": 0.202,
+      "to": 0.2084,
+      "ic_3m": 0.0468,
+      "reason": "IC_3m 正向（+0.047），小幅上调"
+    },
+    {
+      "parameter": "layer6_overweight_industries",
+      "path": "layer6_overweight.overweight_industries",
+      "from": ["装修装饰", "建筑工程", "机械基件"],
+      "to": ["家居用品", "装修装饰", "建筑工程"],
+      "reason": "家居用品 3m 均值收益 +48.4% 升至第一，纳入超配名单；机械基件退出"
+    }
+  ],
+  "weights_checksum": {
+    "value": 0.15,
+    "momentum": 0.1385,
+    "quality": 0.503,
+    "technical": 0.2084,
+    "sum": 0.9999,
+    "valid": true
+  },
+  "hypothesis": "提高 quality 权重（0.456→0.503，IC_3m=+0.113 最优因子），降低 value 权重（0.242→0.150，IC 为负但含下限保护），小幅调整 momentum/technical，行业超配引入家居用品。预期第二轮 3m IC 改善，IR 超越基准 +1.799，胜率维持 90%+。",
+  "baseline_metrics": {
+    "ir_1w": -0.4596,
+    "ir_2w": -0.4205,
+    "ir_21d": -0.1903,
+    "ir_3m": 1.7990,
+    "win_rate_3m": 0.9667,
+    "mean_return_3m": 0.2156,
+    "best_factor_3m": "quality_score",
+    "worst_factor_3m": "value_score"
+  },
+  "expected_improvements": [
+    "quality_score IC_3m 提升（当前 +0.113，进一步加权后预期组合 IC 改善）",
+    "value_score 负 IC 被稀释（权重 0.242→0.150，降低其对 composite_score 的拖累）",
+    "家居用品/装修/建筑行业集中暴露，如行业延续强势则 3m 收益进一步提升"
+  ],
+  "risks": [
+    "quality 集中度过高（权重 0.503）：若 quality 因子在下一轮失效，回撤将加大",
+    "行业超配依赖历史延续性：若宏观 regime 切换，建筑/家居板块可能反转",
+    "value 下限 0.15 在纯 bear regime 下可能不够，建议定期检视"
+  ],
+  "next_action": "运行新一轮30日模拟（scripts/simulate_30days.py）后，对比 data/iteration/round_001_20260601_1329 与新 data/sim30d 的 IR/胜率/IC 变化",
+  "created_at": "2026-06-01"
+}

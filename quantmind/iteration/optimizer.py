@@ -76,19 +76,30 @@ class ParameterOptimizer:
         单次权重调整步长（占 [0,1] 区间），默认 0.05。
     max_weight_change : float
         单次权重变动上限，默认 0.15（防止调参过激）。
+    value_floor : float
+        value 权重下限，默认 0.15。
+        即使 IC 为负，value 因子在 bear 市场仍有防御价值，
+        不应完全压至 0。超出下限的部分由其他因子按比例承担。
     """
 
     WEIGHT_KEYS = ["value", "momentum", "quality", "technical"]
+
+    # 各因子权重下限（key = WEIGHT_KEYS 中的名称）
+    WEIGHT_FLOORS: dict[str, float] = {"value": 0.15}
 
     def __init__(
         self,
         config_path: Path | str | None = None,
         weight_step: float = 0.05,
         max_weight_change: float = 0.15,
+        value_floor: float = 0.15,
     ) -> None:
         self._config_path    = Path(config_path) if config_path else CONFIG_PATH
         self._weight_step    = weight_step
         self._max_wt_change  = max_weight_change
+        self._value_floor    = float(value_floor)
+        # 运行时下限 dict（允许子类/测试覆盖）
+        self._floors: dict[str, float] = {"value": self._value_floor}
 
     # ── 公开 API ──────────────────────────────────────────────────────────────
 
@@ -229,10 +240,34 @@ class ParameterOptimizer:
             delta = np.clip(tgt - cur, -self._max_wt_change, self._max_wt_change)
             new_weights[k] = max(0.0, cur + delta)
 
-        # 再次归一化（确保和 = 1）
+        # 第一次归一化（确保和 = 1）
         total = sum(new_weights.values())
         if total > WEIGHT_SUM_TOL:
             new_weights = {k: v / total for k, v in new_weights.items()}
+
+        # ── 下限保护 ─────────────────────────────────────────────────────────
+        # value 权重不低于 _value_floor（默认 0.15）。
+        # 即使本轮 IC 为负，价值因子在 bear 市场有防御价值，不应完全清零。
+        # 超出下限占用的权重空间，由其他因子按原比例均摊（proportional reduce）。
+        floored_keys = {
+            k for k, fv in self._floors.items()
+            if new_weights.get(k, 0.0) < fv
+        }
+        if floored_keys:
+            for k in floored_keys:
+                new_weights[k] = self._floors[k]
+            floored_total   = sum(new_weights[k] for k in floored_keys)
+            remaining_budget = max(0.0, 1.0 - floored_total)
+            other_keys       = [k for k in self.WEIGHT_KEYS if k not in floored_keys]
+            other_raw_total  = sum(new_weights[k] for k in other_keys)
+            if other_raw_total > WEIGHT_SUM_TOL:
+                scale = remaining_budget / other_raw_total
+                for k in other_keys:
+                    new_weights[k] = new_weights[k] * scale
+            elif other_keys:
+                per_w = remaining_budget / len(other_keys)
+                for k in other_keys:
+                    new_weights[k] = per_w
 
         suggestions: list[ParameterSuggestion] = []
         for k in self.WEIGHT_KEYS:

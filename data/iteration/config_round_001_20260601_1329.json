@@ -1,6 +1,6 @@
 {
   "version": "v2_30day_sim_optimized",
-  "updated_at": "2026-06-01T13:29:52.728417",
+  "updated_at": "2026-05-24T19:02:29.403203",
   "source": "30day_sim_2025Q4_全A股",
   "holding_period": {
     "recommended": "3m",
@@ -14,10 +14,10 @@
   "system2_updates": {
     "em_factor_weight": 0.2,
     "weights_calibrated": {
-      "value": 0.15,
-      "momentum": 0.1385,
-      "quality": 0.503,
-      "technical": 0.2084
+      "value": 0.242,
+      "momentum": 0.1,
+      "quality": 0.456,
+      "technical": 0.202
     },
     "weights_previous": {
       "value": 0.3,
@@ -126,9 +126,9 @@
   },
   "layer6_overweight": {
     "overweight_industries": [
-      "家居用品",
       "装修装饰",
-      "建筑工程"
+      "建筑工程",
+      "机械基件"
     ],
     "overweight_limit": 5,
     "default_limit": 3,
@@ -207,18 +207,5 @@
     "GEM": "models/lgbm_v6_gem.pkl",
     "STAR": "models/lgbm_v6_star.pkl"
   },
-  "_board_comment": "板块专用模型路由：主板/创业板/科创板各用专属LGBM; 模型不存在时自动降级到lgbm_v6_alpha",
-  "iteration_history": [
-    {
-      "applied_at": "2026-06-01T13:29:52",
-      "applied_params": [
-        "system2_updates.weights_calibrated.quality",
-        "system2_updates.weights_calibrated.value",
-        "layer6_overweight.overweight_industries",
-        "system2_updates.weights_calibrated.technical",
-        "system2_updates.weights_calibrated.momentum"
-      ],
-      "n_suggestions": 5
-    }
-  ]
+  "_board_comment": "板块专用模型路由：主板/创业板/科创板各用专属LGBM; 模型不存在时自动降级到lgbm_v6_alpha"
 }

@@ -7,9 +7,9 @@ Regime 感知的动态权重管理器。
 HMM 将市场划分为 bull / neutral / bear 三种状态。
 各状态下因子 IC 差异显著（基于 alpha_panel_v4 实证，28季）：
 
-  bull   : quality IC=+0.034  momentum IC=-0.033  value IC=+0.019
-  neutral: quality IC=+0.011  momentum IC=-0.031  value IC=+0.008
-  bear   : quality IC=-0.018  momentum IC=-0.015  value IC=+0.023
+  bull   : quality IC=+0.113  momentum IC=+0.031  value IC=-0.071  (2025Q4 30日模拟实证)
+  neutral: quality IC=+0.011  momentum IC=-0.031  value IC=+0.008  (alpha_panel_v4 28季)
+  bear   : quality IC=-0.018  momentum IC=-0.015  value IC=+0.023  (alpha_panel_v4 28季)
 
 动量因子细分诊断（2026-05-24 修正，29季×300+只股票）：
   momentum_1m          IC=-0.026  IC>0=41% ❌ → 短期超买回调（均值回复）
@@ -58,14 +58,18 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
     "bull": {
-        # System2 四维权重（IC 校准 2026-05-24 动量修正版）
-        # momentum_1m IC=-0.026 → 大幅降低权重；节省部分加到 quality
-        # bull: value=0.242 mom=0.100 qual=0.456 tech=0.202 (sum=1.000)
+        # System2 四维权重（IC 校准 2026-06-01 Round1→Round2 迭代版）
+        # 基于 2025Q4 30日模拟 IC_3m 分析：
+        #   quality_score  IC_3m=+0.113 → 提权至 0.503（最优因子）
+        #   value_score    IC_3m=-0.071 → 降至 0.150（含下限保护，保留熊市安全垫）
+        #   momentum_score IC_3m=+0.031 → 小幅提权至 0.139
+        #   technical_score IC_3m=+0.047 → 小幅提权至 0.208
+        # bull: value=0.150 mom=0.139 qual=0.503 tech=0.208 (sum=1.000)
         "system2": {
-            "value": 0.242,
-            "momentum": 0.100,
-            "quality": 0.456,
-            "technical": 0.202,
+            "value": 0.150,
+            "momentum": 0.1385,
+            "quality": 0.503,
+            "technical": 0.2084,
         },
         # Ensemble 权重：bull 下 CNN 权重最高（质量模式识别能力强）
         # v2更新(2026-05-24): FactorCNN v2 增强后 ICIR=1.787 → CNN权重上调

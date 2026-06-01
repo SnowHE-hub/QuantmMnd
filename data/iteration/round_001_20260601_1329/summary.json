@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-05-17T16:12:36.244587",
+  "simulation_period": "20251009 → 20251119",
+  "n_trading_days": 30,
+  "total_positions": 299,
+  "avg_stocks_per_day": 9.966666666666667,
+  "horizons": {
+    "1w": {
+      "mean": -0.016085400705566657,
+      "median": -0.015511711703551142,
+      "win_rate": 0.3,
+      "max": 0.05693379128209709,
+      "min": -0.11625848064838111,
+      "std": 0.034995594423726205,
+      "ir": -0.4596407339393877,
+      "n": 30
+    },
+    "2w": {
+      "mean": -0.017478010753213518,
+      "median": -0.014701002310573393,
+      "win_rate": 0.36666666666666664,
+      "max": 0.060400527205414146,
+      "min": -0.12811522240497647,
+      "std": 0.041566105955546134,
+      "ir": -0.420487085605416,
+      "n": 30
+    },
+    "21d": {
+      "mean": -0.01433852469954305,
+      "median": -0.01899744154015208,
+      "win_rate": 0.3333333333333333,
+      "max": 0.17353735665283318,
+      "min": -0.12051657533614808,
+      "std": 0.0753626386364889,
+      "ir": -0.1902603857689327,
+      "n": 30
+    },
+    "3m": {
+      "mean": 0.2156407051909021,
+      "median": 0.20911385609510624,
+      "win_rate": 0.9666666666666667,
+      "max": 0.48395125906613884,
+      "min": -0.044999890525782446,
+      "std": 0.11986420940978436,
+      "ir": 1.7990416509876017,
+      "n": 30
+    }
+  },
+  "system_evaluation": {
+    "s1_avg_hist_win_rate": 0.5776699670839558,
+    "s2_composite_vs_21d_ic": 0.005183441933166546,
+    "s3_avg_hist_sharpe": 1.907203652278121
+  },
+  "factor_insights": {},
+  "optimization": {
+    "recommendations": [
+      {
+        "priority": "HIGH",
+        "action": "SET_HORIZON_3m",
+        "detail": "IR=1.799"
+      },
+      {
+        "priority": "MEDIUM",
+        "action": "REVIEW_FACTORS",
+        "detail": "1w IC为负，检查当前市场 regime"
+      },
+      {
+        "priority": "MEDIUM",
+        "action": "REVIEW_FACTORS",
+        "detail": "2w IC为负，检查当前市场 regime"
+      },
+      {
+        "priority": "MEDIUM",
+        "action": "REVIEW_FACTORS",
+        "detail": "21d IC为负，检查当前市场 regime"
+      },
+      {
+        "priority": "MEDIUM",
+        "action": "ADD_STOP_LOSS",
+        "detail": "threshold=-10%"
+      }
+    ],
+    "next_actions": [
+      "更新 strategy_config.json 的最优持仓期",
+      "收集 30 日实际收益，扩充 realized_pnl 至 120+ 条",
+      "重训 meta-learner（样本量翻倍后 R² 预期提升）"
+    ]
+  }
+}

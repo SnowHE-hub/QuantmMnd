@@ -1,0 +1,447 @@
+{
+  "date": "20251104",
+  "day_index": 19,
+  "system1_candidates": [
+    {
+      "rank": 1,
+      "ticker": "300454.SZ",
+      "name": "深信服",
+      "industry": "软件服务",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 2,
+      "ticker": "300456.SZ",
+      "name": "赛微电子",
+      "industry": "半导体",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 3,
+      "ticker": "301568.SZ",
+      "name": "思泰克",
+      "industry": "专用机械",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 4,
+      "ticker": "002182.SZ",
+      "name": "宝武镁业",
+      "industry": "小金属",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 5,
+      "ticker": "603297.SH",
+      "name": "永新光学",
+      "industry": "元器件",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 6,
+      "ticker": "600459.SH",
+      "name": "贵研铂业",
+      "industry": "小金属",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 7,
+      "ticker": "002217.SZ",
+      "name": "合力泰",
+      "industry": "元器件",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 8,
+      "ticker": "002913.SZ",
+      "name": "奥士康",
+      "industry": "元器件",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 9,
+      "ticker": "002230.SZ",
+      "name": "科大讯飞",
+      "industry": "软件服务",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 10,
+      "ticker": "603283.SH",
+      "name": "赛腾股份",
+      "industry": "专用机械",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 11,
+      "ticker": "300496.SZ",
+      "name": "中科创达",
+      "industry": "软件服务",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 12,
+      "ticker": "002281.SZ",
+      "name": "光迅科技",
+      "industry": "通信设备",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 13,
+      "ticker": "300557.SZ",
+      "name": "理工光科",
+      "industry": "电器仪表",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 14,
+      "ticker": "300568.SZ",
+      "name": "星源材质",
+      "industry": "化工原料",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 15,
+      "ticker": "301021.SZ",
+      "name": "英诺激光",
+      "industry": "专用机械",
+      "lgbm_score": 0.9367452558941921,
+      "lgbm_score_raw": 0.018592241429878625
+    }
+  ],
+  "system2_analysis": {
+    "300456.SZ": {
+      "composite_score": 82.44444444444444,
+      "value_score": 83.33333333333333,
+      "momentum_score": 84.44444444444444,
+      "quality_score": 93.33333333333333,
+      "technical_score": 65.0,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w"
+    },
+    "002217.SZ": {
+      "composite_score": 74.88888888888889,
+      "value_score": 53.333333333333336,
+      "momentum_score": 95.55555555555556,
+      "quality_score": 100.0,
+      "technical_score": 50.0,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w"
+    },
+    "603283.SH": {
+      "composite_score": 72.91452991452992,
+      "value_score": 70.08547008547009,
+      "momentum_score": 68.88888888888889,
+      "quality_score": 86.66666666666667,
+      "technical_score": 65.0,
+      "rating": "强烈买入",
+      "suggested_horizon": "3m"
+    },
+    "600459.SH": {
+      "composite_score": 57.8974358974359,
+      "value_score": 92.991452991453,
+      "momentum_score": 33.333333333333336,
+      "quality_score": 60.0,
+      "technical_score": 33.333333333333336,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "301568.SZ": {
+      "composite_score": 57.46153846153846,
+      "value_score": 65.98290598290598,
+      "momentum_score": 40.0,
+      "quality_score": 73.33333333333333,
+      "technical_score": 46.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "603297.SH": {
+      "composite_score": 57.14529914529914,
+      "value_score": 54.18803418803418,
+      "momentum_score": 42.22222222222222,
+      "quality_score": 80.0,
+      "technical_score": 51.666666666666664,
+      "rating": "买入",
+      "suggested_horizon": "21d"
+    },
+    "002281.SZ": {
+      "composite_score": 56.717948717948715,
+      "value_score": 49.05982905982906,
+      "momentum_score": 53.333333333333336,
+      "quality_score": 66.66666666666666,
+      "technical_score": 59.99999999999999,
+      "rating": "买入",
+      "suggested_horizon": "21d"
+    },
+    "002913.SZ": {
+      "composite_score": 55.22222222222223,
+      "value_score": 84.44444444444444,
+      "momentum_score": 15.555555555555552,
+      "quality_score": 53.333333333333336,
+      "technical_score": 63.333333333333336,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "300454.SZ": {
+      "composite_score": 50.1025641025641,
+      "value_score": 22.564102564102566,
+      "momentum_score": 80.0,
+      "quality_score": 46.666666666666664,
+      "technical_score": 58.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "301021.SZ": {
+      "composite_score": 45.18803418803419,
+      "value_score": 25.811965811965816,
+      "momentum_score": 77.77777777777777,
+      "quality_score": 20.0,
+      "technical_score": 65.0,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "300496.SZ": {
+      "composite_score": 42.76068376068376,
+      "value_score": 42.9059829059829,
+      "momentum_score": 35.55555555555555,
+      "quality_score": 40.0,
+      "technical_score": 55.0,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300557.SZ": {
+      "composite_score": 42.26495726495727,
+      "value_score": 53.84615384615385,
+      "momentum_score": 44.44444444444445,
+      "quality_score": 33.33333333333333,
+      "technical_score": 33.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "300568.SZ": {
+      "composite_score": 39.29059829059829,
+      "value_score": 50.598290598290596,
+      "momentum_score": 64.44444444444444,
+      "quality_score": 6.666666666666667,
+      "technical_score": 31.66666666666667,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "002182.SZ": {
+      "composite_score": 32.39316239316239,
+      "value_score": 48.71794871794872,
+      "momentum_score": 24.444444444444446,
+      "quality_score": 13.333333333333334,
+      "technical_score": 41.666666666666664,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "002230.SZ": {
+      "composite_score": 26.974358974358974,
+      "value_score": 14.35897435897436,
+      "momentum_score": 39.99999999999999,
+      "quality_score": 26.666666666666668,
+      "technical_score": 30.0,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    }
+  },
+  "system3_final_list": [
+    {
+      "rank": 1,
+      "ticker": "300456.SZ",
+      "name": "赛微电子",
+      "industry": "半导体",
+      "composite_score": 82.44444444444444,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5535714285714286,
+      "hist_sharpe": 1.9243098414407112,
+      "hist_maxdd": -0.189010989010989,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 2,
+      "ticker": "002217.SZ",
+      "name": "合力泰",
+      "industry": "元器件",
+      "composite_score": 74.88888888888889,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5357142857142857,
+      "hist_sharpe": 2.403158287710839,
+      "hist_maxdd": -0.25369458128078815,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 3,
+      "ticker": "603283.SH",
+      "name": "赛腾股份",
+      "industry": "专用机械",
+      "composite_score": 72.91452991452992,
+      "rating": "强烈买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.625,
+      "hist_sharpe": 1.2256175297288132,
+      "hist_maxdd": -0.1622554660529344,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 4,
+      "ticker": "600459.SH",
+      "name": "贵研铂业",
+      "industry": "小金属",
+      "composite_score": 57.8974358974359,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5892857142857143,
+      "hist_sharpe": 0.7046605285545678,
+      "hist_maxdd": -0.13273340832395952,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 5,
+      "ticker": "301568.SZ",
+      "name": "思泰克",
+      "industry": "专用机械",
+      "composite_score": 57.46153846153846,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": 0.34958478541495863,
+      "hist_maxdd": -0.26206896551724146,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 6,
+      "ticker": "603297.SH",
+      "name": "永新光学",
+      "industry": "元器件",
+      "composite_score": 57.14529914529914,
+      "rating": "买入",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.5178571428571429,
+      "hist_sharpe": 1.2025169700313683,
+      "hist_maxdd": -0.2319737244118545,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 7,
+      "ticker": "002281.SZ",
+      "name": "光迅科技",
+      "industry": "通信设备",
+      "composite_score": 56.717948717948715,
+      "rating": "买入",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.6428571428571429,
+      "hist_sharpe": 1.612579613879799,
+      "hist_maxdd": -0.21013613694568,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 8,
+      "ticker": "002913.SZ",
+      "name": "奥士康",
+      "industry": "元器件",
+      "composite_score": 55.22222222222223,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": -0.10400741553177774,
+      "hist_maxdd": -0.16752750954412754,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 9,
+      "ticker": "300454.SZ",
+      "name": "深信服",
+      "industry": "软件服务",
+      "composite_score": 50.1025641025641,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": 1.4054068488399445,
+      "hist_maxdd": -0.20038610038610039,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 10,
+      "ticker": "301021.SZ",
+      "name": "英诺激光",
+      "industry": "专用机械",
+      "composite_score": 45.18803418803419,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.6428571428571429,
+      "hist_sharpe": 1.6647298219645723,
+      "hist_maxdd": -0.22026143790849673,
+      "risk_level": "中",
+      "investable": true
+    }
+  ],
+  "returns": {
+    "1w": {
+      "mean": 0.00988630354090179,
+      "median": -0.02431866016756086,
+      "win_rate": 0.4,
+      "max": 0.10461338531513965,
+      "min": -0.0707964601769912,
+      "n": 10,
+      "entry_date": "2025-11-05",
+      "exit_date": "2025-11-12"
+    },
+    "2w": {
+      "mean": -0.01475826114896071,
+      "median": -0.043901780416043854,
+      "win_rate": 0.2,
+      "max": 0.17356687898089168,
+      "min": -0.07374631268436578,
+      "n": 10,
+      "entry_date": "2025-11-05",
+      "exit_date": "2025-11-19"
+    },
+    "21d": {
+      "mean": 0.06139291628932958,
+      "median": -0.03268256095720798,
+      "win_rate": 0.4,
+      "max": 0.8610668789808916,
+      "min": -0.09010179770413697,
+      "n": 10,
+      "entry_date": "2025-11-05",
+      "exit_date": "2025-12-04"
+    },
+    "3m": {
+      "mean": 0.2548526666306702,
+      "median": 0.1250904158689914,
+      "win_rate": 0.9,
+      "max": 1.1994426751592355,
+      "min": -0.10324483775811212,
+      "n": 10,
+      "entry_date": "2025-11-05",
+      "exit_date": "2026-02-04"
+    }
+  }
+}

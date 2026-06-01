@@ -1,0 +1,447 @@
+{
+  "date": "20251029",
+  "day_index": 15,
+  "system1_candidates": [
+    {
+      "rank": 1,
+      "ticker": "920953.BJ",
+      "name": "国子软件",
+      "industry": "软件服务",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 2,
+      "ticker": "000009.SZ",
+      "name": "中国宝安",
+      "industry": "电气设备",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 3,
+      "ticker": "920885.BJ",
+      "name": "星辰科技",
+      "industry": "电器仪表",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 4,
+      "ticker": "920839.BJ",
+      "name": "万通液压",
+      "industry": "工程机械",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 5,
+      "ticker": "920807.BJ",
+      "name": "奔朗新材",
+      "industry": "机械基件",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 6,
+      "ticker": "920640.BJ",
+      "name": "富士达",
+      "industry": "通信设备",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 7,
+      "ticker": "920576.BJ",
+      "name": "天力复合",
+      "industry": "小金属",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 8,
+      "ticker": "688750.SH",
+      "name": "金天钛业",
+      "industry": "小金属",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 9,
+      "ticker": "688757.SH",
+      "name": "胜科纳米",
+      "industry": "电器仪表",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 10,
+      "ticker": "688767.SH",
+      "name": "博拓生物",
+      "industry": "医疗保健",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 11,
+      "ticker": "688778.SH",
+      "name": "厦钨新能",
+      "industry": "电气设备",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 12,
+      "ticker": "688690.SH",
+      "name": "纳微科技",
+      "industry": "化工原料",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 13,
+      "ticker": "688720.SH",
+      "name": "艾森股份",
+      "industry": "半导体",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 14,
+      "ticker": "688721.SH",
+      "name": "龙图光罩",
+      "industry": "半导体",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    },
+    {
+      "rank": 15,
+      "ticker": "688657.SH",
+      "name": "DR浩辰软",
+      "industry": "软件服务",
+      "lgbm_score": 0.9244120940649496,
+      "lgbm_score_raw": 0.018592241429878625
+    }
+  ],
+  "system2_analysis": {
+    "920839.BJ": {
+      "composite_score": 83.015873015873,
+      "value_score": 66.34920634920634,
+      "momentum_score": 91.1111111111111,
+      "quality_score": 100.0,
+      "technical_score": 76.66666666666666,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w"
+    },
+    "688778.SH": {
+      "composite_score": 69.31746031746032,
+      "value_score": 70.31746031746032,
+      "momentum_score": 75.55555555555556,
+      "quality_score": 60.0,
+      "technical_score": 71.66666666666666,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "688657.SH": {
+      "composite_score": 66.73015873015872,
+      "value_score": 95.39682539682538,
+      "momentum_score": 64.44444444444444,
+      "quality_score": 40.0,
+      "technical_score": 59.99999999999999,
+      "rating": "买入",
+      "suggested_horizon": "3m"
+    },
+    "688767.SH": {
+      "composite_score": 66.33333333333334,
+      "value_score": 91.11111111111113,
+      "momentum_score": 73.33333333333333,
+      "quality_score": 33.33333333333333,
+      "technical_score": 61.66666666666667,
+      "rating": "买入",
+      "suggested_horizon": "1w"
+    },
+    "688690.SH": {
+      "composite_score": 57.71428571428572,
+      "value_score": 40.15873015873015,
+      "momentum_score": 66.66666666666667,
+      "quality_score": 73.33333333333333,
+      "technical_score": 53.333333333333336,
+      "rating": "买入",
+      "suggested_horizon": "2w"
+    },
+    "920953.BJ": {
+      "composite_score": 56.904761904761905,
+      "value_score": 45.23809523809524,
+      "momentum_score": 53.333333333333336,
+      "quality_score": 93.33333333333333,
+      "technical_score": 33.33333333333333,
+      "rating": "买入",
+      "suggested_horizon": "21d"
+    },
+    "688720.SH": {
+      "composite_score": 51.88888888888889,
+      "value_score": 50.0,
+      "momentum_score": 82.22222222222223,
+      "quality_score": 20.0,
+      "technical_score": 56.666666666666664,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "920640.BJ": {
+      "composite_score": 49.857142857142854,
+      "value_score": 33.96825396825397,
+      "momentum_score": 73.33333333333333,
+      "quality_score": 53.333333333333336,
+      "technical_score": 40.0,
+      "rating": "持有",
+      "suggested_horizon": "1w"
+    },
+    "920576.BJ": {
+      "composite_score": 49.74603174603174,
+      "value_score": 52.857142857142854,
+      "momentum_score": 28.88888888888889,
+      "quality_score": 80.0,
+      "technical_score": 33.33333333333333,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "688757.SH": {
+      "composite_score": 47.111111111111114,
+      "value_score": 21.11111111111111,
+      "momentum_score": 37.77777777777778,
+      "quality_score": 86.66666666666667,
+      "technical_score": 48.333333333333336,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "688721.SH": {
+      "composite_score": 44.58730158730159,
+      "value_score": 61.58730158730159,
+      "momentum_score": 24.44444444444444,
+      "quality_score": 46.666666666666664,
+      "technical_score": 41.666666666666664,
+      "rating": "持有",
+      "suggested_horizon": "21d"
+    },
+    "000009.SZ": {
+      "composite_score": 41.920634920634924,
+      "value_score": 42.69841269841269,
+      "momentum_score": 64.44444444444444,
+      "quality_score": 6.666666666666667,
+      "technical_score": 56.66666666666667,
+      "rating": "持有",
+      "suggested_horizon": "2w"
+    },
+    "920807.BJ": {
+      "composite_score": 35.82539682539682,
+      "value_score": 52.38095238095238,
+      "momentum_score": 17.777777777777775,
+      "quality_score": 13.333333333333334,
+      "technical_score": 61.666666666666664,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "920885.BJ": {
+      "composite_score": 34.76190476190476,
+      "value_score": 20.31746031746032,
+      "momentum_score": 26.666666666666668,
+      "quality_score": 66.66666666666666,
+      "technical_score": 26.666666666666668,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    },
+    "688750.SH": {
+      "composite_score": 34.285714285714285,
+      "value_score": 56.507936507936506,
+      "momentum_score": 20.0,
+      "quality_score": 26.666666666666668,
+      "technical_score": 28.333333333333332,
+      "rating": "观望",
+      "suggested_horizon": "21d"
+    }
+  },
+  "system3_final_list": [
+    {
+      "rank": 1,
+      "ticker": "920839.BJ",
+      "name": "万通液压",
+      "industry": "工程机械",
+      "composite_score": 83.015873015873,
+      "rating": "强烈买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": 2.2147541612505144,
+      "hist_maxdd": -0.2493235407808272,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 2,
+      "ticker": "688778.SH",
+      "name": "厦钨新能",
+      "industry": "电气设备",
+      "composite_score": 69.31746031746032,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.625,
+      "hist_sharpe": 2.939185016835087,
+      "hist_maxdd": -0.2022324359816151,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 3,
+      "ticker": "688657.SH",
+      "name": "DR浩辰软",
+      "industry": "软件服务",
+      "composite_score": 66.73015873015872,
+      "rating": "买入",
+      "suggested_horizon": "3m",
+      "hist_win_rate": 0.5,
+      "hist_sharpe": 1.6844850148270158,
+      "hist_maxdd": -0.16249402009248914,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 4,
+      "ticker": "688767.SH",
+      "name": "博拓生物",
+      "industry": "医疗保健",
+      "composite_score": 66.33333333333334,
+      "rating": "买入",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5892857142857143,
+      "hist_sharpe": 2.1816787397883575,
+      "hist_maxdd": -0.1840796019900497,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 5,
+      "ticker": "688690.SH",
+      "name": "纳微科技",
+      "industry": "化工原料",
+      "composite_score": 57.71428571428572,
+      "rating": "买入",
+      "suggested_horizon": "2w",
+      "hist_win_rate": 0.5357142857142857,
+      "hist_sharpe": 1.0438694377322897,
+      "hist_maxdd": -0.1058985857192134,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 6,
+      "ticker": "920953.BJ",
+      "name": "国子软件",
+      "industry": "软件服务",
+      "composite_score": 56.904761904761905,
+      "rating": "买入",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.42857142857142855,
+      "hist_sharpe": 0.8372164563043959,
+      "hist_maxdd": -0.21962937542896366,
+      "risk_level": "中",
+      "investable": true
+    },
+    {
+      "rank": 7,
+      "ticker": "688720.SH",
+      "name": "艾森股份",
+      "industry": "半导体",
+      "composite_score": 51.88888888888889,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.4642857142857143,
+      "hist_sharpe": 1.9232995829517563,
+      "hist_maxdd": -0.14576981707317072,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 8,
+      "ticker": "920640.BJ",
+      "name": "富士达",
+      "industry": "通信设备",
+      "composite_score": 49.857142857142854,
+      "rating": "持有",
+      "suggested_horizon": "1w",
+      "hist_win_rate": 0.5357142857142857,
+      "hist_sharpe": 1.8529023596728105,
+      "hist_maxdd": -0.16602067183462532,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 9,
+      "ticker": "920576.BJ",
+      "name": "天力复合",
+      "industry": "小金属",
+      "composite_score": 49.74603174603174,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.42857142857142855,
+      "hist_sharpe": 0.02396158341920467,
+      "hist_maxdd": -0.16291970802919709,
+      "risk_level": "低",
+      "investable": true
+    },
+    {
+      "rank": 10,
+      "ticker": "688757.SH",
+      "name": "胜科纳米",
+      "industry": "电器仪表",
+      "composite_score": 47.111111111111114,
+      "rating": "持有",
+      "suggested_horizon": "21d",
+      "hist_win_rate": 0.5714285714285714,
+      "hist_sharpe": 1.0474223321316876,
+      "hist_maxdd": -0.24972067039106138,
+      "risk_level": "中",
+      "investable": true
+    }
+  ],
+  "returns": {
+    "1w": {
+      "mean": -0.017935964382354633,
+      "median": -0.025217010631644728,
+      "win_rate": 0.3,
+      "max": 0.11349468280161346,
+      "min": -0.08910891089108915,
+      "n": 10,
+      "entry_date": "2025-10-30",
+      "exit_date": "2025-11-06"
+    },
+    "2w": {
+      "mean": -0.035455119928447895,
+      "median": -0.0446892611812709,
+      "win_rate": 0.2,
+      "max": 0.05374823196605373,
+      "min": -0.128960396039604,
+      "n": 10,
+      "entry_date": "2025-10-30",
+      "exit_date": "2025-11-13"
+    },
+    "21d": {
+      "mean": -0.12051657533614808,
+      "median": -0.12562398286079943,
+      "win_rate": 0.0,
+      "max": -0.026166902404526238,
+      "min": -0.21287128712871284,
+      "n": 10,
+      "entry_date": "2025-10-30",
+      "exit_date": "2025-11-28"
+    },
+    "3m": {
+      "mean": 0.2188852877937124,
+      "median": 0.04629377451422953,
+      "win_rate": 0.6,
+      "max": 2.071294559099437,
+      "min": -0.1782564102564102,
+      "n": 10,
+      "entry_date": "2025-10-30",
+      "exit_date": "2026-01-29"
+    }
+  }
+}
