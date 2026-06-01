@@ -65,11 +65,12 @@ _DEFAULT_WEIGHT_SCHEMA: Dict[str, Dict] = {
         #   momentum_score IC_3m=+0.031 → 小幅提权至 0.139
         #   technical_score IC_3m=+0.047 → 小幅提权至 0.208
         # bull: value=0.150 mom=0.139 qual=0.503 tech=0.208 (sum=1.000)
+        # 归一化后精确值（IC_3m 校准 + value_floor=0.15）
         "system2": {
-            "value": 0.150,
-            "momentum": 0.1385,
-            "quality": 0.503,
-            "technical": 0.2084,
+            "value":     0.1500,
+            "momentum":  0.1386,
+            "quality":   0.5031,
+            "technical": 0.2083,
         },
         # Ensemble 权重：bull 下 CNN 权重最高（质量模式识别能力强）
         # v2更新(2026-05-24): FactorCNN v2 增强后 ICIR=1.787 → CNN权重上调
