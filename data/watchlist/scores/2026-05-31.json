@@ -1,0 +1,34 @@
+{
+  "600519.SH": {
+    "ticker": "600519.SH",
+    "name": "贵州茅台",
+    "as_of": "2026-05-31",
+    "current_price": 1524.0,
+    "price_change_1d": -0.000656,
+    "price_change_5d": -0.009630756033844112,
+    "ma20": 1533.4270000000001,
+    "ma60": 1547.1019999999999,
+    "drawdown_from_high": -0.13898305084745766,
+    "volume_ratio": 1.2725036096133944,
+    "value_score": 0.0,
+    "momentum_score": 82.04148471615721,
+    "quality_score": 64.10896236223748,
+    "technical_score": 66.8995633187773,
+    "composite_score": 53.15724734872116,
+    "lgbm_percentile": 59.9,
+    "agent_signal": 0.02995153802626283,
+    "agent_confidence": 0.6611872421877182,
+    "agent_recommendation": "观察",
+    "agent_bull_reasons": [
+      "[看涨] 波动率23%，低风险（garch_vol=0.227）",
+      "[看涨] 21日+2.5%，RSI=52，动量中性（ret_5d=-0.014）"
+    ],
+    "agent_bear_reasons": [
+      "[看跌] LGBM估值得分=-0.13（训练分布秩映射）（method=lgbm_v3）"
+    ],
+    "agent_key_debate": "Momentum（信号+0.20）vs Valuation（信号-0.13）——动量/质量优势与风险/估值压力之争",
+    "agent_debate_summary": "共 5 个 Agent 参与辩论：看涨 2 / 看跌 1 / 中性 2。加权平均信号 +0.03，最终置信度 66.12%。当前 Regime=中性市场。综合建议：观察。",
+    "in_alpha_universe": true,
+    "data_freshness": "2026-03-31"
+  }
+}
