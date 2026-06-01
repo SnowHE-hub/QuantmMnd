@@ -220,11 +220,14 @@ def setup_forward_tracking(
                 pending.append({
                     'as_of': as_of_str,
                     'ticker': item['ticker'],
+                    'name': item.get('name', ''),
+                    'industry': item.get('industry', ''),
                     'predicted_rank': item.get('lgbm_rank', item.get('rank')),
                     'predicted_score': item.get('lgbm_score'),
                     'holding_period': horizon,
                     'estimated_exit_date': str(estimated_exit.date()),
-                    'entry_price': None,
+                    # 入场价继承自推荐 JSON（_enrich_top10 写入的推荐日收盘价）
+                    'entry_price': item.get('entry_price'),
                     'exit_price': None,
                     'actual_return': None,
                     'status': 'OPEN',

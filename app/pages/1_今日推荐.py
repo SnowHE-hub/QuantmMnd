@@ -1,7 +1,12 @@
-"""1_今日推荐.py — 30日模拟盘每日选股推荐展示."""
+"""1_今日推荐.py — 真实每日选股推荐展示（读 data/recommendations/）.
+
+数据源：data/recommendations/{date}.json（daily_update.py 产出的真实推荐）。
+与"30日模拟"（data/sim30d/，回测验证用）区分开——本页是真实当日选股。
+"""
 from __future__ import annotations
 
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -12,247 +17,172 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.utils.sim_data import (
-    RATING_COLORS,
-    get_latest_sim_day,
-    load_sim30d_days,
-    sim_day_to_df,
-)
+from app.utils.rec_data import load_all_recommendations, load_name_map
 
 st.set_page_config(page_title="今日推荐 · QuantMind", page_icon="📋", layout="wide")
 
-# ── 加载数据 ─────────────────────────────────────────────────────────────────
-with st.spinner("加载模拟盘数据..."):
-    days = load_sim30d_days()
+# ── 加载真实推荐 ──────────────────────────────────────────────────────────────
+with st.spinner("加载真实每日推荐..."):
+    recs = load_all_recommendations()      # 按日期降序
+    name_map = load_name_map()
 
-if not days:
-    st.error("未找到 `data/sim30d/daily/` 数据，请先运行 `scripts/run_30day_sim.py`。")
+if not recs:
+    st.error(
+        "未找到任何真实推荐（`data/recommendations/*.json`）。\n\n"
+        "请先运行 `python scripts/daily_update.py` 生成当日推荐，"
+        "或在「系统控制台」点击运行每日更新。"
+    )
     st.stop()
 
-# ── 页面标题（使用真实日期区间）───────────────────────────────────────────────
-_start = days[0]["date"]
-_end   = days[-1]["date"]
-_range = f"{_start[:4]}-{_start[4:6]}-{_start[6:8]} ~ {_end[:4]}-{_end[4:6]}-{_end[6:8]}"
-_n_days = len(days)
+# ── 侧栏：选择推荐日期 ────────────────────────────────────────────────────────
+rec_dates = [r.get("as_of", "") for r in recs]      # 已降序
+today_str = date.today().isoformat()
+
+with st.sidebar:
+    st.markdown("### 📅 推荐日期")
+    sel_date = st.selectbox(
+        "选择交易日",
+        options=rec_dates,
+        index=0,
+        help="默认展示最近一个交易日的真实推荐",
+    )
+    st.caption(f"共 {len(rec_dates)} 个推荐日")
+    st.divider()
+    st.markdown("### 🎯 行业过滤")
+
+sel_rec = next((r for r in recs if r.get("as_of") == sel_date), recs[0])
+top10 = sel_rec.get("top10", [])
+
+# 补全名称（历史文件可能未回填）
+for it in top10:
+    if not it.get("name"):
+        it["name"] = name_map.get(it.get("ticker", ""), it.get("ticker", ""))
+
+industries = sorted({it.get("industry", "") for it in top10 if it.get("industry")})
+with st.sidebar:
+    sel_inds = st.multiselect("行业", options=industries, default=[])
+
+# ── 顶部 banner（明确标注：真实推荐，非回测）──────────────────────────────────
+is_today = sel_date == today_str
+freshness = "✅ 今日推荐" if is_today else f"📌 最近交易日推荐（{sel_date}）"
+banner_color = "#00B894" if is_today else "#0984E3"
+
 st.markdown(f"""
-<div style='background:linear-gradient(90deg,#0984E3,#00B894);
-            padding:18px 24px;border-radius:12px;color:white;margin-bottom:20px'>
-  <h2 style='margin:0'>📋 每日选股推荐</h2>
-  <p style='margin:6px 0 0 0;opacity:.85'>
-    Alpha池 → 三系统筛选 → 最终10只 &nbsp;|&nbsp; 模拟窗口：{_range}（{_n_days}天）
+<div style='background:linear-gradient(90deg,{banner_color},#6C5CE7);
+            padding:18px 24px;border-radius:12px;color:white;margin-bottom:6px'>
+  <h2 style='margin:0'>📋 真实每日推荐 · {sel_date}</h2>
+  <p style='margin:6px 0 0 0;opacity:.9'>
+    Alpha池 → LGBM 粗排 → LLM 重排 → 最终 {len(top10)} 只 &nbsp;|&nbsp; {freshness}
   </p>
 </div>
 """, unsafe_allow_html=True)
 
-# ── 侧栏 ─────────────────────────────────────────────────────────────────────
-date_options = [d["date"] for d in days]
-
-def _fmt_date(s: str) -> str:
-    return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
-
-with st.sidebar:
-    st.markdown("### 📅 选择交易日")
-    sel_date = st.selectbox(
-        "交易日（共30个）",
-        options=date_options[::-1],
-        format_func=_fmt_date,
-        index=0,
-    )
-    st.divider()
-    st.markdown("### 🎯 筛选条件")
-    rating_filter = st.multiselect(
-        "投资评级",
-        ["强烈买入", "买入", "持有", "观望"],
-        default=["强烈买入", "买入", "持有"],
-    )
-    risk_filter = st.multiselect(
-        "风险等级", ["低", "中", "高"], default=["低", "中"]
+if not is_today:
+    st.caption(
+        f"ℹ️ 今天（{today_str}）暂无新推荐，展示最近交易日 {sel_date} 的结果。"
+        "工作日 16:30 自动更新。"
     )
 
-sel_day  = next(d for d in days if d["date"] == sel_date)
-final_df = sim_day_to_df(sel_day)
+# ── 市场摘要 ──────────────────────────────────────────────────────────────────
+st.info(f"📊 {sel_rec.get('market_summary', '（无摘要）')}")
 
-# 过滤
-if not final_df.empty:
-    if "rating" in final_df.columns:
-        final_df = final_df[final_df["rating"].isin(rating_filter)]
-    if "risk_level" in final_df.columns:
-        final_df = final_df[final_df["risk_level"].isin(risk_filter)]
+# 应用行业过滤
+view = [it for it in top10 if not sel_inds or it.get("industry") in sel_inds]
 
 # ── KPI 卡 ───────────────────────────────────────────────────────────────────
-rets = sel_day.get("returns", {})
+def _avg(vals):
+    vals = [v for v in vals if isinstance(v, (int, float))]
+    return sum(vals) / len(vals) if vals else None
 
-def _pct(v, default="—"):
-    try:
-        return f"{float(v)*100:+.2f}%" if v is not None else default
-    except Exception:
-        return default
+avg_pe = _avg([it.get("raw_pe_ttm") for it in top10
+               if isinstance(it.get("raw_pe_ttm"), (int, float)) and it["raw_pe_ttm"] > 0])
+avg_roe = _avg([it.get("raw_roe") for it in top10])
+avg_entry = _avg([it.get("entry_price") for it in top10])
+gen_at = sel_rec.get("generated_at", "")[:16].replace("T", " ")
 
 c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    st.metric("📅 模拟日", _fmt_date(sel_date), f"Day {sel_day['day_index']}/30")
-with c2:
-    v = rets.get("1w", {}).get("mean")
-    st.metric("1周等权收益", _pct(v), f"胜率 {rets.get('1w',{}).get('win_rate',0)*100:.0f}%")
-with c3:
-    v = rets.get("21d", {}).get("mean")
-    st.metric("21天等权收益", _pct(v))
-with c4:
-    v = rets.get("3m", {}).get("mean")
-    wr = rets.get("3m", {}).get("win_rate", 0)
-    st.metric("3月等权收益", _pct(v), f"胜率 {wr*100:.0f}%")
-with c5:
-    n = len(sel_day.get("system3_final_list", []))
-    st.metric("最终持仓", f"{n} 只", "全A → 三系统")
+c1.metric("📋 推荐数", f"{len(top10)} 只")
+c2.metric("平均 PE", f"{avg_pe:.1f}x" if avg_pe else "—")
+c3.metric("平均 ROE", f"{avg_roe:.1f}%" if avg_roe is not None else "—")
+c4.metric("平均入场价", f"¥{avg_entry:.2f}" if avg_entry else "—")
+c5.metric("生成时间", gen_at or "—")
 
 st.divider()
 
-# ── 主内容：表格 + 饼图 ───────────────────────────────────────────────────────
+# ── 主内容：推荐表 + 行业分布 ─────────────────────────────────────────────────
 col_left, col_right = st.columns([3, 2])
 
 with col_left:
-    st.markdown(f"#### 🏆 最终推荐名单（{len(final_df)} 只）")
-    if final_df.empty:
-        st.info("当前过滤条件下无推荐股票，请放宽筛选。")
+    st.markdown(f"#### 🏆 推荐名单（{len(view)} 只）")
+    if not view:
+        st.info("当前行业过滤下无股票，请放宽筛选。")
     else:
-        show_cols = [c for c in
-            ["rank", "ticker", "name", "industry", "composite_score",
-             "rating", "risk_level", "hist_win_rate", "hist_sharpe", "suggested_horizon"]
-            if c in final_df.columns]
-        disp = final_df[show_cols].copy()
-        rename = {
-            "rank": "排名", "ticker": "代码", "name": "名称", "industry": "行业",
-            "composite_score": "综合分", "rating": "评级", "risk_level": "风险",
-            "hist_win_rate": "历史胜率", "hist_sharpe": "历史Sharpe", "suggested_horizon": "建议持仓"
-        }
-        disp = disp.rename(columns={k: v for k, v in rename.items() if k in disp.columns})
-        if "历史胜率" in disp.columns:
-            disp["历史胜率"] = disp["历史胜率"].apply(lambda x: f"{x*100:.1f}%" if pd.notna(x) else "—")
-        if "历史Sharpe" in disp.columns:
-            disp["历史Sharpe"] = disp["历史Sharpe"].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "—")
-        if "综合分" in disp.columns:
-            disp["综合分"] = disp["综合分"].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "—")
-        st.dataframe(disp, use_container_width=True, hide_index=True)
+        rows = []
+        for it in view:
+            rows.append({
+                "排名":     it.get("rank", it.get("lgbm_rank", "")),
+                "代码":     it.get("ticker", ""),
+                "名称":     it.get("name", ""),
+                "行业":     it.get("industry", "") or "—",
+                "入场价":   f"¥{it['entry_price']:.2f}" if it.get("entry_price") else "—",
+                "PE":      f"{it['raw_pe_ttm']:.1f}" if isinstance(it.get("raw_pe_ttm"), (int, float)) else "—",
+                "ROE%":    f"{it['raw_roe']:.1f}" if isinstance(it.get("raw_roe"), (int, float)) else "—",
+                "LGBM得分": f"{it['lgbm_score']:.3f}" if isinstance(it.get("lgbm_score"), (int, float)) else "—",
+                "LLM排名": it.get("llm_rank", "—"),
+            })
+        df_disp = pd.DataFrame(rows).sort_values("排名")
+        st.dataframe(df_disp, use_container_width=True, hide_index=True, height=400)
+
+    # 推荐理由（折叠）
+    with st.expander("💬 各股推荐理由", expanded=False):
+        for it in view:
+            reason = it.get("reason", "") or "（无理由）"
+            st.markdown(f"**{it.get('name','')}（{it.get('ticker','')}）** — {reason}")
 
 with col_right:
     st.markdown("#### 📊 行业分布")
-    orig = sim_day_to_df(sel_day)
-    if "industry" in orig.columns and not orig.empty:
-        ind_counts = orig["industry"].value_counts()
-        colors_pie = ["#0984E3","#00B894","#FDCB6E","#D63031","#6C5CE7",
-                      "#E17055","#74B9FF","#55EFC4","#FD79A8","#B2BEC3"]
+    ind_counts = pd.Series(
+        [it.get("industry", "") or "未知" for it in top10]
+    ).value_counts()
+    if not ind_counts.empty:
+        colors_pie = ["#0984E3", "#00B894", "#FDCB6E", "#D63031", "#6C5CE7",
+                      "#E17055", "#74B9FF", "#55EFC4", "#FD79A8", "#B2BEC3"]
         fig_pie = go.Figure(go.Pie(
             labels=ind_counts.index, values=ind_counts.values,
             hole=0.42, marker_colors=colors_pie[:len(ind_counts)],
         ))
         fig_pie.update_layout(
-            showlegend=True, margin=dict(t=10, b=0, l=0, r=0), height=240,
+            showlegend=True, margin=dict(t=10, b=0, l=0, r=0), height=260,
             legend=dict(font_size=11, orientation="v"),
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-    st.markdown("#### ⭐ 评级分布")
-    if "rating" in orig.columns and not orig.empty:
-        rat_counts = orig["rating"].value_counts().reindex(
-            ["强烈买入", "买入", "持有", "观望"], fill_value=0
-        )
+    st.markdown("#### 📈 LGBM 得分分布")
+    scores = [(it.get("name", it.get("ticker", "")), it.get("lgbm_score"))
+              for it in view if isinstance(it.get("lgbm_score"), (int, float))]
+    if scores:
+        scores.sort(key=lambda x: x[1], reverse=True)
         fig_bar = go.Figure(go.Bar(
-            x=rat_counts.index, y=rat_counts.values,
-            marker_color=[RATING_COLORS.get(r, "#636E72") for r in rat_counts.index],
-            text=rat_counts.values, textposition="outside",
+            x=[s[1] for s in scores], y=[s[0] for s in scores],
+            orientation="h", marker_color="#0984E3",
+            text=[f"{s[1]:.3f}" for s in scores], textposition="outside",
         ))
         fig_bar.update_layout(
-            margin=dict(t=10, b=10, l=10, r=10), height=200,
-            yaxis=dict(title="数量", range=[0, max(rat_counts.values)+2]),
-            plot_bgcolor="rgba(0,0,0,0)",
+            height=max(200, len(scores) * 28),
+            margin=dict(t=10, b=20, l=10, r=40),
+            xaxis_title="LGBM 得分（分位）",
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
 st.divider()
 
-# ── 雷达图：个股四维评分 ─────────────────────────────────────────────────────
-st.markdown("#### 🎯 个股四维评分雷达图")
-
-s2 = sel_day.get("system2_analysis", {})
-orig_df = sim_day_to_df(sel_day)
-tickers_with_scores = [t for t in (orig_df["ticker"].tolist() if "ticker" in orig_df.columns else []) if t in s2] if not orig_df.empty else []
-
-if tickers_with_scores and "ticker" in orig_df.columns and "name" in orig_df.columns:
-    name_map = dict(zip(orig_df["ticker"], orig_df["name"]))
-    sel_ticker = st.selectbox(
-        "选择股票",
-        options=tickers_with_scores,
-        format_func=lambda t: f"{t}  {name_map.get(t, '')}",
-    )
-    scores = s2.get(sel_ticker, {})
-    dims   = ["价值", "动量", "质量", "技术"]
-    vals   = [
-        scores.get("value_score", 50),
-        scores.get("momentum_score", 50),
-        scores.get("quality_score", 50),
-        scores.get("technical_score", 50),
-    ]
-
-    col_r, col_info = st.columns([2, 1])
-    with col_r:
-        fig_radar = go.Figure(go.Scatterpolar(
-            r=vals + [vals[0]], theta=dims + [dims[0]],
-            fill="toself", fillcolor="rgba(9,132,227,0.18)",
-            line=dict(color="#0984E3", width=2),
-        ))
-        fig_radar.update_layout(
-            polar=dict(
-                radialaxis=dict(visible=True, range=[0, 100], tickfont_size=10),
-                angularaxis=dict(tickfont_size=13),
-            ),
-            showlegend=False, height=300, margin=dict(t=20, b=10),
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-    with col_info:
-        st.markdown(f"**{sel_ticker}** · {name_map.get(sel_ticker, '')}")
-        comp = scores.get("composite_score", 0)
-        st.metric("综合评分", f"{comp:.1f} / 100")
-        st.metric("投资评级", scores.get("rating", "—"))
-        st.metric("建议持仓", scores.get("suggested_horizon", "—"))
-        st.progress(min(int(comp), 100))
-        st.caption("四维分数")
-        for dim, val in zip(dims, vals):
-            col_a, col_b = st.columns([2, 3])
-            col_a.caption(dim)
-            col_b.progress(int(val))
-else:
-    st.info("暂无个股四维评分数据。")
-
-st.divider()
-
-# ── 30日收益热力图 ───────────────────────────────────────────────────────────
-st.markdown("#### 🌡️ 30日等权组合收益热力图（%）")
-
-hm_rows = []
-for d in days:
-    r = d.get("returns", {})
-    hm_rows.append({
-        "日期": _fmt_date(d["date"]),
-        "1周": (r.get("1w") or {}).get("mean"),
-        "2周": (r.get("2w") or {}).get("mean"),
-        "21天": (r.get("21d") or {}).get("mean"),
-        "3月": (r.get("3m") or {}).get("mean"),
-    })
-hm_df = pd.DataFrame(hm_rows).set_index("日期")
-
-z = hm_df.values.T * 100
-text = [[f"{v:.1f}%" if v is not None else "" for v in row] for row in hm_df.values.T]
-
-fig_hm = go.Figure(go.Heatmap(
-    z=z, x=hm_df.index.tolist(), y=hm_df.columns.tolist(),
-    colorscale="RdYlGn", zmid=0,
-    text=text, texttemplate="%{text}",
-    colorbar=dict(title="%", thickness=12),
-))
-fig_hm.update_layout(
-    height=240, margin=dict(t=10, b=60, l=50, r=10),
-    xaxis=dict(tickangle=-45, tickfont_size=9),
-    yaxis=dict(tickfont_size=11),
-)
-st.plotly_chart(fig_hm, use_container_width=True)
+# ── 说明：与 30 日模拟的区别 ─────────────────────────────────────────────────
+with st.expander("ℹ️ 这是真实推荐还是回测？", expanded=False):
+    st.markdown("""
+- **本页（今日推荐）**：`data/recommendations/{date}.json` — daily_update.py 每日真实选股，
+  反映**当天**模型对全市场的实盘推荐。
+- **「30日模拟」**：`data/sim30d/` — 历史回测窗口（2025-10~11）的**验证性**模拟，
+  用于评估策略 IR/胜率，**不是**实时推荐。请在「回测表现」「持仓详情」等页查看。
+- **「持仓跟踪」**：`forward_positions.json` — 真实推荐的前向持仓，待到期结算。
+""")

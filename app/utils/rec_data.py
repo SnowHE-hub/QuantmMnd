@@ -81,6 +81,11 @@ def _normalize_top10(items: list[dict]) -> list[dict]:
             "suggested_horizon":     item.get("suggested_horizon", "3m"),
             "industry":              item.get("industry", ""),
             "name":                  item.get("name", ""),
+            # 数据契约字段（_enrich_top10 写入）
+            "entry_price":           item.get("entry_price"),
+            "raw_pe_ttm":            item.get("raw_pe_ttm"),
+            "raw_pb":                item.get("raw_pb"),
+            "raw_roe":               item.get("raw_roe"),
         }
         result.append(normalized)
     return result

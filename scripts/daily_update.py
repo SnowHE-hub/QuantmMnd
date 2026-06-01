@@ -901,6 +901,120 @@ def step6_llm_rerank(
         return False, fallback
 
 
+# ── 推荐结果字段补全（数据契约修复，2026-06）─────────────────────────────────
+# 背景：top10 原本只有 ticker/lgbm_score/key_factors(z-score)，缺 name/industry/
+# entry_price；market_summary 误用 key_factors 的标准化值当原始 PE/ROE。
+# 以下辅助函数统一补全：
+#   name/industry ← alpha_universe.parquet
+#   entry_price   ← snapshot/{as_of}/daily_basic.parquet 的 close（市场真实价）
+#   raw_pe/pb/roe ← 原始基本面（供 market_summary，不污染 key_factors）
+
+
+def _fnum(v: Any) -> float | None:
+    """转 float，NaN/None → None。"""
+    try:
+        import math
+        f = float(v)
+        return None if math.isnan(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_universe_meta() -> dict[str, tuple[str, str]]:
+    """ts_code -> (name, industry)，来自 alpha_universe.parquet。"""
+    import pandas as pd
+    path = _ROOT / "data" / "alpha_universe" / "alpha_universe.parquet"
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_parquet(path, columns=["ts_code", "name", "industry"])
+        return {
+            str(r[0]): (str(r[1]), str(r[2]))
+            for r in df.itertuples(index=False, name=None)
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"[Enrich] alpha_universe 读取失败：{e}")
+        return {}
+
+
+def _load_raw_daily_basic(as_of: date) -> dict[str, dict]:
+    """ticker -> {close, pe_ttm, pb} 原始市场值。
+
+    优先 snapshot/{as_of}/daily_basic.parquet（按 as_of 精确），
+    回退 alpha_daily_basic_combined.parquet（按 trade_date 过滤）。
+    """
+    import pandas as pd
+    out: dict[str, dict] = {}
+
+    snap = _ROOT / "data" / "snapshots" / as_of.isoformat() / "daily_basic.parquet"
+    if snap.exists():
+        try:
+            df = pd.read_parquet(snap)
+            tcol = "ticker" if "ticker" in df.columns else "ts_code"
+            df = df.set_index(tcol)
+            for col in ("close", "pe_ttm", "pb"):
+                if col not in df.columns:
+                    df[col] = float("nan")
+            for idx, row in df[["close", "pe_ttm", "pb"]].iterrows():
+                out[str(idx)] = {
+                    "close":  _fnum(row["close"]),
+                    "pe_ttm": _fnum(row["pe_ttm"]),
+                    "pb":     _fnum(row["pb"]),
+                }
+            return out
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"[Enrich] snapshot daily_basic 读取失败：{e}")
+
+    comb = _ROOT / "data" / "alpha_universe" / "alpha_daily_basic_combined.parquet"
+    if comb.exists():
+        try:
+            ymd = int(as_of.strftime("%Y%m%d"))
+            df = pd.read_parquet(comb, columns=["ts_code", "trade_date", "close", "pe_ttm", "pb"])
+            df = df[df["trade_date"].astype("int64") == ymd]
+            for r in df.itertuples(index=False, name=None):
+                out[str(r[0])] = {"close": _fnum(r[2]), "pe_ttm": _fnum(r[3]), "pb": _fnum(r[4])}
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"[Enrich] alpha_daily_basic_combined fallback 失败：{e}")
+    return out
+
+
+def _load_raw_roe(as_of: date) -> dict[str, float]:
+    """ticker -> 最新 roe(%)，来自 snapshot/{as_of}/financial_indicators.parquet。"""
+    import pandas as pd
+    snap = _ROOT / "data" / "snapshots" / as_of.isoformat() / "financial_indicators.parquet"
+    if not snap.exists():
+        return {}
+    try:
+        df = pd.read_parquet(snap, columns=["ticker", "ann_date", "roe"])
+        df = df.dropna(subset=["roe"]).sort_values("ann_date")
+        return {str(t): float(g["roe"].iloc[-1]) for t, g in df.groupby("ticker")}
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"[Enrich] financial_indicators roe 读取失败：{e}")
+        return {}
+
+
+def _enrich_top10(top10: list[dict], as_of: date) -> list[dict]:
+    """为推荐补充 name/industry/entry_price + 原始 pe/roe（数据契约修复）。"""
+    meta   = _load_universe_meta()
+    daily  = _load_raw_daily_basic(as_of)
+    roemap = _load_raw_roe(as_of)
+    for item in top10:
+        t = str(item.get("ticker", ""))
+        name, industry = meta.get(t, ("", ""))
+        if not item.get("name"):
+            item["name"] = name
+        if not item.get("industry"):
+            item["industry"] = industry
+        db = daily.get(t, {})
+        close = db.get("close")
+        item["entry_price"] = round(close, 2) if close else None
+        item["raw_pe_ttm"]  = round(db["pe_ttm"], 2) if db.get("pe_ttm") else None
+        item["raw_pb"]      = round(db["pb"], 2) if db.get("pb") else None
+        roe = roemap.get(t)
+        item["raw_roe"]     = round(roe, 2) if roe is not None else None
+    return top10
+
+
 def step7_save_json(
     as_of: date,
     top10: list[dict],
@@ -911,6 +1025,9 @@ def step7_save_json(
     out_dir = _ROOT / "data" / "recommendations"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{as_of.isoformat()}.json"
+
+    # 数据契约：补全 name/industry/entry_price + 原始基本面
+    top10 = _enrich_top10(top10, as_of)
 
     payload: dict[str, Any] = {
         "as_of": as_of.isoformat(),
@@ -942,19 +1059,28 @@ def step7_save_json(
 
 
 def _generate_market_summary(top10: list[dict]) -> str:
-    """根据 Top-10 生成简短市场摘要."""
+    """根据 Top-10 生成市场摘要.
+
+    使用 _enrich_top10 写入的**原始** raw_pe_ttm/raw_roe（非 key_factors 的
+    标准化 z-score）。原始值不可得时退回展示平均 LGBM 得分。
+    """
     if not top10:
         return "暂无推荐数据"
-    # 统计平均 PE、ROE
-    pes = [c["key_factors"].get("pe_ttm") for c in top10 if c.get("key_factors", {}).get("pe_ttm")]
-    roes = [c["key_factors"].get("roe_ttm") for c in top10 if c.get("key_factors", {}).get("roe_ttm")]
-    pe_str = f"平均 PE {sum(pes)/len(pes):.1f}x" if pes else ""
-    roe_str = f"平均 ROE {sum(roes)/len(roes)*100:.1f}%" if roes else ""
-    parts = [s for s in [pe_str, roe_str] if s]
-    summary = f"今日推荐 {len(top10)} 只股票"
-    if parts:
-        summary += f"，{', '.join(parts)}"
-    return summary
+    # 原始 PE：仅取正值（剔除亏损股的负 PE，避免均值失真）
+    pes = [it.get("raw_pe_ttm") for it in top10
+           if isinstance(it.get("raw_pe_ttm"), (int, float)) and it["raw_pe_ttm"] > 0]
+    roes = [it.get("raw_roe") for it in top10
+            if isinstance(it.get("raw_roe"), (int, float))]
+    scores = [it.get("lgbm_score") for it in top10
+              if isinstance(it.get("lgbm_score"), (int, float))]
+    parts = [f"今日推荐 {len(top10)} 只股票"]
+    if pes:
+        parts.append(f"平均 PE {sum(pes)/len(pes):.1f}x")
+    if roes:
+        parts.append(f"平均 ROE {sum(roes)/len(roes):.1f}%")
+    if scores:
+        parts.append(f"平均 LGBM 得分 {sum(scores)/len(scores):.3f}")
+    return "，".join(parts)
 
 
 def _debate_result_to_strategy(
