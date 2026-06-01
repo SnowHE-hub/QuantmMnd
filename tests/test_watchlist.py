@@ -139,6 +139,53 @@ class TestWatchlistManager:
         """get_stock 对不存在的 ticker 应返回 None."""
         assert mgr.get_stock("999.SH") is None
 
+    # ── _normalize_ticker 测试 ────────────────────────────────────────────────
+
+    def test_normalize_ticker_sh(self):
+        """沪市主板代码应补全 .SH 后缀."""
+        from quantmind.watchlist.manager import WatchlistManager
+        m = WatchlistManager.__new__(WatchlistManager)
+        assert m._normalize_ticker("601360") == "601360.SH"
+        assert m._normalize_ticker("600519") == "600519.SH"
+        # 已有后缀不变
+        assert m._normalize_ticker("600519.SH") == "600519.SH"
+
+    def test_normalize_ticker_sz(self):
+        """深市代码应补全 .SZ 后缀."""
+        from quantmind.watchlist.manager import WatchlistManager
+        m = WatchlistManager.__new__(WatchlistManager)
+        assert m._normalize_ticker("300750") == "300750.SZ"
+        assert m._normalize_ticker("000001") == "000001.SZ"
+        assert m._normalize_ticker("002415") == "002415.SZ"
+
+    def test_normalize_ticker_star(self):
+        """科创板代码（688xxx）应补全 .SH 后缀."""
+        from quantmind.watchlist.manager import WatchlistManager
+        m = WatchlistManager.__new__(WatchlistManager)
+        assert m._normalize_ticker("688599") == "688599.SH"
+        assert m._normalize_ticker("688036") == "688036.SH"
+
+    def test_normalize_ticker_bj(self):
+        """北交所代码（8/4开头）应补全 .BJ 后缀."""
+        from quantmind.watchlist.manager import WatchlistManager
+        m = WatchlistManager.__new__(WatchlistManager)
+        assert m._normalize_ticker("830946") == "830946.BJ"
+        assert m._normalize_ticker("430489") == "430489.BJ"
+
+    def test_add_stock_normalizes_bare_code(self, mgr):
+        """add_stock 传入无后缀代码应自动补全并成功添加."""
+        with patch.object(mgr, "_fetch_stock_name", return_value="三六零"), \
+             patch.object(mgr, "_fetch_current_price", return_value=12.5):
+            result = mgr.add_stock("601360", note="安全行业")
+        assert result["success"] is True
+        assert result["stock"]["ticker"] == "601360.SH"
+
+    def test_normalize_ticker_already_suffixed(self, mgr):
+        """已有后缀的代码不应被修改."""
+        assert mgr._normalize_ticker("000001.SZ") == "000001.SZ"
+        assert mgr._normalize_ticker("688036.SH") == "688036.SH"
+        assert mgr._normalize_ticker("830946.BJ") == "830946.BJ"
+
 # ── StockScore 测试 ──────────────────────────────────────────────────────────
 
 class TestStockScore:

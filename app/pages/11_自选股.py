@@ -62,7 +62,9 @@ with st.container():
         inp_col1, inp_col2, inp_col3 = st.columns([2, 2, 1])
         with inp_col1:
             new_ticker = st.text_input(
-                "股票代码", placeholder="如 600519.SH", label_visibility="collapsed"
+                "股票代码",
+                placeholder="如：600519 或 600519.SH",
+                label_visibility="collapsed",
             )
         with inp_col2:
             new_note = st.text_input(

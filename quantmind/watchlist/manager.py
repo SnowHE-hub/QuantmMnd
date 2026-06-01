@@ -42,6 +42,35 @@ class WatchlistManager:
 
     # ── 公开接口 ──────────────────────────────────────────────────────────────
 
+    # ── 公开接口 ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _normalize_ticker(ticker: str) -> str:
+        """补全 A 股代码的交易所后缀.
+
+        规则
+        ----
+        - 已有 '.' 分隔符 → 原样返回（用户已填写完整代码）
+        - 60xxxx / 688xxx → .SH（沪市主板 / 科创板）
+        - 0xxxxx / 3xxxxx / 2xxxxx → .SZ（深市主板 / 创业板 / 中小板）
+        - 8xxxxx / 4xxxxx → .BJ（北交所）
+        - 其余 → 默认 .SH
+        """
+        ticker = ticker.strip().upper()
+        if not ticker:
+            return ticker
+        if "." in ticker:
+            return ticker  # 已有后缀
+        code = ticker
+        if code.startswith("688") or code.startswith("6"):
+            return f"{code}.SH"
+        elif code.startswith(("0", "3", "2")):
+            return f"{code}.SZ"
+        elif code.startswith(("8", "4")):
+            return f"{code}.BJ"
+        else:
+            return f"{code}.SH"  # 默认沪市
+
     def add_stock(self, ticker: str, note: str = "") -> dict[str, Any]:
         """添加股票到自选股.
 
@@ -52,7 +81,7 @@ class WatchlistManager:
             message : str
             stock   : dict | None
         """
-        ticker = ticker.strip().upper()
+        ticker = self._normalize_ticker(ticker)
         if not ticker:
             return {"success": False, "message": "股票代码不能为空", "stock": None}
 
