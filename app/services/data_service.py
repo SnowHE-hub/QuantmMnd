@@ -288,6 +288,99 @@ class DataService:
             log.warning("[DataService] get_all_agent_analysis 失败: %s", e)
             return {}
 
+    def find_agent_analysis(self, ticker: str) -> tuple[str | None, dict | None]:
+        """跨所有报告日期查找某股票最近一次六维分析。
+
+        Returns (report_date, analysis) 或 (None, None)。
+        """
+        try:
+            if not self._report_dir.exists():
+                return None, None
+            dates = sorted(
+                (p.name for p in self._report_dir.iterdir()
+                 if p.is_dir() and (p / "strategies.json").exists()),
+                reverse=True,
+            )
+            for d in dates:
+                a = self.get_agent_analysis(ticker, d)
+                if a is not None:
+                    return d, a
+            return None, None
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService] find_agent_analysis 失败: %s", e)
+            return None, None
+
+    def _latest_snapshot_date(self) -> str | None:
+        snap_root = self._root / "data" / "snapshots"
+        if not snap_root.exists():
+            return None
+        dates = sorted(
+            (p.name for p in snap_root.iterdir()
+             if p.is_dir() and (p / "daily_basic.parquet").exists()),
+            reverse=True,
+        )
+        return dates[0] if dates else None
+
+    def compute_agent_analysis_live(
+        self, ticker: str, as_of: str | None = None, mode: str = "fast",
+    ) -> dict | None:
+        """实时运行 6-Agent 辩论（fast 模式现算），返回与 get_agent_analysis 同构的 dict。
+
+        用于股票不在当日推荐池、无落盘分析时的"调用实时分析"。失败返回 None。
+        """
+        try:
+            import datetime as _dt
+
+            from quantmind.agents.debate_orchestrator import DebateOrchestrator
+            from quantmind.watchlist.daily_scorer import WatchlistDailyScorer
+
+            as_of = as_of or self._latest_snapshot_date() or _dt.date.today().isoformat()
+            scorer = WatchlistDailyScorer()
+            factor_info = scorer._get_factor_scores(ticker, as_of)
+            raw_factors = factor_info.get("raw_factors", {})
+
+            context: dict[str, Any] = {
+                "ticker": ticker, "as_of": as_of, "news": [], "reports": [],
+                "snapshot": raw_factors, "lgbm_score": 0.0,
+                "composite_score": 0.0, "regime": "neutral",
+            }
+            for k, v in raw_factors.items():
+                context[f"snapshot_{k}"] = v
+
+            regime = self._regime_snapshot().get("current_regime") or "neutral"
+            orch = DebateOrchestrator(
+                ticker=ticker, as_of=as_of, context=context,
+                regime=regime, agent_mode=mode, timeout=30.0,
+            )
+            dr = orch.run_debate()
+
+            agents: dict[str, dict] = {}
+            for s in getattr(dr, "stances", []):
+                short = s.agent_name.replace("Agent", "")
+                agents[short] = {
+                    "signal":     float(getattr(s, "signal_raw", 0.0)),
+                    "confidence": float(getattr(s, "confidence", 0.0)),
+                    "summary":    getattr(s, "argument", ""),
+                }
+            return {
+                "ticker":           ticker,
+                "rating":           dr.recommendation,
+                "composite_signal": float(getattr(dr, "avg_signal", 0.0)),
+                "confidence":       float(dr.final_confidence),
+                "holding_horizon":  dr.holding_period,
+                "target_price_1m":  None, "target_price_3m": None,
+                "stop_loss_price":  None, "position_size": None,
+                "investment_thesis": dr.debate_summary,
+                "key_risks":        [dr.key_debate_point] if dr.key_debate_point else [],
+                "key_catalysts":    [s.argument for s in getattr(dr, "stances", [])
+                                     if getattr(s, "stance", "") == "bull"],
+                "agents":           agents,
+                "live":             True,
+            }
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService] compute_agent_analysis_live 失败: %s", e)
+            return None
+
     # ══════════════════════════════════════════════════════════════════════════
     # PnL / 持仓（消除重复 loader）
     # ══════════════════════════════════════════════════════════════════════════

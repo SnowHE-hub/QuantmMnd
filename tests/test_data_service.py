@@ -215,6 +215,16 @@ class TestAgentAnalysis:
         assert set(allp.keys()) == {"600000.SH", "000001.SZ"}
         assert "investment_thesis" in allp["600000.SH"]
 
+    def test_find_agent_analysis_locates_date(self, svc):
+        date, a = svc.find_agent_analysis("600000.SH")
+        assert date == "2026-01-02"
+        assert a is not None
+        assert len(a["agents"]) == 5
+
+    def test_find_agent_analysis_unknown(self, svc):
+        date, a = svc.find_agent_analysis("999999.SH")
+        assert date is None and a is None
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PnL / 持仓

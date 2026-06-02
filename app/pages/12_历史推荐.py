@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.services.data_service import get_data_service
+from app.utils.agent_viz import render_full_analysis
 from app.utils.rec_data import (
     load_all_recommendations,
     load_forward_positions,
@@ -315,9 +316,9 @@ else:
 st.divider()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 区域 3.5：6-Agent 六维信号（DataService.get_agent_analysis）
+# 区域 3.5：6-Agent 六维分析（复用 agent_viz 组件）
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown("### 🤖 6-Agent 六维信号")
+st.markdown("### 🤖 6-Agent 六维分析")
 _agent_dates = _SVC.get_recommendation_dates()
 if _agent_dates:
     _ad_col1, _ad_col2 = st.columns([1, 3])
@@ -336,45 +337,8 @@ if _agent_dates:
                 key="agent_tk_sel",
             )
         a = all_agents.get(sel_agent_tk, {})
-        if a:
-            mc1, mc2, mc3 = st.columns(3)
-            mc1.metric("综合评级", a.get("rating", "—"))
-            cs = a.get("composite_signal")
-            mc2.metric("综合信号", f"{cs:+.3f}" if isinstance(cs, (int, float)) else "—")
-            cf = a.get("confidence")
-            mc3.metric("置信度", f"{cf:.0%}" if isinstance(cf, (int, float)) else "—")
-
-            agents = a.get("agents", {})
-            if agents:
-                import plotly.graph_objects as _go
-                dim_order = ["Valuation", "Momentum", "Quality", "Sentiment", "Risk"]
-                dim_cn = {"Valuation": "估值", "Momentum": "动量", "Quality": "质量",
-                          "Sentiment": "情绪", "Risk": "风险"}
-                dims = [d for d in dim_order if d in agents]
-                vals = [agents[d].get("signal") or 0 for d in dims]
-                radar_col, txt_col = st.columns([1, 1])
-                with radar_col:
-                    fig = _go.Figure(_go.Scatterpolar(
-                        r=vals + [vals[0]],
-                        theta=[dim_cn[d] for d in dims] + [dim_cn[dims[0]]],
-                        fill="toself", fillcolor="rgba(108,92,231,0.18)",
-                        line=dict(color="#6C5CE7", width=2),
-                    ))
-                    fig.update_layout(
-                        polar=dict(radialaxis=dict(visible=True, range=[-1, 1])),
-                        showlegend=False, height=300, margin=dict(t=30, b=20),
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                with txt_col:
-                    for d in dims:
-                        sig = agents[d].get("signal")
-                        summ = agents[d].get("summary", "")
-                        sig_str = f"{sig:+.2f}" if isinstance(sig, (int, float)) else "—"
-                        st.markdown(f"**{dim_cn[d]}** `{sig_str}` {summ[:60]}")
-            thesis = a.get("investment_thesis", "")
-            if thesis:
-                with st.expander("📝 投资论证全文", expanded=False):
-                    st.text(thesis)
+        with st.expander(f"📊 {sel_agent_tk} 六维分析（雷达 + 卡片 + 策略）", expanded=True):
+            render_full_analysis(a)
 else:
     st.info("暂无推荐日期。")
 

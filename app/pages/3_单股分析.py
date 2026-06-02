@@ -13,12 +13,16 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.services.data_service import get_data_service
+from app.utils.agent_viz import render_full_analysis
 from app.utils.sim_data import (
     RATING_COLORS,
     RISK_COLORS,
     load_sim30d_days,
     load_sim30d_stock_returns,
 )
+
+_SVC = get_data_service()
 
 st.set_page_config(page_title="单股分析 · QuantMind", page_icon="📈", layout="wide")
 
@@ -79,6 +83,34 @@ if not sel_ticker:
 # ── 股票基本信息 ──────────────────────────────────────────────────────────────
 stock_info = all_stock_scores.get(sel_ticker, {})
 st.markdown(f"### {sel_ticker} — {stock_info.get('name', '')} · {stock_info.get('industry', '')}")
+
+# ── 6-Agent 六维分析（DataService）──────────────────────────────────────────────
+st.markdown("## 🤖 6-Agent 六维分析")
+_report_date, _analysis = _SVC.find_agent_analysis(sel_ticker)
+
+# 实时分析结果优先（按钮触发后存 session_state）
+_live_key = f"live_analysis_{sel_ticker}"
+if st.session_state.get(_live_key):
+    _analysis = st.session_state[_live_key]
+    _report_date = "实时"
+
+if _analysis:
+    if _report_date and _report_date != "实时":
+        st.caption(f"分析日期：**{_report_date}**（来自 reports/investment_pipeline/）")
+    render_full_analysis(_analysis)
+else:
+    st.warning(f"⚠️ {sel_ticker} 未进入当日推荐池，无 6-Agent 落盘分析。")
+    if st.button("⚡ 调用实时分析（fast 模式现算）", key=f"btn_live_{sel_ticker}"):
+        with st.spinner("6-Agent 辩论中（fast 模式，约 5-15 秒）..."):
+            live = _SVC.compute_agent_analysis_live(sel_ticker, mode="fast")
+        if live and live.get("agents"):
+            st.session_state[_live_key] = live
+            st.rerun()
+        else:
+            st.error("实时分析失败（因子数据缺失或 Agent 异常）。可在「系统控制台」运行完整 daily_update。")
+
+st.divider()
+st.markdown("## 📊 30 日模拟盘分析")
 
 # 该股票在30天中的所有记录
 ticker_rows = sr[sr["ticker"] == sel_ticker].copy() if not sr.empty else pd.DataFrame()
