@@ -102,6 +102,15 @@ def load_realized_pnl(
 
     返回含 as_of_date, ticker, actual_return_63d, hit, entry_price, exit_price 的 DataFrame。
     """
+    # 默认路径委托给统一数据层（去重：原 sim_data / rec_data 各有一份）
+    if path is None:
+        try:
+            from app.services.data_service import get_data_service
+            df = get_data_service().get_realized_pnl()
+            return df if not df.empty else None
+        except Exception as e:  # noqa: BLE001
+            log.debug("[rec_data] DataService 委托失败，回退本地读取: %s", e)
+
     p = Path(path) if path else _ROOT / "data" / "feedback" / "realized_pnl.parquet"
     if not p.exists():
         log.debug("[rec_data] realized_pnl 不存在: %s", p)

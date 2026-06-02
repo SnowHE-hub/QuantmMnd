@@ -75,8 +75,13 @@ def load_ic_analysis() -> dict:
 
 @st.cache_data(ttl=300)
 def load_realized_pnl() -> pd.DataFrame:
-    p = ROOT / "data" / "feedback" / "realized_pnl.parquet"
-    return pd.read_parquet(p) if p.exists() else pd.DataFrame()
+    """统一委托给 DataService（去重：原 sim_data / rec_data 各有一份）。"""
+    try:
+        from app.services.data_service import get_data_service
+        return get_data_service().get_realized_pnl()
+    except Exception:
+        p = ROOT / "data" / "feedback" / "realized_pnl.parquet"
+        return pd.read_parquet(p) if p.exists() else pd.DataFrame()
 
 
 @st.cache_data(ttl=300)

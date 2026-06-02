@@ -14,12 +14,15 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.services.data_service import get_data_service
 from app.utils.sim_data import (
     load_ic_analysis,
     load_realized_pnl,
     load_sim30d_stock_returns,
     load_strategy_config,
 )
+
+_SVC = get_data_service()
 
 st.set_page_config(page_title="模型管理 · QuantMind", page_icon="🧠", layout="wide")
 
@@ -72,6 +75,65 @@ with c3:
     st.metric("训练集", "Alpha 1374宇宙")
 with c4:
     st.metric("特征体系", "v4 (38维)")
+
+# ── 模型状态总览（DataService.get_model_status）────────────────────────────────
+st.divider()
+st.markdown("### 🩺 全模型状态总览")
+st.caption("LGBM 板块模型 · FactorCNN · 板块路由 · HMM Regime · Meta-Learner — 统一来自 DataService")
+
+_ms = _SVC.get_model_status()
+
+# LGBM 四个板块模型
+st.markdown("#### 🌲 LGBM 模型（v6）")
+lgbm_rows = []
+for key, label in (("lgbm_main", "主板 MAIN"), ("lgbm_gem", "创业板 GEM"),
+                   ("lgbm_star", "科创板 STAR"), ("lgbm_alpha", "Alpha (fallback)")):
+    m = _ms.get(key, {})
+    if m.get("exists"):
+        lgbm_rows.append({
+            "模型": label,
+            "direction": m.get("direction"),
+            "ic_mean": m.get("ic_mean") if m.get("ic_mean") is not None else "—",
+            "特征数": m.get("n_features"),
+            "训练时间": m.get("trained_at", "—"),
+        })
+    else:
+        lgbm_rows.append({"模型": label, "direction": "缺失", "ic_mean": "—",
+                          "特征数": "—", "训练时间": "—"})
+st.dataframe(pd.DataFrame(lgbm_rows), use_container_width=True, hide_index=True)
+
+# 板块路由 + 其它模型
+sc1, sc2, sc3 = st.columns(3)
+with sc1:
+    st.markdown("**🔀 板块路由**")
+    br = _ms.get("board_router", {})
+    if "error" in br:
+        st.caption(f"读取失败：{br['error'][:40]}")
+    else:
+        for board, info in br.items():
+            tag = "⬅ fallback" if info.get("is_fallback") else "✅ 专用"
+            st.caption(f"{board}: {tag}（dir={info.get('direction')}）")
+with sc2:
+    st.markdown("**🌐 HMM Regime**")
+    hm = _ms.get("hmm_regime", {})
+    if hm:
+        st.metric(hm.get("current_regime", "—").upper(),
+                  f"bull {hm.get('bull_prob',0):.0%} / "
+                  f"neu {hm.get('neutral_prob',0):.0%} / "
+                  f"bear {hm.get('bear_prob',0):.0%}")
+        st.caption(f"as_of {str(hm.get('as_of',''))[:10]}")
+    else:
+        st.caption("无数据")
+with sc3:
+    st.markdown("**🧠 Meta-Learner**")
+    ml = _ms.get("meta_learner", {})
+    if ml:
+        st.metric(f"版本 {ml.get('version','—')}",
+                  f"CV-AUC {ml.get('cv_auc','—')}")
+        st.caption(f"样本 {ml.get('n_samples','—')} · {str(ml.get('trained_at',''))[:10]}")
+    cnn = _ms.get("factor_cnn", {})
+    if cnn.get("exists"):
+        st.caption(f"FactorCNN ✅ {cnn.get('trained_at','')}")
 
 # ── 特征重要性 ────────────────────────────────────────────────────────────────
 st.divider()
