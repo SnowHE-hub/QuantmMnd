@@ -198,4 +198,11 @@ print(f"新增行（去重后）: {len(df_new_dedup)}")
 pnl_updated = pd.concat([pnl, df_new_dedup], ignore_index=True)
 pnl_updated.to_parquet(pnl_path, index=False)
 print(f"追加后 realized_pnl: {pnl_updated.shape}")
+# ── DB 双写（增量 upsert，失败不中断）──────────────────────────────────────
+try:
+    from app.db.writers import get_writer
+    get_writer().write_realized_pnl(pnl_updated, full_replace=True)
+    print("DB 双写完成（realized_pnl）")
+except Exception as _dw_e:
+    print(f"realized_pnl DB 双写跳过: {_dw_e}")
 print(f"\n✅ 完成！前向持仓结算结果已追加到 {pnl_path}")

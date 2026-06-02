@@ -486,13 +486,21 @@ def run(
     (out_dir / "latest.json").write_text(
         json.dumps(latest_signals, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    action_plan_data = {"run_ts": run_ts, "actions": actions}
     (out_dir / "action_plan.json").write_text(
-        json.dumps({"run_ts": run_ts, "actions": actions}, ensure_ascii=False, indent=2),
+        json.dumps(action_plan_data, ensure_ascii=False, indent=2),
         encoding="utf-8"
     )
     (out_dir / "factor_health.json").write_text(
         json.dumps(factor_health, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    # ── DB 双写（失败不中断业务）────────────────────────────────────────────
+    try:
+        from app.db.writers import get_writer
+        get_writer().write_loss_signals(latest_signals, action_plan_data, factor_health)
+    except Exception as _dw_e:
+        import logging as _log
+        _log.getLogger(__name__).warning("loss_signals DB 双写跳过: %s", _dw_e)
 
     # 追加历史日志
     history_path = out_dir / "history.jsonl"

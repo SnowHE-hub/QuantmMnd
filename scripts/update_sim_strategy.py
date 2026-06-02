@@ -246,6 +246,13 @@ def setup_forward_tracking(
     }
     out_path = out_dir / 'forward_positions.json'
     out_path.write_text(json.dumps(tracker, ensure_ascii=False, indent=2), encoding='utf-8')
+    # ── DB 双写（失败不中断业务）────────────────────────────────────────────
+    try:
+        from app.db.writers import get_writer
+        get_writer().write_forward_positions(tracker.get('positions', []))
+    except Exception as _dw_e:
+        import logging as _log
+        _log.getLogger(__name__).warning("forward_positions DB 双写跳过: %s", _dw_e)
     return tracker
 
 
@@ -332,6 +339,12 @@ def main(argv=None):
     sc_path = args.out / 'strategy_config.json'
     sc_path.write_text(json.dumps(strategy_config, ensure_ascii=False, indent=2), encoding='utf-8')
     logger.info(f'策略配置已保存: {sc_path}')
+    # ── DB 双写（失败不中断业务）────────────────────────────────────────────
+    try:
+        from app.db.writers import get_writer
+        get_writer().write_strategy_config(strategy_config)
+    except Exception as _dw_e:
+        logger.warning(f"strategy_config DB 双写跳过: {_dw_e}")
 
     fd_path = Path('data/features/factor_direction_v4.json')
     fd_path.parent.mkdir(parents=True, exist_ok=True)

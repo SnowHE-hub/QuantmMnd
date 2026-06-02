@@ -303,6 +303,12 @@ def run(
     df = df.sort_values(["as_of_date", "actual_rank"])
     df.to_parquet(out_path, index=False)
     logger.info(f"✅ 实际收益记录：{len(df)} 条 → {out_path}")
+    # ── DB 双写（全量覆盖，失败不中断业务）──────────────────────────────────
+    try:
+        from app.db.writers import get_writer
+        get_writer().write_realized_pnl(df, full_replace=True)
+    except Exception as _dw_e:
+        logger.warning(f"realized_pnl DB 双写跳过: {_dw_e}")
 
     # ── 汇总指标 ──────────────────────────────────────────────────────────────
     valid_ics = [v for v in ic_by_date.values() if v is not None]

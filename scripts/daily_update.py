@@ -1052,6 +1052,12 @@ def step7_save_json(
             encoding="utf-8",
         )
         logger.info(f"[Step7] ✅ Top10 JSON：{top10_only}")
+        # ── DB 双写（失败不中断业务）────────────────────────────────────────
+        try:
+            from app.db.writers import get_writer
+            get_writer().write_recommendations(as_of.isoformat(), payload)
+        except Exception as _dw_e:
+            logger.warning(f"[Step7] DB 双写跳过: {_dw_e}")
         return True, out_path
     except Exception as e:
         logger.error(f"[Step7] ❌ JSON 保存失败：{e}")
@@ -1276,6 +1282,12 @@ def step7a_agent_analysis(
         json.dumps(strategies_data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     logger.info(f"[Step7a] ✅ strategies.json 已写入：{strategies_path}")
+    # ── DB 双写（失败不中断业务）────────────────────────────────────────────
+    try:
+        from app.db.writers import get_writer
+        get_writer().write_agent_analysis(date_str, strategies_data)
+    except Exception as _dw_e:
+        logger.warning(f"[Step7a] agent_analysis DB 双写跳过: {_dw_e}")
 
     # 回测验证（可选）
     acceptable, watchlist, avoid = [], [], []
