@@ -478,13 +478,24 @@ class DataService:
             ):
                 status[key] = self._probe_lgbm(rel)
 
-            # FactorCNN
+            # FactorCNN（含验证集 IC）
             cnn_p = self._root / "models" / "factor_cnn_v2_augmented.pkl"
-            status["factor_cnn"] = (
-                {"exists": True,
-                 "trained_at": datetime.fromtimestamp(cnn_p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")}
-                if cnn_p.exists() else {"exists": False}
-            )
+            if cnn_p.exists():
+                cnn_info: dict[str, Any] = {
+                    "exists": True,
+                    "trained_at": datetime.fromtimestamp(cnn_p.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
+                }
+                try:
+                    with open(cnn_p, "rb") as f:
+                        cnn_obj = pickle.load(f)
+                    if isinstance(cnn_obj, dict):
+                        cnn_info["val_ic"] = cnn_obj.get("val_ic_mean")
+                        cnn_info["val_icir"] = cnn_obj.get("val_icir")
+                except Exception:  # noqa: BLE001
+                    pass
+                status["factor_cnn"] = cnn_info
+            else:
+                status["factor_cnn"] = {"exists": False}
 
             # 板块路由
             try:
@@ -593,6 +604,52 @@ class DataService:
                     out[key] = {}
             return out
         return self._cached("loss_signals", _load)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # 数据新鲜度
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # (展示标签, 相对路径, 预期最大滞后小时数)
+    _FRESHNESS_SPECS = [
+        ("每日推荐",   "data/recommendations",                          48),
+        ("已结算 PnL", "data/feedback/realized_pnl.parquet",            24 * 8),
+        ("前向持仓",   "data/paper_trading/forward_positions.json",     24 * 8),
+        ("特征面板",   "data/panel/alpha_panel_v4.parquet",             24 * 35),
+        ("Regime 历史", "data/regime/regime_history.parquet",           48),
+        ("策略配置",   "data/paper_trading/strategy_config_v2.json",    24 * 35),
+        ("损失信号",   "data/loss_signals_v4/latest.json",              24 * 8),
+    ]
+
+    def get_data_freshness(self) -> list[dict]:
+        """各关键数据文件的最后更新时间 + 距今小时 + 是否超期。"""
+        def _load() -> list[dict]:
+            import datetime as _dt
+            now = _dt.datetime.now()
+            out: list[dict] = []
+            for label, rel, max_h in self._FRESHNESS_SPECS:
+                p = self._root / rel
+                if not p.exists():
+                    out.append({"label": label, "path": rel, "exists": False,
+                                "age_h": None, "mtime": "缺失", "ok": False, "max_h": max_h})
+                    continue
+                try:
+                    if p.is_dir():
+                        files = list(p.glob("*"))
+                        m = max((f.stat().st_mtime for f in files), default=p.stat().st_mtime)
+                    else:
+                        m = p.stat().st_mtime
+                    age_h = (now - _dt.datetime.fromtimestamp(m)).total_seconds() / 3600
+                    out.append({
+                        "label": label, "path": rel, "exists": True,
+                        "age_h": round(age_h, 1),
+                        "mtime": _dt.datetime.fromtimestamp(m).strftime("%Y-%m-%d %H:%M"),
+                        "ok": age_h <= max_h, "max_h": max_h,
+                    })
+                except Exception:  # noqa: BLE001
+                    out.append({"label": label, "path": rel, "exists": False,
+                                "age_h": None, "mtime": "读取失败", "ok": False, "max_h": max_h})
+            return out
+        return self._cached("data_freshness", _load)
 
 
 # ── 模块级单例 ────────────────────────────────────────────────────────────────

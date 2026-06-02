@@ -293,6 +293,30 @@ class TestRegimeAndLossSignals:
         assert ls["latest"]["overall_health"] == "OK"
 
 
+class TestDataFreshness:
+
+    def test_returns_all_specs(self, svc):
+        fr = svc.get_data_freshness()
+        assert len(fr) == len(svc._FRESHNESS_SPECS)
+        for item in fr:
+            for k in ("label", "ok", "exists", "max_h"):
+                assert k in item
+
+    def test_existing_file_marked_ok(self, svc):
+        fr = svc.get_data_freshness()
+        # realized_pnl 刚写入 → 新鲜
+        pnl = next(f for f in fr if "PnL" in f["label"])
+        assert pnl["exists"] is True
+        assert pnl["ok"] is True
+
+    def test_missing_file_marked_not_ok(self, svc):
+        fr = svc.get_data_freshness()
+        # synth_root 无 alpha_panel_v4 → exists False, ok False
+        panel = next(f for f in fr if "特征面板" in f["label"])
+        assert panel["exists"] is False
+        assert panel["ok"] is False
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 缓存 + 健壮性
 # ─────────────────────────────────────────────────────────────────────────────
