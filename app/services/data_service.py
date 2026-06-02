@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pickle
 from datetime import datetime
 from pathlib import Path
@@ -34,6 +35,13 @@ log = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parents[2]
 
+# 加载 .env（幂等）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_ROOT / ".env", override=False)
+except ImportError:
+    pass
+
 # rec_data 的纯函数（不反向 import data_service，无循环依赖）
 from app.utils.rec_data import (          # noqa: E402
     load_all_recommendations,
@@ -43,11 +51,22 @@ from app.utils.rec_data import (          # noqa: E402
 
 
 class DataService:
-    """统一数据访问层（单例可由 get_data_service() 获取）。"""
+    """统一数据访问层（单例可由 get_data_service() 获取）。
 
-    def __init__(self, root: Path | str | None = None, enable_cache: bool = True) -> None:
+    DATA_BACKEND 环境变量控制存储后端：
+      'parquet'  → 原有文件系统行为（默认，零回归）
+      'postgres' → PostgreSQL + MongoDB
+    """
+
+    def __init__(
+        self,
+        root: Path | str | None = None,
+        enable_cache: bool = True,
+        backend: str | None = None,
+    ) -> None:
         self._root = Path(root) if root else _ROOT
         self._enable_cache = enable_cache
+        self._backend = backend or os.environ.get("DATA_BACKEND", "parquet")
         self._cache: dict[str, Any] = {}
 
     # ── 缓存基础设施 ──────────────────────────────────────────────────────────
@@ -120,13 +139,20 @@ class DataService:
 
     def get_recommendation_dates(self) -> list[str]:
         """所有有真实推荐的日期，倒序。"""
+        if self._backend == "postgres":
+            return self._mongo_get_recommendation_dates()
         try:
             return [r.get("as_of", "") for r in self._all_recs() if r.get("as_of")]
         except Exception as e:  # noqa: BLE001
             log.warning("[DataService] get_recommendation_dates 失败: %s", e)
             return []
 
-    def get_recommendations(self, date: str | None = None) -> pd.DataFrame:
+    def get_recommendations(self, date: str | None = None) -> pd.DataFrame:  # type: ignore[override]
+        if self._backend == "postgres":
+            return self._mongo_get_recommendations(date)
+        return self._parquet_get_recommendations(date)
+
+    def _parquet_get_recommendations(self, date: str | None = None) -> pd.DataFrame:
         """真实每日推荐，自动 join 名称/行业/入场价/当前价/浮盈/状态。
 
         date=None → 最新一天。
@@ -266,6 +292,8 @@ class DataService:
 
     def get_agent_analysis(self, ticker: str, date: str | None = None) -> dict | None:
         """某只股票的六维分析；找不到返回 None。"""
+        if self._backend == "postgres":
+            return self._mongo_get_agent_analysis(ticker, date)
         try:
             strategies = self._load_strategies(date)
             for s in strategies:
@@ -278,6 +306,8 @@ class DataService:
 
     def get_all_agent_analysis(self, date: str | None = None) -> dict[str, dict]:
         """某天所有股票的六维分析，{ticker: analysis}。"""
+        if self._backend == "postgres":
+            return self._mongo_get_all_agent_analysis(date)
         try:
             return {
                 str(s.get("ticker")): self._shape_strategy(s)
@@ -293,6 +323,8 @@ class DataService:
 
         Returns (report_date, analysis) 或 (None, None)。
         """
+        if self._backend == "postgres":
+            return self._mongo_find_agent_analysis(ticker)
         try:
             if not self._report_dir.exists():
                 return None, None
@@ -387,6 +419,8 @@ class DataService:
 
     def get_realized_pnl(self) -> pd.DataFrame:
         """统一的 realized_pnl 读取（替换 sim_data / rec_data 两份）。"""
+        if self._backend == "postgres":
+            return self._cached("realized_pnl_pg", self._pg_get_realized_pnl)
         def _load() -> pd.DataFrame:
             if not self._pnl_path.exists():
                 return pd.DataFrame()
@@ -402,6 +436,8 @@ class DataService:
         return self._cached("realized_pnl", _load)
 
     def _forward_positions_raw(self) -> list[dict]:
+        if self._backend == "postgres":
+            return self._cached("fwd_raw_mongo", self._mongo_forward_positions_raw)
         return self._cached("fwd_raw", lambda: load_forward_positions(self._fwd_path))
 
     def get_forward_positions(self) -> pd.DataFrame:
@@ -589,6 +625,8 @@ class DataService:
 
     def get_loss_signals(self) -> dict:
         """读 loss_signals_v4/{latest,factor_health,action_plan}.json。"""
+        if self._backend == "postgres":
+            return self._cached("loss_signals_mongo", self._mongo_get_loss_signals)
         def _load() -> dict:
             base = self._root / "data" / "loss_signals_v4"
             out: dict[str, Any] = {}
@@ -650,6 +688,182 @@ class DataService:
                                 "age_h": None, "mtime": "读取失败", "ok": False, "max_h": max_h})
             return out
         return self._cached("data_freshness", _load)
+
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # DB Backend 实现（DATA_BACKEND=postgres 时走这里）
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _get_pg_engine(self):
+        from app.db.postgres import get_pg_engine
+        return get_pg_engine()
+
+    def _get_mongo_db(self):
+        from app.db.mongo import get_mongo_db
+        return get_mongo_db()
+
+    # ── PostgreSQL 实现 ────────────────────────────────────────────────────────
+
+    def _pg_get_realized_pnl(self) -> pd.DataFrame:
+        from sqlalchemy import text
+        try:
+            with self._get_pg_engine().connect() as conn:
+                df = pd.read_sql(text("SELECT * FROM realized_pnl ORDER BY as_of_date DESC"), conn)
+            # 移除 SERIAL id 列（parquet 版本没有）
+            df = df.drop(columns=["id"], errors="ignore")
+            for col in ("as_of_date", "entry_date", "exit_date"):
+                if col in df.columns:
+                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d")
+            return df
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/PG] get_realized_pnl 失败: %s", e)
+            return pd.DataFrame()
+
+    # ── MongoDB 实现 ───────────────────────────────────────────────────────────
+
+    def _mongo_get_recommendation_dates(self) -> list[str]:
+        try:
+            coll = self._get_mongo_db()["recommendations"]
+            docs = list(coll.find({}, {"_id": 1}).sort("_id", -1))
+            return [d["_id"] for d in docs]
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] get_recommendation_dates 失败: %s", e)
+            return []
+
+    def _mongo_get_recommendations(self, date: str | None = None) -> pd.DataFrame:
+        cols = ["ticker", "name", "industry", "entry_price", "current_price",
+                "pnl_pct", "lgbm_rank", "ensemble_score", "rating", "status", "reason"]
+        try:
+            coll = self._get_mongo_db()["recommendations"]
+            if date is None:
+                doc = coll.find_one(sort=[("_id", -1)])
+            else:
+                doc = coll.find_one({"_id": date})
+            if not doc:
+                return pd.DataFrame(columns=cols)
+
+            as_of = doc.get("as_of", doc.get("_id", ""))
+            cur_px = self._latest_snapshot_close()
+            name_map = self._cached("name_map", lambda: load_name_map(self._root))
+
+            # OPEN 持仓集合（仍从 MongoDB positions 查）
+            pos_coll = self._get_mongo_db()["positions"]
+            open_set = {
+                (str(p.get("as_of")), str(p.get("ticker")))
+                for p in pos_coll.find({"status": "OPEN"}, {"as_of": 1, "ticker": 1})
+            }
+
+            pnl = self.get_realized_pnl()
+            settled_set: set = set()
+            if not pnl.empty:
+                settled_set = {
+                    (str(a), str(t)) for a, t in
+                    zip(pnl.get("as_of_date", []), pnl.get("ticker", []))
+                }
+
+            rows = []
+            for it in doc.get("top10", []):
+                tk = str(it.get("ticker", ""))
+                entry = it.get("entry_price")
+                cur = cur_px.get(tk)
+                pnl_pct = (
+                    (cur - entry) / entry
+                    if (isinstance(entry, (int, float)) and entry
+                        and isinstance(cur, (int, float)))
+                    else None
+                )
+                key = (as_of, tk)
+                if key in open_set:
+                    status = "持仓中"
+                elif key in settled_set:
+                    status = "已结算"
+                else:
+                    status = "—"
+                rows.append({
+                    "ticker":         tk,
+                    "name":           it.get("name") or name_map.get(tk, tk),
+                    "industry":       it.get("industry", "") or "—",
+                    "entry_price":    entry,
+                    "current_price":  cur,
+                    "pnl_pct":        round(pnl_pct, 4) if pnl_pct is not None else None,
+                    "lgbm_rank":      it.get("lgbm_rank"),
+                    "ensemble_score": it.get("lgbm_score"),
+                    "rating":         it.get("agent_recommendation", ""),
+                    "status":         status,
+                    "reason":         it.get("reason", ""),
+                })
+            return pd.DataFrame(rows, columns=cols)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] get_recommendations 失败: %s", e)
+            return pd.DataFrame(columns=cols)
+
+    def _mongo_forward_positions_raw(self) -> list[dict]:
+        try:
+            coll = self._get_mongo_db()["positions"]
+            return list(coll.find({}, {"_id": 0}))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] _forward_positions_raw 失败: %s", e)
+            return []
+
+    def _mongo_get_agent_analysis(self, ticker: str, date: str | None = None) -> dict | None:
+        try:
+            coll = self._get_mongo_db()["agent_analysis"]
+            if date:
+                doc = coll.find_one({"date": date, "ticker": ticker})
+            else:
+                doc = coll.find_one({"ticker": ticker}, sort=[("date", -1)])
+            if not doc:
+                return None
+            doc.pop("_id", None)
+            return self._shape_strategy(doc)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] get_agent_analysis 失败: %s", e)
+            return None
+
+    def _mongo_get_all_agent_analysis(self, date: str | None = None) -> dict[str, dict]:
+        try:
+            coll = self._get_mongo_db()["agent_analysis"]
+            if date is None:
+                # 取最近一天
+                latest = coll.find_one(sort=[("date", -1)])
+                if not latest:
+                    return {}
+                date = latest["date"]
+            docs = list(coll.find({"date": date}, {"_id": 0}))
+            return {str(d.get("ticker")): self._shape_strategy(d) for d in docs if d.get("ticker")}
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] get_all_agent_analysis 失败: %s", e)
+            return {}
+
+    def _mongo_find_agent_analysis(self, ticker: str) -> tuple[str | None, dict | None]:
+        try:
+            coll = self._get_mongo_db()["agent_analysis"]
+            doc = coll.find_one({"ticker": ticker}, sort=[("date", -1)])
+            if not doc:
+                return None, None
+            date = doc.get("date")
+            doc.pop("_id", None)
+            return date, self._shape_strategy(doc)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] find_agent_analysis 失败: %s", e)
+            return None, None
+
+    def _mongo_get_loss_signals(self) -> dict:
+        try:
+            coll = self._get_mongo_db()["loss_signals"]
+            doc = coll.find_one(sort=[("run_ts", -1)])
+            if not doc:
+                return {}
+            doc.pop("_id", None)
+            # 重组为 {latest:..., factor_health:..., action_plan:...} 结构
+            return {
+                "latest":        {k: v for k, v in doc.items() if k not in ("action_plan", "factor_health")},
+                "factor_health": doc.get("factor_health", {}),
+                "action_plan":   doc.get("action_plan", {}),
+            }
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService/Mongo] get_loss_signals 失败: %s", e)
+            return {}
 
 
 # ── 模块级单例 ────────────────────────────────────────────────────────────────
