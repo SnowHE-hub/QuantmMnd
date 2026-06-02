@@ -303,3 +303,87 @@ else:
                 st.success("无走弱因子")
 
 st.caption(f"损失信号 run_ts: {latest.get('run_ts', action_plan.get('run_ts', '—'))}")
+
+st.divider()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 区域 6：数据库 + 双写状态（E1 观察期）
+# ═════════════════════════════════════════════════════════════════════════════
+st.markdown("### 🗄️ 区域6 · 数据库 + 双写状态")
+
+try:
+    from app.ops.db_health import overall_db_status
+
+    @st.cache_data(ttl=15)
+    def _db_status_cached() -> dict:
+        return overall_db_status()
+
+    status = _db_status_cached()
+except Exception as _e:  # noqa: BLE001
+    st.error(f"DB 状态读取失败：{_e}")
+    status = {"data_backend": "?", "write_mode": "?",
+              "pg": {"ok": False, "error": str(_e)},
+              "mongo": {"ok": False, "error": str(_e)},
+              "failures_24h": 0, "last_failure": None}
+
+db1, db2, db3, db4 = st.columns(4)
+
+# 卡片1：DATA_BACKEND
+backend = status.get("data_backend", "?")
+back_color = "#0984E3" if backend == "parquet" else "#6c5ce7"
+db1.markdown(
+    f"<div style='border:1px solid #dfe6e9;border-radius:8px;padding:10px;text-align:center'>"
+    f"<div style='font-size:.8rem;color:#636e72'>DATA_BACKEND</div>"
+    f"<div style='font-size:1.3rem;font-weight:700;color:{back_color}'>{backend.upper()}</div>"
+    f"<div style='font-size:.75rem;color:#636e72'>WRITE_MODE: {status.get('write_mode', '?')}</div>"
+    f"</div>", unsafe_allow_html=True)
+
+# 卡片2：PG
+pg = status.get("pg", {})
+pg_color = "#27ae60" if pg.get("ok") else "#e74c3c"
+db2.markdown(
+    f"<div style='border:2px solid {pg_color};border-radius:8px;padding:10px;text-align:center'>"
+    f"<div style='font-size:.8rem;color:#636e72'>PostgreSQL</div>"
+    f"<div style='font-size:1.3rem;font-weight:700;color:{pg_color}'>"
+    f"{'✅ 在线' if pg.get('ok') else '❌ 离线'}</div>"
+    f"<div style='font-size:.75rem;color:#636e72'>"
+    f"{pg.get('n_tables', 0)} 表 · {pg.get('total_rows', 0):,} 行</div>"
+    f"</div>", unsafe_allow_html=True)
+
+# 卡片3：Mongo
+mg = status.get("mongo", {})
+mg_color = "#27ae60" if mg.get("ok") else "#e74c3c"
+db3.markdown(
+    f"<div style='border:2px solid {mg_color};border-radius:8px;padding:10px;text-align:center'>"
+    f"<div style='font-size:.8rem;color:#636e72'>MongoDB</div>"
+    f"<div style='font-size:1.3rem;font-weight:700;color:{mg_color}'>"
+    f"{'✅ 在线' if mg.get('ok') else '❌ 离线'}</div>"
+    f"<div style='font-size:.75rem;color:#636e72'>"
+    f"{mg.get('n_collections', 0)} coll · {mg.get('total_docs', 0):,} docs</div>"
+    f"</div>", unsafe_allow_html=True)
+
+# 卡片4：失败次数（24h）
+n_fail = status.get("failures_24h", 0)
+fail_color = "#27ae60" if n_fail == 0 else ("#f39c12" if n_fail < 5 else "#e74c3c")
+db4.markdown(
+    f"<div style='border:2px solid {fail_color};border-radius:8px;padding:10px;text-align:center'>"
+    f"<div style='font-size:.8rem;color:#636e72'>双写失败 (24h)</div>"
+    f"<div style='font-size:1.3rem;font-weight:700;color:{fail_color}'>{n_fail} 次</div>"
+    f"<div style='font-size:.75rem;color:#636e72'>"
+    f"{'🟢 健康' if n_fail == 0 else '🔴 需关注'}</div>"
+    f"</div>", unsafe_allow_html=True)
+
+# 错误详情
+last_fail = status.get("last_failure")
+if last_fail:
+    st.warning(
+        f"⚠️ 最近一次失败：`{last_fail['ts'].strftime('%Y-%m-%d %H:%M:%S')}` · "
+        f"writer=`{last_fail['name']}` · {last_fail.get('info', '')}"
+    )
+
+if not pg.get("ok") and pg.get("error"):
+    st.caption(f"PG 错误：{pg['error']}")
+if not mg.get("ok") and mg.get("error"):
+    st.caption(f"Mongo 错误：{mg['error']}")
+
+st.caption("💡 详细监控见 系统控制台 → 🔀 数据后端 / 📊 双写监控")

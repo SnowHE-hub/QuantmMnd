@@ -298,6 +298,7 @@ if _is_running():
     tab_data,  tab_status,
     tab_perf,  tab_ic,
     tab_iter,  tab_history,
+    tab_backend, tab_dwmon,
 ) = st.tabs([
     "🗓 每日更新",
     "▶ 30日模拟",
@@ -308,6 +309,8 @@ if _is_running():
     "🔬 因子分析",
     "🔄 迭代优化",
     "📋 执行历史",
+    "🔀 数据后端",
+    "📊 双写监控",
 ])
 
 
@@ -1216,3 +1219,266 @@ with tab_history:
         if st.button("🗑 清空历史", key="btn_clear_history", type="secondary"):
             st.session_state.exec_history = []
             st.rerun()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Tab 10：数据后端（DATA_BACKEND 切换 + Parity 校验）
+# ═════════════════════════════════════════════════════════════════════════════
+with tab_backend:
+    from app.ops.db_health import (
+        pg_ping, mongo_ping, read_env_value, write_env_value,
+        run_parity_check, read_failures,
+    )
+
+    st.markdown("### 🔀 数据后端管理")
+    st.caption("E1 双写观察期工具：实时查看 PG/Mongo 状态、切换 DataService 后端、运行 Parity 校验")
+
+    if st.button("🔄 刷新状态", key="bk_refresh"):
+        st.cache_data.clear()
+        st.rerun()
+
+    # ── 区域 A — 当前状态 ────────────────────────────────────────────────────
+    st.markdown("#### A · 当前配置 + 数据库连通性")
+    cur_backend = read_env_value("DATA_BACKEND") or "parquet"
+    cur_write   = read_env_value("WRITE_MODE")   or "parquet_only"
+
+    pg = pg_ping()
+    mg = mongo_ping()
+
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("DATA_BACKEND", cur_backend.upper(),
+              "默认" if cur_backend == "parquet" else "DB 模式")
+    a2.metric("WRITE_MODE", cur_write.upper(),
+              "双写中" if cur_write == "dual" else "—")
+    a3.markdown(
+        f"<div style='text-align:center'><div style='font-size:.8rem;color:#636e72'>PostgreSQL</div>"
+        f"<div style='font-size:1.4rem;font-weight:700;color:{'#27ae60' if pg['ok'] else '#e74c3c'}'>"
+        f"{'✅ ON' if pg['ok'] else '❌ DOWN'}</div>"
+        f"<div style='font-size:.75rem;color:#636e72'>"
+        f"{pg.get('n_tables', 0)} 表 / {pg.get('total_rows', 0):,} 行</div></div>",
+        unsafe_allow_html=True)
+    a4.markdown(
+        f"<div style='text-align:center'><div style='font-size:.8rem;color:#636e72'>MongoDB</div>"
+        f"<div style='font-size:1.4rem;font-weight:700;color:{'#27ae60' if mg['ok'] else '#e74c3c'}'>"
+        f"{'✅ ON' if mg['ok'] else '❌ DOWN'}</div>"
+        f"<div style='font-size:.75rem;color:#636e72'>"
+        f"{mg.get('n_collections', 0)} coll / {mg.get('total_docs', 0):,} docs</div></div>",
+        unsafe_allow_html=True)
+
+    if not pg["ok"]:
+        st.error(f"PostgreSQL 连接失败：{pg.get('error', '?')}")
+    if not mg["ok"]:
+        st.error(f"MongoDB 连接失败：{mg.get('error', '?')}")
+
+    with st.expander("📋 PG 表行数明细", expanded=False):
+        if pg["ok"]:
+            tbl_df = pd.DataFrame([
+                {"表名": k, "行数": v} for k, v in sorted(pg["tables"].items(),
+                                                          key=lambda kv: -kv[1])
+            ])
+            st.dataframe(tbl_df, use_container_width=True, hide_index=True)
+    with st.expander("📋 Mongo Collection 文档数明细", expanded=False):
+        if mg["ok"]:
+            coll_df = pd.DataFrame([
+                {"Collection": k, "文档数": v}
+                for k, v in sorted(mg["collections"].items(), key=lambda kv: -kv[1])
+            ])
+            st.dataframe(coll_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    # ── 区域 B — 一键切换 ────────────────────────────────────────────────────
+    st.markdown("#### B · 切换 DATA_BACKEND")
+    st.warning(
+        "⚠️ 切到 postgres 前请先在区域 C 运行 Parity 校验，确认 16/16 通过。"
+        "切换后需 **重启 Streamlit** 才生效（Streamlit 不能热重载 .env）。"
+    )
+    new_backend = st.radio(
+        "选择 backend：",
+        options=["parquet", "postgres"],
+        index=0 if cur_backend == "parquet" else 1,
+        horizontal=True,
+        key="bk_radio",
+    )
+    if st.button("应用切换", key="bk_apply", type="primary",
+                 disabled=(new_backend == cur_backend)):
+        if write_env_value("DATA_BACKEND", new_backend):
+            st.success(
+                f"✅ 已写入 .env: DATA_BACKEND={new_backend}\n\n"
+                f"请在终端执行 `pkill -f streamlit && bash scripts/start_app.sh` 重启生效。"
+            )
+        else:
+            st.error("❌ 写入 .env 失败，请检查文件权限")
+
+    st.divider()
+
+    # ── 区域 C — Parity 校验 ─────────────────────────────────────────────────
+    st.markdown("#### C · Parity 实时校验")
+    st.caption("调用 tests/test_db_backend_parity.py，对比 parquet 和 postgres backend 返回结果")
+
+    if st.button("▶ 运行 Parity 校验", key="bk_parity", type="primary"):
+        with st.spinner("运行中（预计 30 秒）..."):
+            result = run_parity_check()
+        if result.get("ok"):
+            st.success(
+                f"✅ 校验通过：{result['passed']}/{result['total']} "
+                f"（耗时 {result.get('duration_sec', 0):.1f}s）"
+            )
+        else:
+            st.error(
+                f"❌ 校验失败：{result.get('passed', 0)} passed / "
+                f"{result.get('failed', 0)} failed"
+            )
+            for t in result.get("failed_tests", []):
+                st.code(t, language="text")
+        with st.expander("📜 完整输出", expanded=False):
+            st.code(result.get("output", "")[-3000:], language="text")
+
+    st.divider()
+
+    # ── 最近失败一览 ────────────────────────────────────────────────────────
+    st.markdown("#### D · 最近 24 小时双写失败")
+    fails = read_failures(hours=24)
+    if not fails:
+        st.success("🎉 最近 24 小时无双写失败")
+    else:
+        st.error(f"⚠️ 最近 24 小时有 {len(fails)} 次失败")
+        fdf = pd.DataFrame([
+            {"时间": ev["ts"].strftime("%m-%d %H:%M"),
+             "Writer": ev["name"],
+             "类型": ev["info"][:30],
+             "错误": ev["ctx"][:80]}
+            for ev in fails[-20:]
+        ])
+        st.dataframe(fdf, use_container_width=True, hide_index=True)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Tab 11：双写监控
+# ═════════════════════════════════════════════════════════════════════════════
+with tab_dwmon:
+    from app.ops.db_health import (
+        dual_write_stats, pg_ping, mongo_ping, read_failures,
+    )
+
+    st.markdown("### 📊 双写监控")
+    st.caption("解析 logs/db_write_audit.log + db_write_failures.log，展示成功率趋势 + 异常巡检")
+
+    # 时间窗口
+    win = st.selectbox("时间窗口", [3, 7, 14, 30], index=1,
+                       format_func=lambda d: f"最近 {d} 天", key="dw_window")
+    stats = dual_write_stats(days=win)
+
+    # ── 顶部 KPI ─────────────────────────────────────────────────────────────
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("成功次数", f"{stats['total_ok']:,}")
+    k2.metric("失败次数", f"{stats['total_fail']:,}",
+              delta="正常" if stats['total_fail'] == 0 else f"+{stats['total_fail']}",
+              delta_color="normal" if stats['total_fail'] == 0 else "inverse")
+    sr = stats.get("success_rate")
+    k3.metric("总成功率", f"{sr * 100:.2f}%" if sr is not None else "—",
+              "完美" if sr == 1.0 else None)
+    last_f = stats.get("last_failure")
+    k4.metric("最近失败", last_f["ts"].strftime("%m-%d %H:%M") if last_f else "无")
+
+    st.divider()
+
+    # ── 区域 A：每日成功/失败趋势 ────────────────────────────────────────────
+    st.markdown(f"#### A · 最近 {win} 天每日趋势")
+    by_date = stats.get("by_date", [])
+    if not by_date:
+        st.info(
+            "暂无双写日志（logs/db_write_audit.log 不存在或为空）。"
+            "可能 WRITE_MODE 仍是 parquet_only，或 cron 尚未触发。"
+        )
+    else:
+        df_d = pd.DataFrame(by_date)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=df_d["date"], y=df_d["ok"], name="成功",
+                             marker_color="#27ae60"))
+        fig.add_trace(go.Bar(x=df_d["date"], y=df_d["fail"], name="失败",
+                             marker_color="#e74c3c"))
+        fig.update_layout(barmode="stack", height=320,
+                          xaxis_title="日期", yaxis_title="次数",
+                          margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 成功率折线
+        df_d["success_rate_pct"] = df_d.apply(
+            lambda r: (r["ok"] / r["total"] * 100) if r["total"] > 0 else None, axis=1)
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(
+            x=df_d["date"], y=df_d["success_rate_pct"], mode="lines+markers",
+            name="成功率%", line=dict(color="#0984E3"),
+        ))
+        fig2.update_layout(height=240, yaxis_title="成功率 (%)",
+                           xaxis_title="日期",
+                           yaxis=dict(range=[0, 105]),
+                           margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig2, use_container_width=True)
+
+    st.divider()
+
+    # ── 区域 B：按 Writer 拆分 ───────────────────────────────────────────────
+    st.markdown("#### B · 按 Writer 拆分")
+    by_w = stats.get("by_writer", [])
+    if not by_w:
+        st.info("暂无 writer 级数据")
+    else:
+        wdf = pd.DataFrame(by_w)
+        wdf["成功率"] = wdf.apply(
+            lambda r: f"{r['ok'] / r['total'] * 100:.1f}%" if r['total'] > 0 else "—",
+            axis=1)
+        wdf = wdf.rename(columns={"writer": "Writer", "ok": "成功",
+                                  "fail": "失败", "total": "合计"})
+        st.dataframe(wdf, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    # ── 区域 C：一致性巡检 ───────────────────────────────────────────────────
+    st.markdown("#### C · 数据一致性巡检")
+    st.caption("调用 scripts/db_migration/04_verify_consistency.py 对 PG/Mongo 全表抽样校验")
+    if st.button("▶ 运行一致性巡检", key="dw_verify", type="primary"):
+        with st.spinner("巡检中（PG 11 表 + Mongo 5 collection，预计 20s）..."):
+            cmd = [
+                PYTHON, "-m", "scripts.db_migration",
+            ]
+            # 直接 subprocess 调脚本
+            proc = subprocess.run(
+                [PYTHON, "scripts/db_migration/04_verify_consistency.py"],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=300,
+            )
+            output = proc.stdout + "\n" + proc.stderr
+        if proc.returncode == 0:
+            st.success("✅ 巡检通过")
+        else:
+            st.error(f"❌ 巡检失败（rc={proc.returncode}）")
+        st.code(output[-3000:], language="text")
+
+    st.divider()
+
+    # ── 区域 D：DB vs Parquet 行数概览 ──────────────────────────────────────
+    st.markdown("#### D · DB 表/Collection 概览")
+    pg = pg_ping()
+    mg = mongo_ping()
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        st.markdown("**PostgreSQL**")
+        if pg["ok"]:
+            tbl_df = pd.DataFrame([
+                {"表": k, "行数": v}
+                for k, v in sorted(pg["tables"].items(), key=lambda kv: -kv[1])
+            ])
+            st.dataframe(tbl_df, use_container_width=True, hide_index=True, height=350)
+        else:
+            st.error(f"PG 不可达：{pg.get('error', '?')}")
+    with cc2:
+        st.markdown("**MongoDB**")
+        if mg["ok"]:
+            coll_df = pd.DataFrame([
+                {"Collection": k, "文档数": v}
+                for k, v in sorted(mg["collections"].items(), key=lambda kv: -kv[1])
+            ])
+            st.dataframe(coll_df, use_container_width=True, hide_index=True, height=350)
+        else:
+            st.error(f"Mongo 不可达：{mg.get('error', '?')}")

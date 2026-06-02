@@ -9,18 +9,26 @@
   1. 失败隔离 — DB 写失败不影响 parquet 写（业务不中断）
   2. 幂等 — 重复写入相同数据不产生重复记录（upsert/on-conflict）
   3. 日志清晰 — 每次双写打 INFO/WARNING 日志，便于排查
+  4. 失败追踪 — DB 失败自动写入 logs/db_write_failures.log
+                成功也写入 logs/db_write_audit.log（便于统计成功率）
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 log = logging.getLogger(__name__)
+
+# 失败/审计日志路径（项目根目录）
+_LOG_DIR = Path(__file__).resolve().parents[2] / "logs"
+_FAILURE_LOG = _LOG_DIR / "db_write_failures.log"
+_AUDIT_LOG = _LOG_DIR / "db_write_audit.log"
 
 try:
     from dotenv import load_dotenv
@@ -46,6 +54,42 @@ class DataWriter:
     def _parquet_enabled(self) -> bool:
         return self.mode in ("parquet_only", "dual")
 
+    # ── 失败/成功日志（用于监控看板）────────────────────────────────────────────
+
+    @staticmethod
+    def _log_failure(name: str, err: Exception, ctx: str = "") -> None:
+        """把 DB 写入失败记录到 logs/db_write_failures.log（追加模式）。"""
+        try:
+            _LOG_DIR.mkdir(parents=True, exist_ok=True)
+            line = (
+                f"{datetime.now().isoformat(timespec='seconds')}\t{name}\t"
+                f"{type(err).__name__}\t{str(err)[:300]}"
+            )
+            if ctx:
+                line += f"\t{ctx[:120]}"
+            with _FAILURE_LOG.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except Exception:  # noqa: BLE001
+            # 日志失败不应影响主流程
+            pass
+
+    @staticmethod
+    def _log_success(name: str, info: str = "") -> None:
+        """把 DB 写入成功记录到 logs/db_write_audit.log（追加模式）。
+
+        审计日志按行追加，便于监控页面统计每日双写成功率。
+        每周自动轮转（>10MB 时另存）由运维处理。
+        """
+        try:
+            _LOG_DIR.mkdir(parents=True, exist_ok=True)
+            line = (
+                f"{datetime.now().isoformat(timespec='seconds')}\t{name}\tOK\t{info[:120]}"
+            )
+            with _AUDIT_LOG.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except Exception:  # noqa: BLE001
+            pass
+
     # ── 内部：双写调度 ─────────────────────────────────────────────────────────
 
     def _dual_write(
@@ -65,8 +109,10 @@ class DataWriter:
             try:
                 db_fn()
                 log.info("[Writer/%s] DB 写入成功", name)
+                self._log_success(name)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/%s] DB 写入失败（已隔离，parquet 不受影响）: %s", name, e)
+                self._log_failure(name, e)
 
     # ── 连接懒加载 ─────────────────────────────────────────────────────────────
 
@@ -106,10 +152,12 @@ class DataWriter:
         if self._db_enabled:
             try:
                 _db()
-                log.info("[Writer/recommendations] DB 写入成功 date=%s top10=%d",
-                         date_str, len(payload.get("top10", [])))
+                info = f"date={date_str} top10={len(payload.get('top10', []))}"
+                log.info("[Writer/recommendations] DB 写入成功 %s", info)
+                self._log_success("recommendations", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/recommendations] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("recommendations", e, ctx=f"date={date_str}")
 
     # ══════════════════════════════════════════════════════════════════════════
     # 2. 已实现 PnL（realized_pnl）
@@ -159,10 +207,12 @@ class DataWriter:
         if self._db_enabled:
             try:
                 _db()
-                log.info("[Writer/realized_pnl] DB 写入成功 rows=%d full_replace=%s",
-                         len(df), full_replace)
+                info = f"rows={len(df)} full_replace={full_replace}"
+                log.info("[Writer/realized_pnl] DB 写入成功 %s", info)
+                self._log_success("realized_pnl", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/realized_pnl] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("realized_pnl", e, ctx=f"rows={len(df)}")
 
     # ══════════════════════════════════════════════════════════════════════════
     # 3. 前向持仓（forward_positions）
@@ -186,10 +236,12 @@ class DataWriter:
                     for p in positions
                 ]
                 result = coll.bulk_write(ops, ordered=False)
-                log.info("[Writer/positions] DB upserted=%d modified=%d",
-                         result.upserted_count, result.modified_count)
+                info = f"upserted={result.upserted_count} modified={result.modified_count}"
+                log.info("[Writer/positions] DB %s", info)
+                self._log_success("positions", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/positions] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("positions", e, ctx=f"n={len(positions)}")
 
     # ══════════════════════════════════════════════════════════════════════════
     # 4. Loss signals
@@ -213,9 +265,12 @@ class DataWriter:
                 if factor_health:
                     doc["factor_health"] = factor_health
                 coll.replace_one({"_id": date_id}, {"_id": date_id, **doc}, upsert=True)
-                log.info("[Writer/loss_signals] DB 写入成功 _id=%s", date_id)
+                info = f"_id={date_id}"
+                log.info("[Writer/loss_signals] DB 写入成功 %s", info)
+                self._log_success("loss_signals", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/loss_signals] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("loss_signals", e)
 
     # ══════════════════════════════════════════════════════════════════════════
     # 5. 策略配置（strategy_config）
@@ -231,9 +286,12 @@ class DataWriter:
                     {"_id": version, **config},
                     upsert=True,
                 )
-                log.info("[Writer/strategy_config] DB 写入成功 version=%s", version)
+                info = f"version={version}"
+                log.info("[Writer/strategy_config] DB 写入成功 %s", info)
+                self._log_success("strategy_config", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/strategy_config] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("strategy_config", e)
 
     # ══════════════════════════════════════════════════════════════════════════
     # 6. 6-Agent 分析（agent_analysis）
@@ -255,10 +313,12 @@ class DataWriter:
                     doc = {"date": date_str, **s}
                     ops.append(UpdateOne({"_id": doc_id}, {"$set": {"_id": doc_id, **doc}}, upsert=True))
                 result = coll.bulk_write(ops, ordered=False)
-                log.info("[Writer/agent_analysis] DB upserted=%d modified=%d date=%s",
-                         result.upserted_count, result.modified_count, date_str)
+                info = f"date={date_str} upserted={result.upserted_count} modified={result.modified_count}"
+                log.info("[Writer/agent_analysis] DB %s", info)
+                self._log_success("agent_analysis", info)
             except Exception as e:  # noqa: BLE001
                 log.warning("[Writer/agent_analysis] DB 写入失败（已隔离）: %s", e)
+                self._log_failure("agent_analysis", e, ctx=f"date={date_str}")
 
 
 # ── 进程级单例 ────────────────────────────────────────────────────────────────
