@@ -1270,6 +1270,19 @@ with tab_backend:
     if not mg["ok"]:
         st.error(f"MongoDB 连接失败：{mg.get('error', '?')}")
 
+    # 🚨 暴露"后端已是 postgres 但 PG 表为空"的伪装状态（不再静默当成无数据）
+    pg_empty_tables = sorted(
+        t for t, n in pg.get("tables", {}).items() if n == 0
+    ) if pg.get("ok") else []
+    if cur_backend == "postgres" and pg_empty_tables:
+        st.error(
+            "🚨 **当前 DATA_BACKEND=postgres，但以下 PG 表为空**，"
+            "相关页面会显示空数据（而非真实结果）：\n\n"
+            + "、".join(f"`{t}`" for t in pg_empty_tables)
+            + "\n\n👉 建议立即切回 `parquet`，或先运行 "
+            "`scripts/db_migration/02_import_pg.py` 填充后再用 postgres。"
+        )
+
     with st.expander("📋 PG 表行数明细", expanded=False):
         if pg["ok"]:
             tbl_df = pd.DataFrame([
@@ -1300,8 +1313,29 @@ with tab_backend:
         horizontal=True,
         key="bk_radio",
     )
+
+    # 切到 postgres 前：列出空表，并要求显式确认（避免"看起来切成功、实际全空"）
+    confirm_pg = True
+    if new_backend == "postgres":
+        tables = pg.get("tables", {}) if pg.get("ok") else {}
+        empty_now = sorted(t for t, n in tables.items() if n == 0)
+        nonempty_now = sorted(((t, n) for t, n in tables.items() if n > 0),
+                              key=lambda kv: -kv[1])
+        if empty_now:
+            st.error(
+                f"⚠️ PG 共 {len(tables)} 张表，其中 **{len(empty_now)} 张为空**："
+                + "、".join(f"`{t}`" for t in empty_now)
+            )
+        if nonempty_now:
+            st.caption("✅ 有数据的表：" + "、".join(f"{t}({n:,})" for t, n in nonempty_now))
+        confirm_pg = st.checkbox(
+            "我已理解：上述空表对应的页面切到 postgres 后会显示空数据，我仍要切换。",
+            key="bk_confirm_pg",
+        )
+
     if st.button("应用切换", key="bk_apply", type="primary",
-                 disabled=(new_backend == cur_backend)):
+                 disabled=(new_backend == cur_backend)
+                          or (new_backend == "postgres" and not confirm_pg)):
         if write_env_value("DATA_BACKEND", new_backend):
             st.success(
                 f"✅ 已写入 .env: DATA_BACKEND={new_backend}\n\n"

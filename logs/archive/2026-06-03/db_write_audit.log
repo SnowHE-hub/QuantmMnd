@@ -1,0 +1,78 @@
+2026-06-02T20:31:13	recommendations	OK	date=2026-06-01 top10=10
+2026-06-02T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-06-02T20:31:13	positions	OK	upserted=20 modified=0
+2026-06-02T20:31:13	agent_analysis	OK	date=2026-06-01 upserted=10
+2026-06-02T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-06-02T20:31:13	strategy_config	OK	version=v2
+2026-06-01T20:31:13	recommendations	OK	date=2026-05-01 top10=10
+2026-06-01T19:31:13	recommendations	OK	date=2026-05-01 top10=10
+2026-06-01T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-06-01T19:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-06-01T20:31:13	positions	OK	upserted=20 modified=0
+2026-06-01T19:31:13	positions	OK	upserted=20 modified=0
+2026-06-01T20:31:13	agent_analysis	OK	date=2026-05-01 upserted=10
+2026-06-01T19:31:13	agent_analysis	OK	date=2026-05-01 upserted=10
+2026-06-01T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-06-01T19:31:13	loss_signals	OK	_id=2026-06-01
+2026-06-01T20:31:13	strategy_config	OK	version=v2
+2026-06-01T19:31:13	strategy_config	OK	version=v2
+2026-05-31T20:31:13	recommendations	OK	date=2026-04-01 top10=10
+2026-05-31T19:31:13	recommendations	OK	date=2026-04-01 top10=10
+2026-05-31T18:31:13	recommendations	OK	date=2026-04-01 top10=10
+2026-05-31T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-31T19:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-31T18:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-31T20:31:13	positions	OK	upserted=20 modified=0
+2026-05-31T19:31:13	positions	OK	upserted=20 modified=0
+2026-05-31T18:31:13	positions	OK	upserted=20 modified=0
+2026-05-31T20:31:13	agent_analysis	OK	date=2026-04-01 upserted=10
+2026-05-31T19:31:13	agent_analysis	OK	date=2026-04-01 upserted=10
+2026-05-31T18:31:13	agent_analysis	OK	date=2026-04-01 upserted=10
+2026-05-31T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-31T19:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-31T18:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-31T20:31:13	strategy_config	OK	version=v2
+2026-05-31T19:31:13	strategy_config	OK	version=v2
+2026-05-31T18:31:13	strategy_config	OK	version=v2
+2026-05-30T20:31:13	recommendations	OK	date=2026-03-01 top10=10
+2026-05-30T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-30T20:31:13	positions	OK	upserted=20 modified=0
+2026-05-30T20:31:13	agent_analysis	OK	date=2026-03-01 upserted=10
+2026-05-30T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-30T20:31:13	strategy_config	OK	version=v2
+2026-05-29T20:31:13	recommendations	OK	date=2026-02-01 top10=10
+2026-05-29T19:31:13	recommendations	OK	date=2026-02-01 top10=10
+2026-05-29T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-29T19:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-29T20:31:13	positions	OK	upserted=20 modified=0
+2026-05-29T19:31:13	positions	OK	upserted=20 modified=0
+2026-05-29T20:31:13	agent_analysis	OK	date=2026-02-01 upserted=10
+2026-05-29T19:31:13	agent_analysis	OK	date=2026-02-01 upserted=10
+2026-05-29T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-29T19:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-29T20:31:13	strategy_config	OK	version=v2
+2026-05-29T19:31:13	strategy_config	OK	version=v2
+2026-05-28T20:31:13	recommendations	OK	date=2026-01-01 top10=10
+2026-05-28T19:31:13	recommendations	OK	date=2026-01-01 top10=10
+2026-05-28T18:31:13	recommendations	OK	date=2026-01-01 top10=10
+2026-05-28T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-28T19:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-28T18:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-28T20:31:13	positions	OK	upserted=20 modified=0
+2026-05-28T19:31:13	positions	OK	upserted=20 modified=0
+2026-05-28T18:31:13	positions	OK	upserted=20 modified=0
+2026-05-28T20:31:13	agent_analysis	OK	date=2026-01-01 upserted=10
+2026-05-28T19:31:13	agent_analysis	OK	date=2026-01-01 upserted=10
+2026-05-28T18:31:13	agent_analysis	OK	date=2026-01-01 upserted=10
+2026-05-28T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-28T19:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-28T18:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-28T20:31:13	strategy_config	OK	version=v2
+2026-05-28T19:31:13	strategy_config	OK	version=v2
+2026-05-28T18:31:13	strategy_config	OK	version=v2
+2026-05-27T20:31:13	recommendations	OK	date=2026-00-01 top10=10
+2026-05-27T20:31:13	realized_pnl	OK	rows=80 full_replace=True
+2026-05-27T20:31:13	positions	OK	upserted=20 modified=0
+2026-05-27T20:31:13	agent_analysis	OK	date=2026-00-01 upserted=10
+2026-05-27T20:31:13	loss_signals	OK	_id=2026-06-01
+2026-05-27T20:31:13	strategy_config	OK	version=v2

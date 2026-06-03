@@ -1,0 +1,18 @@
+2026-06-02T20:31:00	recommendations	Exception	DB down	date=2026-06-02
+2026-06-02T20:31:00	realized_pnl	Exception	PG down	rows=1
+2026-06-02T20:31:00	loss_signals	Exception	Mongo down
+2026-06-02T20:31:00	agent_analysis	Exception	Mongo down	date=2026-06-02
+2026-06-02T12:31:13	agent_analysis	ConnectionRefusedError	could not connect to MongoDB	date=2026-05-30
+2026-05-30T20:31:13	realized_pnl	OperationalError	PG temporarily unavailable	rows=80
+2026-06-03T08:59:24	recommendations	Exception	DB down	date=2026-06-02
+2026-06-03T08:59:24	realized_pnl	Exception	PG down	rows=1
+2026-06-03T08:59:24	loss_signals	Exception	Mongo down
+2026-06-03T08:59:24	agent_analysis	Exception	Mongo down	date=2026-06-02
+2026-06-03T10:58:31	recommendations	Exception	DB down	date=2026-06-02
+2026-06-03T10:58:31	realized_pnl	Exception	PG down	rows=1
+2026-06-03T10:58:31	loss_signals	Exception	Mongo down
+2026-06-03T10:58:31	agent_analysis	Exception	Mongo down	date=2026-06-02
+2026-06-03T11:31:06	recommendations	Exception	DB down	date=2026-06-02
+2026-06-03T11:31:06	realized_pnl	Exception	PG down	rows=1
+2026-06-03T11:31:06	loss_signals	Exception	Mongo down
+2026-06-03T11:31:06	agent_analysis	Exception	Mongo down	date=2026-06-02

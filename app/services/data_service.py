@@ -676,6 +676,10 @@ class DataService:
 
             with get_pg_engine().connect() as conn:
                 df = pd.read_sql(text(sql), conn, params=params)
+            # 整表为空（无过滤条件）才标记为"后端未填充"，避免把
+            # "OPEN 状态恰好没有订单"误判成 PG 空表。
+            if df.empty and status == "all" and days is None:
+                df = self._mark_pg_empty(df, "simulated_orders")
             return df
         except Exception as e:  # noqa: BLE001
             log.warning("[DataService] get_simulated_orders 失败: %s", e)
@@ -912,6 +916,27 @@ class DataService:
 
     # ── PostgreSQL 实现 ────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _mark_pg_empty(df: pd.DataFrame, table: str) -> pd.DataFrame:
+        """PG 表为空时：打 warning 并在 DataFrame 上标记 empty_reason。
+
+        目的：让"postgres 后端未填充"这件事**响亮地暴露**，而不是被静默当成
+        "用户暂无数据"。前端可读 ``df.attrs.get('empty_reason') == 'pg_table_empty'``
+        来显示明显的红色横幅，提示切回 parquet 或运行迁移。
+        """
+        if df is not None and df.empty:
+            log.warning(
+                "[DataService/PG] 表 %s 为空，返回空结果 —— postgres 后端未填充。"
+                "请切回 DATA_BACKEND=parquet 或运行 scripts/db_migration/02_import_pg.py。",
+                table,
+            )
+            try:
+                df.attrs["empty_reason"] = "pg_table_empty"
+                df.attrs["empty_table"] = table
+            except Exception:  # noqa: BLE001
+                pass
+        return df
+
     def _pg_get_realized_pnl(self) -> pd.DataFrame:
         from sqlalchemy import text
         try:
@@ -922,7 +947,7 @@ class DataService:
             for col in ("as_of_date", "entry_date", "exit_date"):
                 if col in df.columns:
                     df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d")
-            return df
+            return self._mark_pg_empty(df, "realized_pnl")
         except Exception as e:  # noqa: BLE001
             log.warning("[DataService/PG] get_realized_pnl 失败: %s", e)
             return pd.DataFrame()

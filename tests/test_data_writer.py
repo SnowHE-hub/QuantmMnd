@@ -194,6 +194,16 @@ class TestParquetOnlyNoDB:
 # ── 失败隔离测试（DB 失败，parquet 不受影响）─────────────────────────────────
 
 class TestFailureIsolation:
+    @pytest.fixture(autouse=True)
+    def _isolate_logs(self, tmp_path, monkeypatch):
+        """把双写失败/审计日志重定向到 tmp，避免本类的合成异常
+        （'PG down' / 'Mongo down' / 'DB down'）污染真实
+        logs/db_write_failures.log（监控页据此判断"生产失败"）。"""
+        import app.db.writers as w
+        monkeypatch.setattr(w, "_LOG_DIR", tmp_path)
+        monkeypatch.setattr(w, "_FAILURE_LOG", tmp_path / "db_write_failures.log")
+        monkeypatch.setattr(w, "_AUDIT_LOG", tmp_path / "db_write_audit.log")
+
     def test_db_failure_does_not_raise(self, writer_dual, sample_recommendations):
         """DB 写失败时 write_recommendations 不抛异常。"""
         with patch.object(writer_dual, '_mongo', side_effect=Exception("DB down")):
