@@ -747,11 +747,17 @@ class DataService:
             return {"error": str(e)}
 
     def get_execution_vs_hold_comparison(self) -> dict:
-        """执行 vs 死扛对比。
+        """执行 vs 死扛对比（等权组合 NAV，相同推荐池）。
 
-        - 执行策略：按 simulated_orders.close_reason 实际平仓
-        - 死扛策略：所有订单都按 time_expired 路径，从 realized_pnl.actual_return_63d
-          拿"死扛 63 天"的收益（与回填脚本数据对齐）
+        - 推荐池: realized_pnl 中所有 (recommend_date, ticker) 对（共 80 笔）
+        - 执行组: 按 simulated_orders.pnl_pct（含止损/止盈/到期）等权聚合
+        - 死扛组: 用 realized_pnl.actual_return_63d 等权聚合
+        - 两组用同一批 ticker → 比较"按规则平仓 vs 死扛到 63 天"的差异
+
+        NAV 算法（避免 cumprod 滚雪球的离谱差异）：
+          组合规模归一化：每笔订单分 1/N 资金，单笔贡献 = (1/N) × pnl_pct
+          按订单平仓日排序，NAV(t) = 1 + Σ 已平仓订单贡献
+          → 两组都是 N 笔订单等权，最终 NAV ≈ 1 + mean(returns)
 
         返回每个策略的累计净值序列、关键指标。
         """
@@ -767,59 +773,79 @@ class DataService:
                     "ORDER BY close_date, order_id"), conn)
                 df_pnl = pd.read_sql(text(
                     "SELECT as_of_date, ticker, entry_date, exit_date, "
-                    "actual_return_63d FROM realized_pnl ORDER BY exit_date"), conn)
+                    "holding_days, actual_return_63d "
+                    "FROM realized_pnl ORDER BY exit_date"), conn)
 
             if df_orders.empty:
                 return {"error": "无 CLOSED 订单数据"}
 
-            # 执行策略：按 close_date 累积收益
+            # 推荐池规模 N：以 realized_pnl 为准（死扛组的样本量）
+            n_total = max(len(df_pnl), len(df_orders), 1)
+
+            # ── 执行组等权 NAV ──
             df_orders["close_date"] = pd.to_datetime(df_orders["close_date"])
-            df_orders = df_orders.sort_values("close_date")
-            exec_curve = (1 + df_orders["pnl_pct"]).cumprod().tolist()
+            df_orders = df_orders.sort_values("close_date").reset_index(drop=True)
+            exec_returns = df_orders["pnl_pct"].fillna(0.0)
+            exec_contrib = exec_returns / n_total           # 单笔贡献
+            exec_nav = (1.0 + exec_contrib.cumsum()).tolist()
             exec_dates = df_orders["close_date"].dt.strftime("%Y-%m-%d").tolist()
 
-            # 死扛策略：用 realized_pnl 的 actual_return_63d（与回填数据集对应）
+            # ── 死扛组等权 NAV ──
             df_pnl["exit_date"] = pd.to_datetime(df_pnl["exit_date"])
-            df_pnl = df_pnl.sort_values("exit_date")
-            hold_curve = (1 + df_pnl["actual_return_63d"]).cumprod().tolist()
+            df_pnl = df_pnl.sort_values("exit_date").reset_index(drop=True)
+            hold_returns = df_pnl["actual_return_63d"].fillna(0.0)
+            hold_contrib = hold_returns / n_total
+            hold_nav = (1.0 + hold_contrib.cumsum()).tolist()
             hold_dates = df_pnl["exit_date"].dt.strftime("%Y-%m-%d").tolist()
 
-            # 关键指标对比
-            def _stats(returns: pd.Series, holding: pd.Series | None = None) -> dict:
+            # ── 指标计算（等权组合 → total_return = mean(returns)）──
+            def _stats(returns: pd.Series, nav: list[float],
+                       holding: pd.Series | None = None) -> dict:
                 if returns.empty:
-                    return {"win_rate": None, "avg_return": None,
+                    return {"n": 0, "win_rate": None, "avg_return": None,
                             "total_return": None, "max_dd": None,
                             "sharpe": None, "avg_holding_days": None}
-                cum = (1 + returns).cumprod()
-                roll_max = cum.cummax()
-                dd = (cum - roll_max) / roll_max
+                # NAV 回撤
+                nav_arr = pd.Series(nav)
+                roll_max = nav_arr.cummax()
+                dd = (nav_arr - roll_max) / roll_max
                 avg = returns.mean()
                 std = returns.std()
                 return {
                     "n":              int(len(returns)),
                     "win_rate":       float((returns > 0).mean()),
                     "avg_return":     float(avg),
-                    "total_return":   float(cum.iloc[-1] - 1),
-                    "max_dd":         float(dd.min()),
+                    "total_return":   float(nav_arr.iloc[-1] - 1.0),
+                    "max_dd":         float(dd.min()) if not dd.empty else 0.0,
                     "sharpe":         float(avg / std * (252 ** 0.5))
                                        if std and std > 0 else None,
                     "avg_holding_days": (float(holding.mean())
                                           if holding is not None and not holding.empty else None),
                 }
 
-            exec_stats = _stats(df_orders["pnl_pct"], df_orders["holding_days"])
-            hold_stats = _stats(df_pnl["actual_return_63d"])
+            exec_stats = _stats(exec_returns, exec_nav, df_orders["holding_days"])
+            hold_stats = _stats(hold_returns, hold_nav, df_pnl.get("holding_days"))
+
+            # 计数（便于 UI/测试断言）
+            reason_counts = df_orders["close_reason"].value_counts().to_dict()
 
             return {
+                "n_total":          int(n_total),
                 "execute": {
-                    "curve": exec_curve, "dates": exec_dates,
+                    "curve": exec_nav, "dates": exec_dates,
                     **exec_stats,
                 },
                 "hold_to_expiry": {
-                    "curve": hold_curve, "dates": hold_dates,
+                    "curve": hold_nav, "dates": hold_dates,
                     **hold_stats,
                 },
-                "exit_reasons": df_orders["close_reason"].value_counts().to_dict(),
+                "exit_reasons":     reason_counts,
+                "exec_stop_count":  int(reason_counts.get("stop_loss", 0) +
+                                         reason_counts.get("trailing_stop", 0)),
+                "exec_target_count": int(reason_counts.get("target_hit", 0)),
+                # 兼容旧 UI（之前用过 execution_nav/hold_nav 字段名）
+                "execution_nav":    exec_nav[-1] if exec_nav else None,
+                "hold_nav":         hold_nav[-1] if hold_nav else None,
             }
         except Exception as e:  # noqa: BLE001
             log.warning("[DataService] get_execution_vs_hold_comparison 失败: %s", e)

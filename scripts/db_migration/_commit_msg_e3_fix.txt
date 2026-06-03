@@ -1,0 +1,55 @@
+fix(execution): realistic fill prices on backfill + corrected exec-vs-hold NAV logic
+
+E3 回填数据真实性修正 — 解决两个数据失真：
+
+## 问题 1: 回填成交价过于整齐
+旧版 backfill_executions.py 触发止损/止盈后直接把 close_price 记为阈值价：
+  if low <= stop_loss_price:
+    close_price = stop_loss_price   # 假设精确成交（错）
+结果: 5 笔 target_hit 全部精确 +20.00%，4 笔 stop_loss 全部精确 -10.00%
+不符合 A 股 T+1 + 跳空 + 滑点的真实交易环境。
+
+修复 (scripts/backfill_executions.py):
+- 新增 _exec_price_next_open(): 触发后用次日 open × (1 - 0.001 滑点)
+- 触发日窗口放宽到 exit_date + 10 天，保证次日报价可得
+- 退化路径: 若触发已是最后一根 K 线，按当日收盘 × (1 - 滑点) 成交
+- 全程未触发也按当日收盘 × (1 - 滑点) 退出（即使 time_expired 也含交易成本）
+
+修复后分布:
+  stop_loss   std 0.0268, range [-15.32%, -9.60%]
+  target_hit  std 0.0383, range [+18.74%, +28.52%]
+  trailing    std 0.0292, range [-6.98%,  -2.85%]
+极端案例: 中联重科次日跳空开盘 6.503 < 阈值 6.912 → 真实损失 -15.32%
+         寒武纪次日跳高 371.628 > 阈值 346.992 → 实际盈利 +28.52%
+
+## 问题 2: NAV 对比用 cumprod 滚雪球
+旧版 get_execution_vs_hold_comparison() 用 (1+pnl).cumprod() 累乘 80 笔订单，
+相当于"每笔订单都用上一笔的全部资金 + 收益"，结果离谱:
+  执行 +80% vs 死扛 +1242%（差 15.4x，几何放大失真）
+
+修复 (app/services/data_service.py):
+- 等权简单收益: 每笔订单分 1/N 资金 → NAV(t) = 1 + Σ (pnl_i / N)
+- 两组用同一推荐池规模 N（来自 realized_pnl 80 行）
+- MaxDD 在归一化 NAV 上计算，单笔影响被 1/N 稀释
+- 新增 exec_stop_count / exec_target_count / execution_nav / hold_nav 字段
+
+修复后对比 (N=80):
+  按规则执行: 平均 +1.09%, 累计 NAV 1.0109, MaxDD -0.56%, Sharpe 2.52
+  死扛 63 天: 平均 +5.22%, 累计 NAV 1.0522, MaxDD -0.85%, Sharpe 3.67
+  收益比 |exec/hold| = 0.21x (合理 < 2x)
+  结论: 此样本下死扛累计高 4.13%，但执行 DD 改善 0.28pp
+       —— 数量级正确，可作为阈值调优的真实基准
+
+## 测试 (tests/test_backfill_realism.py: 15/15 通过)
+单元 (无 DB 依赖):
+  - _exec_price_next_open: 次日开盘 + 滑点 / 末尾退化
+  - 等权 NAV: 8 笔 +10% 收益 → NAV=1.10（不是 cumprod 的 2.14）
+  - 混合收益: mean=0 → NAV=1.0
+集成 (PG 实测):
+  - stop_loss pnl std > 0.005（非整齐）
+  - close_price ≠ 阈值价（多数笔）
+  - NAV 比率 < 5x（之前 bug 15x）
+  - total_return ∈ [-50%, +50%]
+  - NAV[-1] == 1 + total_return（一致性）
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

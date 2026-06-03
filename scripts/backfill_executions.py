@@ -60,6 +60,29 @@ def _load_name_industry_map() -> dict:
     }
 
 
+"""
+A股交易现实假设（用于模拟回填的真实性）:
+  * 当天日内触发阈值 → 标记 trigger_date，**次日开盘价**成交
+  * 卖出滑点 0.1%（卖出价 ×= (1 - SLIPPAGE_SELL_PCT)）
+  * 如果触发当日已是数据末尾，没有次日 → 按当日收盘 + 滑点成交（退化）
+  * 跳空开盘的极端情况被次日 open 自然反映（可能比阈值更低/更高）
+"""
+SLIPPAGE_SELL_PCT = 0.001  # 卖出滑点 0.1%
+
+
+def _exec_price_next_open(
+    bars: pd.DataFrame, trigger_idx: int, fallback_price: float,
+) -> tuple[float, "date | None"]:
+    """触发日的下一交易日开盘价 × (1 - 滑点)，没有则用当日收盘退化。"""
+    if trigger_idx + 1 < len(bars):
+        next_bar = bars.iloc[trigger_idx + 1]
+        open_px = next_bar["open"]
+        if pd.notna(open_px) and float(open_px) > 0:
+            return float(open_px) * (1 - SLIPPAGE_SELL_PCT), next_bar["trade_date"]
+    # 退化：当日收盘成交
+    return float(fallback_price) * (1 - SLIPPAGE_SELL_PCT), bars.iloc[trigger_idx]["trade_date"]
+
+
 def _simulate_exit_with_intraday(
     engine,
     ticker: str,
@@ -70,10 +93,17 @@ def _simulate_exit_with_intraday(
     stop_loss_price: float,
     trailing_pct: float = 0.15,
 ) -> dict:
-    """模拟在 [entry_date+1, exit_date] 区间内，按日线 high/low 触发止损/止盈。
+    """在 [entry_date+1, exit_date+5] 区间内按日线判定退出。
+
+    放宽 exit_date+5 是为了给次日开盘成交留 buffer（最后一天触发也有次日报价）。
 
     返回 {close_date, close_price, close_reason, high_price, low_price, ...}
+
+    成交价规则（A股 T+1 现实）:
+      * 触发日发现穿越 → 当日不平仓，下一交易日开盘成交
+      * 加 0.1% 卖出滑点
     """
+    end_q = exit_date + timedelta(days=10)
     with engine.connect() as conn:
         df = pd.read_sql(
             text("""
@@ -82,11 +112,10 @@ def _simulate_exit_with_intraday(
                 WHERE ts_code = :t AND trade_date > :s AND trade_date <= :e
                 ORDER BY trade_date
             """),
-            conn, params={"t": ticker, "s": entry_date, "e": exit_date},
+            conn, params={"t": ticker, "s": entry_date, "e": end_q},
         )
 
     if df.empty:
-        # 无日线数据，按到期处理（最后一日用 entry_price）
         return {
             "close_date":   exit_date,
             "close_price":  entry_price,
@@ -98,12 +127,24 @@ def _simulate_exit_with_intraday(
         }
 
     df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.date
+    df = df.reset_index(drop=True)
     running_high = entry_price
     running_low = entry_price
     high_date = entry_date
     low_date = entry_date
 
-    for _, bar in df.iterrows():
+    # 限定到期日索引（在此之前都按规则评估，到期后只可能是 time_expired）
+    bars_in_window = df[df["trade_date"] <= exit_date]
+    if bars_in_window.empty:
+        return {
+            "close_date":   exit_date,
+            "close_price":  entry_price,
+            "close_reason": "time_expired",
+            "high_price":   entry_price, "low_price": entry_price,
+            "high_date":    entry_date, "low_date": entry_date,
+        }
+
+    for i, bar in bars_in_window.iterrows():
         d = bar["trade_date"]
         h = float(bar["high"]) if pd.notna(bar["high"]) else 0.0
         lo = float(bar["low"]) if pd.notna(bar["low"]) else 0.0
@@ -116,52 +157,45 @@ def _simulate_exit_with_intraday(
             running_low = lo
             low_date = d
 
-        # 优先级 1：止损（日内 low 击穿）
+        # 1. 止损（日内 low 击穿） → 次日开盘成交
         if stop_loss_price > 0 and lo <= stop_loss_price:
+            px, close_date = _exec_price_next_open(df, i, fallback_price=stop_loss_price)
             return {
-                "close_date":   d,
-                "close_price":  stop_loss_price,
+                "close_date":   close_date,
+                "close_price":  px,
                 "close_reason": "stop_loss",
-                "high_price":   running_high,
-                "low_price":    running_low,
-                "high_date":    high_date,
-                "low_date":     low_date,
+                "high_price":   running_high, "low_price": running_low,
+                "high_date":    high_date, "low_date": low_date,
             }
-        # 优先级 2：止盈（日内 high 达到）
+        # 2. 止盈（日内 high 达到） → 次日开盘成交
         if target_price > 0 and h >= target_price:
+            px, close_date = _exec_price_next_open(df, i, fallback_price=target_price)
             return {
-                "close_date":   d,
-                "close_price":  target_price,
+                "close_date":   close_date,
+                "close_price":  px,
                 "close_reason": "target_hit",
-                "high_price":   running_high,
-                "low_price":    running_low,
-                "high_date":    high_date,
-                "low_date":     low_date,
+                "high_price":   running_high, "low_price": running_low,
+                "high_date":    high_date, "low_date": low_date,
             }
-        # 优先级 3：追踪止损（从持仓期高点回撤 ≥ trailing_pct）
-        if running_high > 0:
-            drawdown = (running_high - c) / running_high
-            if drawdown >= trailing_pct:
-                return {
-                    "close_date":   d,
-                    "close_price":  c,
-                    "close_reason": "trailing_stop",
-                    "high_price":   running_high,
-                    "low_price":    running_low,
-                    "high_date":    high_date,
-                    "low_date":     low_date,
-                }
+        # 3. 追踪止损（收盘价从高点回撤 >= trailing_pct） → 次日开盘成交
+        if running_high > 0 and (running_high - c) / running_high >= trailing_pct:
+            px, close_date = _exec_price_next_open(df, i, fallback_price=c)
+            return {
+                "close_date":   close_date,
+                "close_price":  px,
+                "close_reason": "trailing_stop",
+                "high_price":   running_high, "low_price": running_low,
+                "high_date":    high_date, "low_date": low_date,
+            }
 
-    # 全程未触发，按到期处理
-    last_bar = df.iloc[-1]
+    # 全程未触发 → 按到期日实际收盘价（加滑点）
+    last_bar = bars_in_window.iloc[-1]
     return {
         "close_date":   last_bar["trade_date"],
-        "close_price":  float(last_bar["close"]),
+        "close_price":  float(last_bar["close"]) * (1 - SLIPPAGE_SELL_PCT),
         "close_reason": "time_expired",
-        "high_price":   running_high,
-        "low_price":    running_low,
-        "high_date":    high_date,
-        "low_date":     low_date,
+        "high_price":   running_high, "low_price": running_low,
+        "high_date":    high_date, "low_date": low_date,
     }
 
 
