@@ -26,7 +26,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.backfill_executions import _exec_price_next_open, SLIPPAGE_SELL_PCT
+# 注意：_exec_price_next_open / SLIPPAGE_SELL_PCT 改为函数内延迟导入，
+# 以打破 quantmind.execution.__init__ → replay_engine → scripts.backfill_executions
+#  → quantmind.execution.manager 的循环导入（否则单独导入 backfill_executions 时
+#  会 ImportError: partially initialized module）。
 
 
 # ── 参数结构 ─────────────────────────────────────────────────────────────────
@@ -168,6 +171,9 @@ def replay_single_order(
     high_date = rec.entry_date
     low_date = rec.entry_date
     bars_held = 0  # 已持有的交易日数
+
+    # 延迟导入打破循环依赖（见模块顶部说明）
+    from scripts.backfill_executions import _exec_price_next_open, SLIPPAGE_SELL_PCT
 
     for i, bar in window.iterrows():
         bars_held = int(i) + 1

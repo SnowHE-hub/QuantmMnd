@@ -28,6 +28,11 @@ from datetime import date
 import pandas as pd
 import pytest
 
+# 本文件每个测试都调用真实 akshare/tushare 网络 API（见模块 docstring）。
+# 统一标记为 integration：默认 `pytest -m "not integration"` 与 CI 都会跳过，
+# 避免漏标的联网测试把整套挂死（曾出现 8 小时 hang）。跑它们用 `pytest -m integration`。
+pytestmark = pytest.mark.integration
+
 # ---- 共用 skip 条件 ----
 _REQUIRES_NET = pytest.mark.skipif(
     os.getenv("CI") and not os.getenv("RUN_NETWORK_TESTS"),

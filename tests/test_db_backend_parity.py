@@ -16,6 +16,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# 本文件对比 parquet vs postgres 两个 backend，需要真实 PG + Mongo 且已灌入数据
+# （当前 PG 多表为空 → 必然不一致）。标记为 integration，从默认/CI 单元跑中排除；
+# 校验 backend 一致性请在 DB 已填充的环境用 `pytest -m integration` 单独跑。
+pytestmark = pytest.mark.integration
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")

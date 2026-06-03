@@ -127,6 +127,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-xdist>=3.5",
     "pytest-mock>=3.12",
+    "pytest-timeout>=2.3",
     "ruff>=0.4",
     "mypy>=1.10",
     "ipykernel>=6.29",
@@ -248,6 +249,11 @@ markers = [
     "pit: Point-in-Time correctness tests (核心)",
 ]
 asyncio_mode = "auto"
+# 全局每测超时（保险丝）：任何单测 > 60s 直接 fail，杜绝"hang 8 小时"。
+# thread 方法在卡住的阻塞 C 调用（如无超时的 socket.read）上会 dump 栈并终止进程，
+# 是最后兜底；正常情况下联网测试已标 integration 不会触发。
+timeout = 60
+timeout_method = "thread"
 
 [tool.coverage.run]
 source = ["quantmind"]

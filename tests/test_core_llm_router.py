@@ -220,8 +220,11 @@ class TestLLMRouter:
 # ============================================================================
 
 
+@pytest.mark.integration
 @pytest.mark.slow
 def test_ollama_live(ollama_available: bool) -> None:
+    # integration：真实调用本地 Ollama 服务，可能 hang（服务在但模型加载/繁忙时
+    # router.prompt 会阻塞），默认/CI 单元跑中跳过。
     if not ollama_available:
         pytest.skip("ollama not running")
 

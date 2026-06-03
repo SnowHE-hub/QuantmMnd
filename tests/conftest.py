@@ -30,6 +30,55 @@ def _isolate_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
 
 
+@pytest.fixture(autouse=True)
+def block_external_network(request: pytest.FixtureRequest):
+    """CI 闸门：NO_NETWORK=1 时，非 integration 测试禁止访问外部网络。
+
+    任何漏标 @pytest.mark.integration 的联网测试会**立即 RuntimeError 响亮失败**，
+    而不是 hang 住整套（曾因一个未隔离的 akshare/tushare 调用 hang 8 小时）。
+    放行 localhost/回环（本地 PG/Mongo、pytest-xdist worker 通信不受影响）。
+    本地默认不开启（不设 NO_NETWORK）；CI 在 ci.yml 里设 NO_NETWORK=1。
+    """
+    if os.environ.get("NO_NETWORK") != "1" or "integration" in request.keywords:
+        yield
+        return
+
+    import socket
+
+    _real_getaddrinfo = socket.getaddrinfo
+    _real_create_connection = socket.create_connection
+    _LOCAL = {"localhost", "127.0.0.1", "::1", "0.0.0.0", ""}
+
+    def _is_local(host: object) -> bool:
+        h = str(host)
+        return h in _LOCAL or h.startswith("127.")
+
+    def _guard_getaddrinfo(host, *args, **kwargs):
+        if not _is_local(host):
+            raise RuntimeError(
+                f"Network blocked in unit test (NO_NETWORK=1): DNS '{host}'. "
+                f"给该测试加 @pytest.mark.integration，或 mock 掉网络调用。"
+            )
+        return _real_getaddrinfo(host, *args, **kwargs)
+
+    def _guard_create_connection(address, *args, **kwargs):
+        host = address[0] if isinstance(address, (tuple, list)) else address
+        if not _is_local(host):
+            raise RuntimeError(
+                f"Network blocked in unit test (NO_NETWORK=1): connect '{host}'. "
+                f"给该测试加 @pytest.mark.integration，或 mock 掉网络调用。"
+            )
+        return _real_create_connection(address, *args, **kwargs)
+
+    socket.getaddrinfo = _guard_getaddrinfo  # type: ignore[assignment]
+    socket.create_connection = _guard_create_connection  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = _real_getaddrinfo
+        socket.create_connection = _real_create_connection
+
+
 @pytest.fixture
 def sample_query() -> InvestmentQuery:
     return InvestmentQuery(
