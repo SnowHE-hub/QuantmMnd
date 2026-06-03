@@ -1,0 +1,75 @@
+feat(execution): parameter grid search — find optimal stop loss / target / trailing
+
+E3.5 执行参数优化研究 — 在 80 笔历史推荐上扫 576 组参数。
+
+## 新模块
+
+quantmind/execution/
+  * replay_engine.py: HistoricalReplayEngine + ReplayParams
+    - 参数化的历史回放：支持 None=禁用单条规则
+    - 价格数据一次性预加载（避免 N×M 次 SQL）
+    - 单笔回放复用 backfill 的 _exec_price_next_open（T+1 + 滑点）
+    - 等权 NAV 聚合（与 DataService 修正后一致）
+
+  * optimizer.py: ExecutionParamOptimizer
+    - DEFAULT_GRID = 6 × 6 × 4 × 4 = 576 组合
+    - run_grid_search: 返回 (576, 15) DataFrame
+    - find_pareto_optimal: 两目标 (cum_return, maxdd) Pareto 前沿
+    - recommend_best_params: criteria 'sharpe' / 'return' / 'win_rate'
+    - 支持约束: {'maxdd_min': -0.05} 即 MaxDD 不能比 -5% 更差
+    - beat_baseline: 击败基准统计
+
+## 研究脚本
+
+scripts/optimize_execution_params.py
+  完整流程: 加载 80 笔历史 → 预加载 53 ticker × 6,668 K 线 →
+  网格搜索（33s）→ Pareto + 最优 → 写 parquet + json + md 报告
+
+输出:
+  data/execution_research/grid_results.parquet      (576 行)
+  data/execution_research/pareto_frontier.parquet
+  data/execution_research/best_params.json
+  docs/execution_optimization_report.md
+
+## 可视化
+
+app/pages/14_执行管理.py 新增区域 6:
+  A. 搜索结果 KPI（576 总数 / 击败收益数 / 击败 MaxDD 数 / 两者都击败）
+  B. Pareto 散点图（灰=全部 / 红=前沿 / 蓝=当前 / 绿=死扛基准）
+  C. Top 10 表格（按 Sharpe/收益/胜率 切换）
+  D. 参数热力图（固定 trailing/holding，看 sl×target 的 Sharpe 矩阵）
+  E. 推荐参数 + dry-run 应用按钮（写 strategy_config_v2.json::execution_params_pending）
+
+## 测试
+
+tests/test_execution_optimizer.py: 19/19 通过
+  - ReplayParams: dataclass / frozen / to_dict
+  - replay_single_order: 5 类退出 + 优先级 + no_data
+  - ReplayEngine: 多笔聚合 + 等权 NAV 不复利
+  - GridSearch: 形状 / Pareto 排除被支配 / 保留 trade-off
+  - 单目标最优 + 约束筛选 + beat_baseline 统计
+
+## 关键发现
+
+在 80 笔 (2024-2026) 历史样本上:
+  ✗ 0/576 组合击败死扛累计收益 +5.22%（死扛不可超越）
+  ✓ 576/576 组合击败死扛 MaxDD -0.85%
+  ✓ Sharpe 最优组合 5.08 > 死扛 3.67（风险调整收益更优）
+
+最优参数（Sharpe 最优）:
+  stop_loss=-20%, target=+20%, trailing=关, holding_days=126
+  收益 +3.76%, MaxDD -0.22%, Sharpe 5.08
+
+收益最优:
+  stop_loss=-20%, target=+30%, trailing=关, holding_days=126
+  收益 +4.17%, MaxDD -0.15%, Sharpe 4.84
+
+研究结论:
+  1. trailing_stop 应该关闭（在当前样本上拖累收益）
+  2. stop_loss 应该放宽到 -20%（避免被洗出）
+  3. holding_days 延长到 126（让长牛股跑完）
+  4. target 在 +20%~+30% 都不错
+  5. 死扛在累计收益上不可击败，但执行模式 Sharpe 更高，
+     适合追求风险调整收益和资金周转的场景
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

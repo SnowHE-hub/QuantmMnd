@@ -354,3 +354,294 @@ else:
             st.info("无该期间日线数据")
     except Exception as e:  # noqa: BLE001
         st.warning(f"K 线绘制失败: {e}")
+
+
+st.divider()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 区域 6：参数研究（E3.5）
+# ═════════════════════════════════════════════════════════════════════════════
+st.markdown("### 🔬 区域6 · 执行参数优化研究（E3.5）")
+st.caption(
+    "在 80 笔历史推荐上回放 576 组参数（stop_loss × target × trailing × holding_days）"
+    "，寻找 Pareto 最优。"
+)
+
+import json as _json
+research_dir = ROOT / "data" / "execution_research"
+grid_path = research_dir / "grid_results.parquet"
+pareto_path = research_dir / "pareto_frontier.parquet"
+best_path = research_dir / "best_params.json"
+
+if not grid_path.exists():
+    st.info(
+        "暂无研究数据。请先在终端执行：\n\n"
+        "```bash\nconda run -n quantmind python scripts/optimize_execution_params.py\n```"
+    )
+else:
+    grid = pd.read_parquet(grid_path)
+    pareto_df = pd.read_parquet(pareto_path) if pareto_path.exists() else pd.DataFrame()
+    best = _json.loads(best_path.read_text(encoding="utf-8")) if best_path.exists() else {}
+
+    baseline = best.get("hold_baseline", {})
+    beat = best.get("beat_baseline", {})
+
+    # ── 区域 A：网格搜索摘要 KPI ─────────────────────────────────────────────
+    st.markdown("#### A · 搜索结果摘要")
+    ka, kb, kc, kd = st.columns(4)
+    ka.metric("总组合数", f"{beat.get('total', len(grid)):,}")
+    kb.metric(
+        "收益 > 死扛",
+        f"{beat.get('beat_return', 0)} ({beat.get('beat_return_pct', 0)*100:.1f}%)",
+        f"基准 {baseline.get('cum_return', 0)*100:+.2f}%",
+    )
+    kc.metric(
+        "MaxDD > 死扛",
+        f"{beat.get('beat_maxdd', 0)} ({beat.get('beat_maxdd_pct', 0)*100:.1f}%)",
+        f"基准 {baseline.get('maxdd', 0)*100:.2f}%",
+    )
+    kd.metric(
+        "两者都击败",
+        f"{beat.get('beat_both', 0)} ({beat.get('beat_both_pct', 0)*100:.1f}%)",
+    )
+
+    # ── 区域 B：Pareto 前沿散点 ──────────────────────────────────────────────
+    st.markdown("#### B · Pareto 前沿散点图")
+    st.caption("X 轴 MaxDD（越靠右越好），Y 轴累计收益（越靠上越好）")
+
+    fig_p = go.Figure()
+    # 所有组合（灰）
+    fig_p.add_trace(go.Scatter(
+        x=grid["maxdd"] * 100, y=grid["cum_return"] * 100,
+        mode="markers", name=f"全部 {len(grid)} 组合",
+        marker=dict(color="#bdc3c7", size=6, opacity=0.6),
+        customdata=grid[["stop_loss", "target_price", "trailing_stop", "holding_days"]].values,
+        hovertemplate=(
+            "MaxDD: %{x:.2f}%<br>"
+            "累计收益: %{y:.2f}%<br>"
+            "sl=%{customdata[0]}, tg=%{customdata[1]}, "
+            "trl=%{customdata[2]}, hd=%{customdata[3]}<extra></extra>"
+        ),
+    ))
+    # Pareto 前沿（红）
+    if not pareto_df.empty:
+        fig_p.add_trace(go.Scatter(
+            x=pareto_df["maxdd"] * 100, y=pareto_df["cum_return"] * 100,
+            mode="markers", name=f"Pareto 前沿 ({len(pareto_df)})",
+            marker=dict(color="#e74c3c", size=12, symbol="circle"),
+            customdata=pareto_df[["stop_loss", "target_price",
+                                     "trailing_stop", "holding_days"]].values,
+            hovertemplate=(
+                "Pareto · MaxDD: %{x:.2f}%<br>"
+                "累计收益: %{y:.2f}%<br>"
+                "sl=%{customdata[0]}, tg=%{customdata[1]}, "
+                "trl=%{customdata[2]}, hd=%{customdata[3]}<extra></extra>"
+            ),
+        ))
+    # 当前生产参数（蓝）
+    cur = best.get("current_params", {})
+    cur_sl = cur.get("stop_loss", -0.10)
+    cur_tg = cur.get("target_price", 0.20)
+    cur_tr = cur.get("trailing_stop", -0.15)
+    cur_hd = cur.get("holding_days", 63)
+    cur_row = grid[(grid["stop_loss"] == cur_sl) &
+                     (grid["target_price"] == cur_tg) &
+                     (grid["trailing_stop"] == cur_tr) &
+                     (grid["holding_days"] == cur_hd)]
+    if not cur_row.empty:
+        fig_p.add_trace(go.Scatter(
+            x=cur_row["maxdd"] * 100, y=cur_row["cum_return"] * 100,
+            mode="markers+text", name="当前生产参数",
+            marker=dict(color="#0984E3", size=16, symbol="square"),
+            text=["当前"], textposition="top center",
+        ))
+    # 死扛基准（绿星）
+    if baseline:
+        fig_p.add_trace(go.Scatter(
+            x=[baseline["maxdd"] * 100], y=[baseline["cum_return"] * 100],
+            mode="markers+text", name="死扛基准",
+            marker=dict(color="#27ae60", size=18, symbol="star"),
+            text=["死扛"], textposition="top right",
+        ))
+    fig_p.update_layout(
+        height=500, hovermode="closest",
+        xaxis_title="MaxDD (%)", yaxis_title="累计收益 (%)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        margin=dict(l=20, r=20, t=40, b=20),
+    )
+    st.plotly_chart(fig_p, use_container_width=True)
+
+    # ── 区域 C：Top 10 表格 ─────────────────────────────────────────────────
+    st.markdown("#### C · Top 10")
+    sort_key = st.radio(
+        "排序方式",
+        ["sharpe", "cum_return", "win_rate"],
+        horizontal=True,
+        format_func=lambda x: {
+            "sharpe": "Sharpe", "cum_return": "累计收益", "win_rate": "胜率"
+        }[x],
+        key="grid_sort_key",
+    )
+    cols_to_show = ["stop_loss", "target_price", "trailing_stop", "holding_days",
+                    "cum_return", "maxdd", "sharpe", "win_rate",
+                    "avg_holding_days", "n_stop_loss", "n_target_hit",
+                    "n_trailing_stop", "n_time_expired"]
+    top10 = grid.nlargest(10, sort_key)[cols_to_show].copy()
+    # 格式化
+    for col in ("cum_return", "maxdd", "win_rate"):
+        top10[col] = top10[col].apply(lambda v: f"{v*100:+.2f}%" if pd.notna(v) else "—")
+    for col in ("stop_loss", "target_price"):
+        top10[col] = top10[col].apply(
+            lambda v: f"{v*100:+.0f}%" if pd.notna(v) and v != 0 else "—")
+    top10["trailing_stop"] = top10["trailing_stop"].apply(
+        lambda v: f"{v*100:+.0f}%" if pd.notna(v) else "关闭")
+    top10["sharpe"] = top10["sharpe"].apply(
+        lambda v: f"{v:.2f}" if pd.notna(v) else "—")
+    top10["avg_holding_days"] = top10["avg_holding_days"].apply(
+        lambda v: f"{v:.1f}" if pd.notna(v) else "—")
+    top10 = top10.rename(columns={
+        "stop_loss": "止损", "target_price": "止盈",
+        "trailing_stop": "追踪", "holding_days": "持仓",
+        "cum_return": "累计", "maxdd": "MaxDD", "sharpe": "Sharpe",
+        "win_rate": "胜率", "avg_holding_days": "均天数",
+        "n_stop_loss": "止损笔", "n_target_hit": "止盈笔",
+        "n_trailing_stop": "追踪笔", "n_time_expired": "到期笔",
+    })
+    st.dataframe(top10, use_container_width=True, hide_index=True)
+
+    # ── 区域 D：参数热力图 ───────────────────────────────────────────────────
+    st.markdown("#### D · 参数热力图")
+    st.caption("固定 trailing_stop 和 holding_days，画 stop_loss × target_price 的 Sharpe 热力图")
+
+    cc1, cc2 = st.columns(2)
+    fixed_trailing = cc1.selectbox(
+        "固定 trailing_stop",
+        sorted([v for v in grid["trailing_stop"].unique()
+                if pd.notna(v)]) + ["关闭"],
+        index=0, key="heat_trailing",
+    )
+    fixed_hold = cc2.selectbox(
+        "固定 holding_days",
+        sorted(grid["holding_days"].dropna().unique().astype(int).tolist()),
+        index=1, key="heat_hold",
+    )
+    if fixed_trailing == "关闭":
+        sub = grid[grid["trailing_stop"].isna()]
+    else:
+        sub = grid[grid["trailing_stop"] == fixed_trailing]
+    sub = sub[sub["holding_days"] == fixed_hold]
+
+    if sub.empty:
+        st.info("该筛选下无数据")
+    else:
+        # 透视成 stop_loss × target_price 矩阵
+        pivot = sub.pivot_table(
+            index="stop_loss", columns="target_price",
+            values="sharpe", aggfunc="mean", dropna=False,
+        )
+        # target_price 的 NaN 列改成 "无止盈"
+        pivot.columns = [f"{c*100:+.0f}%" if pd.notna(c) else "无止盈"
+                         for c in pivot.columns]
+        pivot.index = [f"{i*100:+.0f}%" if pd.notna(i) else "无止损"
+                       for i in pivot.index]
+
+        fig_h = go.Figure(data=go.Heatmap(
+            z=pivot.values, x=pivot.columns, y=pivot.index,
+            colorscale="RdYlGn", zmid=2.0,
+            text=[[f"{v:.2f}" if pd.notna(v) else "—" for v in row]
+                  for row in pivot.values],
+            texttemplate="%{text}", textfont={"size": 12},
+            colorbar=dict(title="Sharpe"),
+        ))
+        fig_h.update_layout(
+            height=440,
+            xaxis_title="target_price", yaxis_title="stop_loss",
+            title=f"Sharpe 热力图 (trailing={fixed_trailing}, holding={fixed_hold}d)",
+            margin=dict(l=20, r=20, t=50, b=20),
+        )
+        st.plotly_chart(fig_h, use_container_width=True)
+
+    # ── 区域 E：推荐参数 + 应用按钮 ────────────────────────────────────────
+    st.markdown("#### E · 推荐参数")
+
+    rec_choice = st.radio(
+        "推荐方式",
+        ["best_sharpe", "best_return", "best_safe_return"],
+        horizontal=True,
+        format_func=lambda x: {
+            "best_sharpe":      "按 Sharpe 最优",
+            "best_return":      "按累计收益最优",
+            "best_safe_return": "安全收益最优（MaxDD ≥ 死扛）",
+        }[x],
+        key="rec_choice",
+    )
+    rec_params = best.get(rec_choice) or {}
+    if rec_params:
+        # 显示参数和指标
+        rc1, rc2, rc3, rc4 = st.columns(4)
+        rc1.metric("止损", f"{rec_params.get('stop_loss', 0)*100:+.0f}%")
+        rc2.metric(
+            "止盈",
+            f"{rec_params.get('target_price', 0)*100:+.0f}%"
+            if rec_params.get("target_price") is not None else "关闭"
+        )
+        rc3.metric(
+            "追踪止损",
+            f"{rec_params.get('trailing_stop', 0)*100:+.0f}%"
+            if rec_params.get("trailing_stop") is not None else "关闭"
+        )
+        rc4.metric("持仓天数", f"{int(rec_params.get('holding_days', 0))}d")
+
+        # 指标
+        rc1, rc2, rc3, rc4 = st.columns(4)
+        rc1.metric("累计收益", f"{rec_params.get('cum_return', 0)*100:+.2f}%")
+        rc2.metric("MaxDD", f"{rec_params.get('maxdd', 0)*100:.2f}%")
+        rc3.metric("Sharpe", f"{rec_params.get('sharpe', 0):.2f}")
+        rc4.metric("胜率", f"{rec_params.get('win_rate', 0)*100:.1f}%")
+
+        # vs 基准
+        cum_delta = rec_params.get("cum_return", 0) - baseline.get("cum_return", 0)
+        dd_delta = rec_params.get("maxdd", 0) - baseline.get("maxdd", 0)
+        if cum_delta > 0:
+            st.success(
+                f"💡 该参数累计收益 **{cum_delta*100:+.2f}pp** > 死扛基准 "
+                f"({baseline.get('cum_return', 0)*100:+.2f}%)"
+            )
+        else:
+            st.warning(
+                f"⚠️ 该参数累计收益 **{cum_delta*100:+.2f}pp** 仍低于死扛基准 "
+                f"({baseline.get('cum_return', 0)*100:+.2f}%)，但 MaxDD 改善 "
+                f"**{dd_delta*100:+.2f}pp**"
+            )
+
+        # 应用按钮
+        st.caption("⚠️ 应用按钮仅做 dry-run（写入 strategy_config_v2.json 的预览字段）")
+        if st.button("🚀 应用到 strategy_config_v2.json（dry-run 预览）",
+                     key="apply_params"):
+            cfg_path = ROOT / "data" / "paper_trading" / "strategy_config_v2.json"
+            if cfg_path.exists():
+                cfg = _json.loads(cfg_path.read_text(encoding="utf-8"))
+                cfg["execution_params_pending"] = {
+                    "from_research": rec_choice,
+                    "applied_at": pd.Timestamp.now().isoformat(timespec="seconds"),
+                    "params": {
+                        "stop_loss":     rec_params.get("stop_loss"),
+                        "target_price":  rec_params.get("target_price"),
+                        "trailing_stop": rec_params.get("trailing_stop"),
+                        "holding_days":  int(rec_params.get("holding_days", 63)),
+                    },
+                    "baseline_metrics": {
+                        "cum_return": rec_params.get("cum_return"),
+                        "maxdd":      rec_params.get("maxdd"),
+                        "sharpe":     rec_params.get("sharpe"),
+                    },
+                }
+                cfg_path.write_text(
+                    _json.dumps(cfg, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
+                st.success(
+                    f"✅ 已写入 `strategy_config_v2.json::execution_params_pending`。\n\n"
+                    f"参数尚未生效，运维确认后将 pending 提升为正式 params。"
+                )
+            else:
+                st.error(f"strategy_config_v2.json 不存在: {cfg_path}")
