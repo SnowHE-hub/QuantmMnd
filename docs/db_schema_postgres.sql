@@ -325,6 +325,72 @@ CREATE TABLE IF NOT EXISTS snapshot_financials (
 COMMENT ON TABLE snapshot_financials IS '快照财务三表（income/balance_sheet/cashflow 合并）';
 
 -- ============================================================
+-- 13. 模拟订单（simulated_orders）— E3 执行层
+--     用于记录每一笔"如果按 Agent 建议执行"的完整生命周期
+-- ============================================================
+CREATE TABLE IF NOT EXISTS simulated_orders (
+    order_id            SERIAL          PRIMARY KEY,
+    ticker              VARCHAR(20)     NOT NULL,
+    name                VARCHAR(50),
+    industry            VARCHAR(50),
+
+    -- 推荐来源
+    recommend_date      DATE            NOT NULL,
+    recommend_rank      INTEGER,
+    agent_signal        DOUBLE PRECISION,
+    agent_confidence    DOUBLE PRECISION,
+    agent_rating        VARCHAR(20),
+
+    -- 开仓
+    open_date           DATE            NOT NULL,
+    open_price          DOUBLE PRECISION NOT NULL,
+    open_reason         VARCHAR(50),     -- 'agent_recommendation' / 'backfill'
+    position_size       DOUBLE PRECISION,-- 建议仓位 0-1
+
+    -- Agent 建议的退出条件
+    target_price        DOUBLE PRECISION,
+    stop_loss_price     DOUBLE PRECISION,
+    holding_period      INTEGER,         -- 计划持仓天数
+
+    -- 实际退出（NULL 表示还在持仓）
+    close_date          DATE,
+    close_price         DOUBLE PRECISION,
+    close_reason        VARCHAR(30),     -- target_hit / stop_loss / trailing_stop
+                                         -- time_expired / regime_change / manual
+
+    -- 持仓期间最值（每日更新）
+    high_price          DOUBLE PRECISION,
+    low_price           DOUBLE PRECISION,
+    high_date           DATE,
+    low_date            DATE,
+    max_unrealized_gain DOUBLE PRECISION,
+    max_drawdown        DOUBLE PRECISION,
+
+    -- 最终结算（close 后填）
+    pnl_abs             DOUBLE PRECISION,
+    pnl_pct             DOUBLE PRECISION,
+    holding_days        INTEGER,
+
+    -- 成本（模拟）
+    commission          DOUBLE PRECISION,
+    slippage            DOUBLE PRECISION,
+
+    -- 状态
+    status              VARCHAR(20)     DEFAULT 'OPEN',  -- OPEN / CLOSED / CANCELLED
+
+    -- 时间戳
+    created_at          TIMESTAMP       DEFAULT NOW(),
+    updated_at          TIMESTAMP       DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_ticker_status  ON simulated_orders(ticker, status);
+CREATE INDEX IF NOT EXISTS idx_orders_open_date      ON simulated_orders(open_date);
+CREATE INDEX IF NOT EXISTS idx_orders_close_reason   ON simulated_orders(close_reason);
+CREATE INDEX IF NOT EXISTS idx_orders_status         ON simulated_orders(status);
+
+COMMENT ON TABLE simulated_orders IS 'E3 执行层 — 模拟订单完整生命周期（推荐→开仓→维护→平仓→结算）';
+
+-- ============================================================
 -- 索引汇总说明
 -- ============================================================
 -- 时序大表索引策略：

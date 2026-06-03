@@ -99,6 +99,8 @@ def parse_args() -> argparse.Namespace:
                    help="下载快照时限制股票数（调试加速）")
     p.add_argument("--no-agent", action="store_true",
                    help="跳过 step7a 6-Agent 分析（加快 daily_update，适合调试）")
+    p.add_argument("--skip-execution", action="store_true",
+                   help="跳过 step12 执行层模拟交易（默认启用，失败不中断 daily_update）")
     p.add_argument("--no-alert", action="store_true",
                    help="跳过 step11 每日预警推送（企业微信/邮件）")
     p.add_argument("--no-cnn", action="store_true",
@@ -1712,6 +1714,15 @@ def main() -> int:
             logger.warning(f"[Step10] ⚠️ 漏斗统计异常，跳过: {e}")
             step_results["step10"] = False
 
+    # ── Step 12（E3 执行层模拟交易，可选；失败不影响退出码）─────────────────
+    if args.stop_after is None and not getattr(args, "skip_execution", False):
+        try:
+            _step12_execute(as_of, top10, agent_analyses=None)
+            step_results["step12"] = True
+        except Exception as e:
+            logger.warning(f"[Step12] ⚠️ 执行层异常，跳过: {e}")
+            step_results["step12"] = False
+
     # ── Step 11（每日预警推送：企业微信 + 邮件，可选；不影响退出码）─────────
     if args.stop_after is None and not getattr(args, "no_alert", False):
         try:
@@ -1722,6 +1733,69 @@ def main() -> int:
             step_results["step11"] = False
 
     return _finalize(step_results, t_start, log_file, stop_after=args.stop_after)
+
+
+# ── Step 12: 执行层模拟交易 ──────────────────────────────────────────────────
+
+def _step12_execute(as_of, top10: list[dict], agent_analyses: dict | None = None) -> None:
+    """E3 Step 12: 模拟执行层。
+
+    1. daily_update: 扫描 OPEN 订单，更新极值，触发止损/止盈/到期 → 平仓
+    2. 从 top10 推荐开仓（如果还没有 OPEN 订单）
+
+    失败不应中断整个 daily_update 流程（写日志即可）。
+    """
+    logger.info("[Step12] 执行层模拟交易开始")
+
+    try:
+        from quantmind.execution.manager import ExecutionManager
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[Step12] 跳过：执行层模块不可用 (%s)", e)
+        return
+
+    exec_mgr = ExecutionManager()
+
+    # A. 每日维护
+    try:
+        summary = exec_mgr.daily_update(as_of=str(as_of))
+        logger.info(
+            "[Step12a] 持仓维护: open=%d updated=%d closed=%d",
+            summary.get("n_open", 0), summary.get("n_updated", 0),
+            summary.get("n_closed", 0))
+        for c in summary.get("closes", []):
+            logger.info(
+                "[Step12a]   平仓 #%s %s reason=%s pnl=%.2f%% days=%d",
+                c.get("order_id"), c.get("ticker"), c.get("close_reason"),
+                (c.get("pnl_pct") or 0) * 100, c.get("holding_days", 0))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[Step12a] 每日维护失败: %s", e)
+
+    # B. 从 top10 推荐开仓
+    if not top10:
+        logger.info("[Step12b] 无推荐数据，跳过开仓")
+        return
+
+    try:
+        opened = 0
+        skipped = 0
+        for rec in top10[:10]:
+            ticker = rec.get("ticker", "")
+            if not ticker:
+                continue
+            if exec_mgr.has_open_position(ticker):
+                skipped += 1
+                continue
+            agent = (agent_analyses or {}).get(ticker, {}) if agent_analyses else {}
+            order_id = exec_mgr.open_position_from_recommendation(
+                recommendation=rec, agent_analysis=agent, as_of=str(as_of),
+            )
+            if order_id is not None:
+                opened += 1
+        logger.info("[Step12b] 新开仓: %d (跳过已持仓: %d)", opened, skipped)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[Step12b] 开仓异常: %s", e)
+
+    logger.info("[Step12] 执行层完成")
 
 
 def _step11_daily_alert(as_of, top10: list[dict]) -> None:

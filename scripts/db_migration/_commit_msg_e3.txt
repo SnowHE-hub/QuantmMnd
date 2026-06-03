@@ -1,0 +1,71 @@
+feat(execution): simulated execution layer — stop loss + target + time expiry + full audit
+
+E3 模拟执行层：让 Agent 建议真正"被执行"，记录完整生命周期。
+
+新增模块:
+- quantmind/execution/
+  * exit_decision.py: ExitDecision dataclass + ExitReason Literal
+  * stop_loss_engine.py: 规则引擎（5 优先级）
+    1. stop_loss   - current < stop_loss_price
+    2. target_hit  - current >= target_price
+    3. trailing_stop - 从持仓期高点回撤 >= 15%（可配）
+    4. time_expired - days_held >= holding_period
+    5. regime_change - bull→bear 且热门行业（默认关）
+  * manager.py: ExecutionManager
+    - open_position_from_recommendation: 写 simulated_orders
+    - daily_update: 扫 OPEN 订单 → 更新极值 → 评估退出 → 平仓
+    - close_position: 计算 PnL + commission + slippage
+    - has_open_position / get_open_orders / get_closed_orders
+    - parse_holding_horizon: 解析 '21d'/'3m'/63 → int 天数
+    - parse_position_size: 解析 '5%'/'轻仓(1-3%)' → 0-1 浮点
+
+数据模型:
+- docs/db_schema_postgres.sql: simulated_orders 表（27 列）
+  推荐来源 + 开仓 + Agent 退出条件 + 持仓极值 + 平仓结算 + 成本
+  3 个 B-Tree 索引（ticker+status / open_date / close_reason）
+- scripts/db_migration/_fix_date_types.py: 一次性把 11 张表的
+  trade_date/entry_date 等列从 text 改成 date 类型
+
+接入 daily_update:
+- scripts/daily_update.py: 新增 step12 (在 step11 alert 之前)
+  * Step 12a: 每日维护 + 自动平仓
+  * Step 12b: 从 top10 自动开仓（跳过已 OPEN 的）
+  * 新增 CLI: --skip-execution
+  * 失败不中断 daily_update 流程
+
+DataService 接口:
+- app/services/data_service.py 新增 3 个方法:
+  * get_simulated_orders(status='all'/'OPEN'/'CLOSED', days=N)
+  * get_execution_stats(days=N) - KPI 汇总
+  * get_execution_vs_hold_comparison() - 累计曲线 + 关键指标
+
+执行管理页面:
+- app/pages/14_执行管理.py: 5 个区域
+  * KPI 卡片（订单数 / 胜率 / 平均收益 / 平均持仓 / 最佳/最差）
+  * 当前持仓监控（含距止损/止盈距离 + 持仓进度条）
+  * 平仓历史（按 reason 颜色编码 + 饼图 + 平均收益拆分）
+  * 执行 vs 死扛对比（双线累计净值 + 6 指标对比表）
+  * 单股订单详情（K 线 + target/stop_loss 横线 + 开仓/平仓垂线）
+
+历史回填:
+- scripts/backfill_executions.py: 从 realized_pnl + forward_positions
+  反向构造 simulated_orders
+  * 80 CLOSED: 用历史日线数据模拟规则触发
+    - time_expired: 69
+    - target_hit:    5
+    - stop_loss:     4
+    - trailing_stop: 2
+  * 20 OPEN: 来自 forward_positions
+
+测试: tests/test_execution.py 32/32 通过
+  * 12 个 StopLossEngine 规则 + 优先级测试
+  * 7 个 parsing helper 测试
+  * 8 个 ExecutionManager 集成测试（含 3 个完整生命周期）
+  * 5 个 DataService 接口测试
+
+关键发现（基于 100 条历史回填数据）:
+  - 执行模式 MaxDD: -34.4% vs 死扛 -60.1% (改善 25.7pp)
+  - 执行模式累计: +80.8% vs 死扛 +1242.2%
+  - 当前 -10%/+20% 阈值偏紧，错过反弹和大牛股 → 后续可调
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

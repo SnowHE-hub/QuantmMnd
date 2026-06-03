@@ -644,6 +644,188 @@ class DataService:
         return self._cached("loss_signals", _load)
 
     # ══════════════════════════════════════════════════════════════════════════
+    # E3 执行层（simulated_orders）
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def get_simulated_orders(
+        self,
+        status: str = "all",      # 'all' / 'OPEN' / 'CLOSED'
+        days: int | None = None,  # 限制最近 N 天的订单（OPEN 看 open_date, CLOSED 看 close_date）
+    ) -> pd.DataFrame:
+        """读取 simulated_orders 表。"""
+        try:
+            from sqlalchemy import text
+            from app.db.postgres import get_pg_engine
+
+            where = []
+            params: dict[str, Any] = {}
+            if status != "all":
+                where.append("status = :status")
+                params["status"] = status
+            if days is not None:
+                from datetime import date, timedelta
+                cutoff = date.today() - timedelta(days=days)
+                if status == "CLOSED":
+                    where.append("close_date >= :cutoff")
+                else:
+                    where.append("open_date >= :cutoff")
+                params["cutoff"] = cutoff
+            where_sql = "WHERE " + " AND ".join(where) if where else ""
+            order_sql = "ORDER BY COALESCE(close_date, open_date) DESC, order_id DESC"
+            sql = f"SELECT * FROM simulated_orders {where_sql} {order_sql}"
+
+            with get_pg_engine().connect() as conn:
+                df = pd.read_sql(text(sql), conn, params=params)
+            return df
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService] get_simulated_orders 失败: %s", e)
+            return pd.DataFrame()
+
+    def get_execution_stats(self, days: int = 90) -> dict:
+        """执行层综合统计。"""
+        try:
+            df_all = self.get_simulated_orders(status="all")
+            if df_all.empty:
+                return {
+                    "total_orders": 0, "open_orders": 0, "closed_orders": 0,
+                    "win_rate": None, "avg_return": None,
+                    "exit_reasons": {}, "best_trade": None, "worst_trade": None,
+                    "avg_holding_days": None,
+                }
+
+            open_df = df_all[df_all["status"] == "OPEN"]
+            closed_df = df_all[df_all["status"] == "CLOSED"].copy()
+
+            # 限制 closed 到 N 天
+            if not closed_df.empty and days:
+                from datetime import date, timedelta
+                cutoff = pd.Timestamp(date.today() - timedelta(days=days)).date()
+                closed_df["close_date"] = pd.to_datetime(closed_df["close_date"]).dt.date
+                closed_df = closed_df[closed_df["close_date"] >= cutoff]
+
+            stats: dict[str, Any] = {
+                "total_orders":  int(len(df_all)),
+                "open_orders":   int(len(open_df)),
+                "closed_orders": int(len(closed_df)),
+                "win_rate":      None,
+                "avg_return":    None,
+                "exit_reasons":  {},
+                "best_trade":    None,
+                "worst_trade":   None,
+                "avg_holding_days": None,
+            }
+
+            if not closed_df.empty:
+                wins = (closed_df["pnl_pct"] > 0).sum()
+                stats["win_rate"] = float(wins) / len(closed_df)
+                stats["avg_return"] = float(closed_df["pnl_pct"].mean())
+                stats["avg_holding_days"] = (
+                    float(closed_df["holding_days"].mean())
+                    if "holding_days" in closed_df.columns else None
+                )
+                stats["exit_reasons"] = closed_df["close_reason"].value_counts().to_dict()
+                # best / worst
+                best = closed_df.loc[closed_df["pnl_pct"].idxmax()]
+                worst = closed_df.loc[closed_df["pnl_pct"].idxmin()]
+                stats["best_trade"] = {
+                    "ticker": str(best["ticker"]), "name": best.get("name", ""),
+                    "pnl_pct": float(best["pnl_pct"]),
+                    "open_date": str(best["open_date"]),
+                    "close_date": str(best["close_date"]),
+                    "close_reason": best.get("close_reason", ""),
+                }
+                stats["worst_trade"] = {
+                    "ticker": str(worst["ticker"]), "name": worst.get("name", ""),
+                    "pnl_pct": float(worst["pnl_pct"]),
+                    "open_date": str(worst["open_date"]),
+                    "close_date": str(worst["close_date"]),
+                    "close_reason": worst.get("close_reason", ""),
+                }
+            return stats
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService] get_execution_stats 失败: %s", e)
+            return {"error": str(e)}
+
+    def get_execution_vs_hold_comparison(self) -> dict:
+        """执行 vs 死扛对比。
+
+        - 执行策略：按 simulated_orders.close_reason 实际平仓
+        - 死扛策略：所有订单都按 time_expired 路径，从 realized_pnl.actual_return_63d
+          拿"死扛 63 天"的收益（与回填脚本数据对齐）
+
+        返回每个策略的累计净值序列、关键指标。
+        """
+        try:
+            from sqlalchemy import text
+            from app.db.postgres import get_pg_engine
+
+            with get_pg_engine().connect() as conn:
+                df_orders = pd.read_sql(text(
+                    "SELECT ticker, open_date, close_date, open_price, close_price, "
+                    "pnl_pct, holding_days, close_reason, status "
+                    "FROM simulated_orders WHERE status='CLOSED' "
+                    "ORDER BY close_date, order_id"), conn)
+                df_pnl = pd.read_sql(text(
+                    "SELECT as_of_date, ticker, entry_date, exit_date, "
+                    "actual_return_63d FROM realized_pnl ORDER BY exit_date"), conn)
+
+            if df_orders.empty:
+                return {"error": "无 CLOSED 订单数据"}
+
+            # 执行策略：按 close_date 累积收益
+            df_orders["close_date"] = pd.to_datetime(df_orders["close_date"])
+            df_orders = df_orders.sort_values("close_date")
+            exec_curve = (1 + df_orders["pnl_pct"]).cumprod().tolist()
+            exec_dates = df_orders["close_date"].dt.strftime("%Y-%m-%d").tolist()
+
+            # 死扛策略：用 realized_pnl 的 actual_return_63d（与回填数据集对应）
+            df_pnl["exit_date"] = pd.to_datetime(df_pnl["exit_date"])
+            df_pnl = df_pnl.sort_values("exit_date")
+            hold_curve = (1 + df_pnl["actual_return_63d"]).cumprod().tolist()
+            hold_dates = df_pnl["exit_date"].dt.strftime("%Y-%m-%d").tolist()
+
+            # 关键指标对比
+            def _stats(returns: pd.Series, holding: pd.Series | None = None) -> dict:
+                if returns.empty:
+                    return {"win_rate": None, "avg_return": None,
+                            "total_return": None, "max_dd": None,
+                            "sharpe": None, "avg_holding_days": None}
+                cum = (1 + returns).cumprod()
+                roll_max = cum.cummax()
+                dd = (cum - roll_max) / roll_max
+                avg = returns.mean()
+                std = returns.std()
+                return {
+                    "n":              int(len(returns)),
+                    "win_rate":       float((returns > 0).mean()),
+                    "avg_return":     float(avg),
+                    "total_return":   float(cum.iloc[-1] - 1),
+                    "max_dd":         float(dd.min()),
+                    "sharpe":         float(avg / std * (252 ** 0.5))
+                                       if std and std > 0 else None,
+                    "avg_holding_days": (float(holding.mean())
+                                          if holding is not None and not holding.empty else None),
+                }
+
+            exec_stats = _stats(df_orders["pnl_pct"], df_orders["holding_days"])
+            hold_stats = _stats(df_pnl["actual_return_63d"])
+
+            return {
+                "execute": {
+                    "curve": exec_curve, "dates": exec_dates,
+                    **exec_stats,
+                },
+                "hold_to_expiry": {
+                    "curve": hold_curve, "dates": hold_dates,
+                    **hold_stats,
+                },
+                "exit_reasons": df_orders["close_reason"].value_counts().to_dict(),
+            }
+        except Exception as e:  # noqa: BLE001
+            log.warning("[DataService] get_execution_vs_hold_comparison 失败: %s", e)
+            return {"error": str(e)}
+
+    # ══════════════════════════════════════════════════════════════════════════
     # 数据新鲜度
     # ══════════════════════════════════════════════════════════════════════════
 
