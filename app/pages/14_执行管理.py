@@ -302,23 +302,12 @@ else:
     with st.expander("📋 订单完整字段", expanded=False):
         st.json({k: (str(v) if pd.notna(v) else None) for k, v in order.items()})
 
-    # K 线（从 PG 拉日线数据）
+    # K 线（从 parquet 真源拉日线数据；PG daily_prices_panel 已空，见 docs/STORAGE_STRATEGY.md）
     try:
-        from sqlalchemy import text
-        from app.db.postgres import get_pg_engine
+        from quantmind.execution.price_source import load_price_bars
         end_date = (order.get("close_date") if pd.notna(order.get("close_date"))
                     else date.today())
-        with get_pg_engine().connect() as conn:
-            kdf = pd.read_sql(
-                text("""
-                    SELECT trade_date, open, high, low, close
-                    FROM daily_prices_panel
-                    WHERE ts_code=:t AND trade_date >= :s AND trade_date <= :e
-                    ORDER BY trade_date
-                """),
-                conn, params={"t": order["ticker"],
-                              "s": order["open_date"], "e": end_date},
-            )
+        kdf = load_price_bars(order["ticker"], order["open_date"], end_date)
         if not kdf.empty:
             kdf["trade_date"] = pd.to_datetime(kdf["trade_date"])
             fig = go.Figure(data=[go.Candlestick(

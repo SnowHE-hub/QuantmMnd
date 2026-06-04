@@ -35,14 +35,21 @@ from quantmind.execution import (
 )
 
 
-# ── 死扛基准（来自 E3 修正后的数据）──────────────────────────────────────────
-HOLD_BASELINE = {
-    "cum_return": 0.0522,
-    "maxdd":      -0.0085,
-    "sharpe":     3.67,
-    "win_rate":   0.488,
-    "avg_holding_days": 63,
-}
+# ── 死扛基准：从 compute_hold_baseline.py 的真实重算结果读取（不再硬编码）──────
+# 与网格同口径：HistoricalReplayEngine 回放（次日开盘 + 0.1% 滑点、等权 1/N NAV）。
+def _load_hold_baseline() -> dict:
+    p = ROOT / "data" / "execution_research" / "hold_baseline_real.json"
+    if p.exists():
+        b = json.loads(p.read_text(encoding="utf-8"))["baseline"]
+        return {k: b[k] for k in
+                ("cum_return", "maxdd", "sharpe", "win_rate", "avg_holding_days")}
+    print("[warn] hold_baseline_real.json 缺失，回退旧硬编码 +5.22%（= mean "
+          "actual_return_63d，无滑点）；请先跑 scripts/compute_hold_baseline.py")
+    return {"cum_return": 0.0522, "maxdd": -0.0085, "sharpe": 3.67,
+            "win_rate": 0.488, "avg_holding_days": 63}
+
+
+HOLD_BASELINE = _load_hold_baseline()
 
 # 当前生产参数（E3 默认值）
 CURRENT_PARAMS = {
@@ -186,9 +193,11 @@ def main():
         "## 网格搜索结果总览",
         "",
         f"- 总组合: {beat_stats['total']}",
-        f"- 累计收益 > 死扛（>+5.22%）: **{beat_stats['beat_return']} "
+        f"- 累计收益 > 死扛（>{HOLD_BASELINE['cum_return']*100:+.2f}%）: "
+        f"**{beat_stats['beat_return']} "
         f"({beat_stats['beat_return_pct']*100:.1f}%)**",
-        f"- MaxDD 优于死扛（>-0.85%）: **{beat_stats['beat_maxdd']} "
+        f"- MaxDD 优于死扛（>{HOLD_BASELINE['maxdd']*100:.2f}%）: "
+        f"**{beat_stats['beat_maxdd']} "
         f"({beat_stats['beat_maxdd_pct']*100:.1f}%)**",
         f"- 两者都击败死扛: **{beat_stats['beat_both']} "
         f"({beat_stats['beat_both_pct']*100:.1f}%)**",

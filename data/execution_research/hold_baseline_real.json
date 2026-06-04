@@ -1,0 +1,25 @@
+{
+  "method": "HistoricalReplayEngine.replay(sl=None,tg=None,trl=None,hold=63d); next-open fill + 0.1% sell slippage; equal-weight 1/N NAV; same convention as grid combos",
+  "price_source": "data/raw/alpha_prices_panel.parquet (via price_source.load_price_panel)",
+  "computed_at": "2026-06-04T13:43:28",
+  "baseline": {
+    "cum_return": 0.051679,
+    "maxdd": -0.013607,
+    "sharpe": 3.6147,
+    "win_rate": 0.4875,
+    "avg_holding_days": 94.6,
+    "n": 80,
+    "exit_reasons": {
+      "time_expired": 80
+    }
+  },
+  "legacy_hardcoded": {
+    "cum_return": 0.0522,
+    "maxdd": -0.0085,
+    "sharpe": 3.67,
+    "win_rate": 0.488,
+    "avg_holding_days": 63,
+    "note": "= mean(actual_return_63d) over 80 trades, no slippage"
+  },
+  "legacy_mean_actual_return_63d": 0.052173
+}

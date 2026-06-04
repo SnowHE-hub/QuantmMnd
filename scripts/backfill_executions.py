@@ -34,10 +34,10 @@ from quantmind.execution.manager import (
 )
 
 
-def _load_pnl_records(engine) -> pd.DataFrame:
-    with engine.connect() as conn:
-        df = pd.read_sql(text("SELECT * FROM realized_pnl ORDER BY as_of_date"), conn)
-    return df
+def _load_pnl_records(engine=None) -> pd.DataFrame:
+    # realized_pnl 改读 parquet 真源（PG 表已空，见 docs/STORAGE_STRATEGY.md）。
+    from quantmind.execution.price_source import load_realized_pnl
+    return load_realized_pnl()
 
 
 def _load_forward_positions() -> list[dict]:
@@ -49,15 +49,9 @@ def _load_forward_positions() -> list[dict]:
 
 
 def _load_name_industry_map() -> dict:
-    """从 alpha_universe 读 (ticker → {name, industry}) 映射。"""
-    eng = get_pg_engine()
-    with eng.connect() as conn:
-        df = pd.read_sql(
-            text("SELECT ts_code, name, industry FROM alpha_universe"), conn)
-    return {
-        row.ts_code: {"name": row.name, "industry": row.industry}
-        for row in df.itertuples()
-    }
+    """ts_code → {name, industry}，改读 alpha_universe parquet 真源（PG 表已空）。"""
+    from quantmind.execution.price_source import load_name_industry_map
+    return load_name_industry_map()
 
 
 """
@@ -104,29 +98,19 @@ def _simulate_exit_with_intraday(
       * 加 0.1% 卖出滑点
     """
     end_q = exit_date + timedelta(days=10)
-    with engine.connect() as conn:
-        df = pd.read_sql(
-            text("""
-                SELECT trade_date, open, high, low, close
-                FROM daily_prices_panel
-                WHERE ts_code = :t AND trade_date > :s AND trade_date <= :e
-                ORDER BY trade_date
-            """),
-            conn, params={"t": ticker, "s": entry_date, "e": end_q},
-        )
+    # 价格改读 parquet 真源（PG daily_prices_panel 已空，见 docs/STORAGE_STRATEGY.md）。
+    # start_exclusive=True 复现原 SQL 的 `trade_date > entry_date`（不含入场日当根）。
+    from quantmind.execution.price_source import load_price_bars
+    df = load_price_bars(ticker, entry_date, end_q, start_exclusive=True)
 
     if df.empty:
-        return {
-            "close_date":   exit_date,
-            "close_price":  entry_price,
-            "close_reason": "time_expired",
-            "high_price":   entry_price,
-            "low_price":    entry_price,
-            "high_date":    entry_date,
-            "low_date":     entry_date,
-        }
+        # 价格查不到 → 显式失败，**绝不**退化成 time_expired@入场价（"静默退化=假装在工作"）。
+        raise ValueError(
+            f"E3 backfill: 无价格数据 ticker={ticker} 区间=({entry_date}, {end_q}]，"
+            f"无法模拟退出（检查 data/raw/alpha_prices_panel.parquet 覆盖）"
+        )
 
-    df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.date
+    # trade_date 已是 python date（load_price_bars 已归一）
     df = df.reset_index(drop=True)
     running_high = entry_price
     running_low = entry_price

@@ -62,18 +62,18 @@ class HistoricalRecommendation:
     entry_price:   float
 
 
-def load_historical_recommendations(engine) -> list[HistoricalRecommendation]:
-    """从 PG realized_pnl 加载所有历史推荐。"""
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        df = pd.read_sql(text(
-            "SELECT as_of_date AS recommend_date, ticker, entry_date, entry_price "
-            "FROM realized_pnl ORDER BY as_of_date, ticker"), conn)
+def load_historical_recommendations(engine=None) -> list[HistoricalRecommendation]:
+    """从 realized_pnl **parquet 真源**加载所有历史推荐。
+
+    （PG realized_pnl 已空，见 docs/STORAGE_STRATEGY.md；engine 参数保留作向后兼容，已不使用。）
+    """
+    from quantmind.execution.price_source import load_realized_pnl
+    df = load_realized_pnl().sort_values(["as_of_date", "ticker"])
     recs = []
     for _, r in df.iterrows():
         recs.append(HistoricalRecommendation(
             ticker=str(r["ticker"]),
-            recommend_date=pd.to_datetime(r["recommend_date"]).date(),
+            recommend_date=pd.to_datetime(r["as_of_date"]).date(),
             entry_date=pd.to_datetime(r["entry_date"]).date(),
             entry_price=float(r["entry_price"]),
         ))
@@ -95,19 +95,14 @@ def preload_price_history(
     min_date = min(r.entry_date for r in recommendations)
     max_date = max(r.entry_date for r in recommendations) + timedelta(days=max_holding_days + 10)
 
-    with engine.connect() as conn:
-        df = pd.read_sql(
-            text("""
-                SELECT ts_code, trade_date, open, high, low, close
-                FROM daily_prices_panel
-                WHERE ts_code = ANY(:tickers)
-                  AND trade_date >= :start
-                  AND trade_date <= :end
-                ORDER BY ts_code, trade_date
-            """),
-            conn, params={"tickers": tickers, "start": min_date, "end": max_date},
-        )
-    df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.date
+    # 价格改读 parquet 真源（PG daily_prices_panel 已空，见 docs/STORAGE_STRATEGY.md）。
+    from quantmind.execution.price_source import load_price_panel
+    panel = load_price_panel()
+    df = panel[
+        panel["ts_code"].isin(tickers)
+        & (panel["trade_date"] >= min_date)
+        & (panel["trade_date"] <= max_date)
+    ].sort_values(["ts_code", "trade_date"])
 
     out: dict[str, pd.DataFrame] = {}
     for ticker, sub in df.groupby("ts_code"):

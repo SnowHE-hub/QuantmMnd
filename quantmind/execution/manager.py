@@ -112,14 +112,11 @@ class ExecutionManager:
     def _load_prices_panel(self) -> pd.DataFrame:
         if self._prices_panel is not None:
             return self._prices_panel
-        # 从 PG 加载 daily_prices_panel（小表，alpha universe 子集）
-        with self._engine.connect() as conn:
-            df = pd.read_sql(
-                text("SELECT ts_code, trade_date, close, high, low "
-                     "FROM daily_prices_panel"), conn)
-        df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.date
-        self._prices_panel = df
-        return df
+        # 价格改读 parquet 真源：PG daily_prices_panel 已空（见 docs/STORAGE_STRATEGY.md）。
+        # load_price_panel 返回 [ts_code, trade_date(date), open, high, low, close]。
+        from quantmind.execution.price_source import load_price_panel
+        self._prices_panel = load_price_panel()
+        return self._prices_panel
 
     def get_price_on(self, ticker: str, as_of: date | str) -> float | None:
         """查 ticker 在 as_of 的收盘价；as_of 不是交易日则向前回退 5 天。"""
