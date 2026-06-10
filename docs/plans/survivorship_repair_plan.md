@@ -71,10 +71,31 @@
 
 ---
 
-## ⏸ 评审门
-**待确认（评审请拍板）：**
-1. **Scope = A（全市场 PIT，推荐）还是 B（样本+退市票）？是否纳入 BSE？**
-2. 数据量/耗时是否接受（A 约 4800+ 票全拉）？
-3. v6 命名 / 落盘路径（`alpha_prices_panel_v6` / `alpha_panel_weekly_v6`）是否 OK？
+## ✅ 决策记录（2026-06-09 评审通过，进入实现）
+1. **Scope = A：全市场 SH+SZ A 股 PIT（list_status L+D+P 全拉）**。
+   - 理由：现 1388 票是**用今日快照（现任指数成分 + 补充）回套的样本**，指数成分本身就是幸存者筛选；B 方案修不干净。
+   - **BSE 北交所不纳入**：2021 底开板（历史短）、流动性差、非产品目标池。
+2. **数据量接受**：~4800 票全历史，复用 backfill checkpoint/限频，**质量第一不赶时间**。
+3. **命名确认**：`data/raw/alpha_prices_panel_v6.parquet` / `data/panel/alpha_panel_weekly_v6.parquet`。
 
-获批后才进入 §2 实现（拉数据）。**本计划只写到这，停下评审。**
+## 9. 方法论要求 A（修复的灵魂，做错=白修）：退市标签规则
+- **规则**：对 `as_of` 在市、但 `horizon` 内退市的票，`forward_return` 必须**算到最后可交易日（含退市整理期）**，把**真实亏损写进标签**，**不得 NaN 丢弃**。
+  - 即：若 `delist_date ≤ (as_of + horizon 个交易日)`，则 `forward_return = 最后可交易日收盘 / as_of 收盘 − 1`（通常是大额亏损）。
+  - 现 `compute_forward_returns` 行为：`horizon` 内数据不足 → 整列 NaN 丢弃 → **退市票的亏损被系统性删掉 = 幸存者 leak 的核心**。
+- **实现**：`compute_forward_returns` **新增 delist-aware 路径**（传入 ticker→delist_date 映射；退市票用末个可交易价作 exit）。**不动 v5 现有行为**（v5 走旧路径）。
+- **专项验收**：抽 ≥3 只真实退市票，核对其退市前最后几个 `as_of` 的标签 = 到末交易日的真实收益（不是 NaN、不是 0）。
+
+## 10. 方法论要求 B（评估层）：PIT 流动性过滤
+- v6 面板建**全市场**；评估侧支持按每个 `as_of` 的**当时 adv20/circ_mv 排名取 top-N** 过滤（**只用 ≤as_of 信息**，PIT 安全），模拟产品可交易池。
+- **Ridge 复核须报两个口径**：① 全市场；② **PIT 流动性 top-1500**（与旧池规模可比）。
+
+## 11. 实现顺序（P1-P2 自主推进；P3 证据 + P4 结果带回评审）
+- **P1 拉数**：全市场 `stock_basic(L+D+P，含 list_date/delist_date)` → 全票价量/adj/daily_basic 回补进 lake（复用 backfill，token 走 `.env`，loguru 静默规则沿用）。落 checkpoint，报：总票数、退市票数、行数、日期覆盖。
+- **P2 v6 universe + 面板**：PIT 纳入 `list_date ≤ as_of < delist_date`；退市标签按要求 A；复用 weekly_panel builder 新路径产 v6；**v5 字节不动**。
+- **P3 验收（独立 code-review session）**：PIT 正确性（含未来篡改反证）、退市票价真实性抽查（对照 Tushare 原始）、退市标签专项（要求 A）、新旧 universe 量化对比（票数/退市占比/加回行数/**标签分布差异——退市票应拉低全样本均值**）。
+- **P4 判定跑**：v6 上重跑 **Ridge(full) 12d 季度**（同 batch-A 配置），报两个口径（全市场 / PIT top-1500）的 neut IC + 含成本净超额，与 v5 的 **+0.034/+1.9%** 并排。**只复核 Ridge，不跑其他模型。**
+
+## ⚠ 硬性中止条件
+拉数遇 **Tushare 积分/接口不覆盖退市票历史** 的情况 → **立即停下报告**，**不得用替代源静默凑数**。
+
+> P1-P2 范围内自主推进；P3 验收证据 + P4 判定结果带回评审。

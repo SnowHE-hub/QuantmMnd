@@ -199,6 +199,13 @@
 - 写 `docs/plans/survivorship_repair_plan.md`：scope 决策(A全市场PIT/B样本+退市) + 拉 stock_basic L/D/P + 退市票在市期价量(复用 backfill) + PIT 重建(list≤as_of<delist) + v6 面板(不动 v5/评估零改) + 量化 + 验收。
 - ⏸ **停在评审门**：等用户拍板 scope。修好后第一步=v6 重跑 Ridge(full) 看 +0.034/+1.9% 是否还在（决定有没有产品）。63d/batch B/illiquid 全部推迟到幸存者修好后。
 
+### 2026-06-09/10 — 安全小修(任务1) + 幸存者修复进实现(任务2)
+- 任务1 四 commit(branch safety-monitoring-fixes)：F-08 API安全(CORS白名单+admin token+本机+chat只解释) / F-05 freshness→v5+bakeoff / F-04 evaluate 加21d / F-13 run_manifest。各跑测试通过(test_data_service 27 passed 等)。docs commit fd464a8。
+- 幸存者计划评审通过：scope=A(全市场SH+SZ L+D+P，不纳BSE)、v6命名确认、2方法论要求(A退市标签算到末交易日不丢NaN；B评估层PIT流动性top-N，Ridge复核报全市场+top1500两口径)。计划已补 §9-11 + 中止条件。
+- Codex schema 原文回录 productization_backlog.md 附录(7 contracts + recommendation/feedback schema + 接口)。
+- P1 准备：provider 已有 `_raw_stock_basic_all()`(L+D+P)；daily_basic 已全市场含退市；缺的是 daily/adj_factor(现仅1374子样本)。写 `scripts/survivorship/p1_pull.py`(复用 backfill：token防泄漏/断点/限频；--probe/--stock-basic/--prices；排除BSE)。
+- ⏳ 待 Bash 恢复跑 --probe（硬中止条件：Tushare 不覆盖退市票历史则停报）。
+
 ### P1 完成 ✅ — dump_bin + G1 PASS
 - 下载官方 dump_bin.py(542行)→ scripts/bakeoff/；写 `scripts/bakeoff/p1_dump_bin.py`：alpha_prices_panel → 后复权 OHLC/vwap(raw×adj_factor)+vol+factor+amount → qlib bin（data/qlib_cn_daily）；symbol 000001.SZ→SZ000001。
 - G1 硬门：$close 还原一致 + Alpha158/360 handler 非空 + PIT。**后台运行中**（qlib env，pid 82969，日志 p1_dump.log，结果 p1_g1_result.json）。

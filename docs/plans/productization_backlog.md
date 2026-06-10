@@ -37,3 +37,70 @@
 ## 下一步顺序（与产品化无关，先做的是判真伪）
 1. 幸存者修复（v6）→ 2. v6 上重跑 Ridge(full) 看 +0.034/+1.9% → 3. 若仍在：解锁本 backlog；
    若不在：本 backlog 全作废，转 63d/分钟数据方向。
+
+---
+
+## 附录：Codex 报告原文照录（schema 蓝图，触发后据此细化）
+来源 `C:\Users\lenovo\Documents\QuantMind\quantmind_full_chain_detection_report.md`。原样收录，**触发条件不变**（=幸存者判定通过）。
+
+### A.1 七大核心 contracts（报告 §12.1）
+1. **HorizonRegistry**：`short`=12d(客户短线)、`robust`=21d(只做稳健性验证)、`long`=63d(客户长线)。
+2. **DataVersion**：raw source version；lake coverage snapshot；panel version（如 `weekly_v5`）；**survivorship flag**。
+3. **FeatureSet**：`tab35` / `tab35_plus16` / `full_35_16_158` / `alpha360_seq60`。
+4. **ModelRegistry**：model artifact / feature set / label / horizon / WF config / gate metrics / production status。
+5. **RecommendationContract**：每条推荐必须知道自己来自哪个 horizon、模型、特征、数据版本和 gate。
+6. **AgentExplanationContract**：Agent 只解释/约束/提示风险；必须引用 base recommendation。
+7. **OutcomeContract**：统一收集 12d/21d/63d 真实收益、成本、成交状态。
+
+### A.2 recommendation schema（报告原文）
+```json
+{
+  "as_of": "2026-06-01",
+  "ticker": "000001.SZ",
+  "horizon_name": "short",
+  "horizon_days": 12,
+  "label_col": "forward_return_12d",
+  "model_id": "ridge_full_12d_v1",
+  "feature_set_id": "weekly_v5_35_16_alpha158",
+  "score_raw": 0.0,
+  "score_neutralized": 0.0,
+  "rank": 1,
+  "weight": 0.05,
+  "liquidity_bucket": "b0",
+  "cost_model_id": "wf_costs_v1",
+  "gate_status": "research_candidate",
+  "agent_summary_id": "agent_explainer_v1"
+}
+```
+
+### A.3 feedback schema（报告原文）
+```json
+{
+  "as_of": "2026-06-01",
+  "ticker": "000001.SZ",
+  "horizon_days": 12,
+  "model_id": "ridge_full_12d_v1",
+  "entry_price": 10.0,
+  "exit_price": 10.5,
+  "actual_return_12d": 0.05,
+  "actual_return_21d": 0.06,
+  "actual_return_63d": 0.12,
+  "slippage_bps": 15,
+  "fees_bps": 10,
+  "net_return": 0.0475,
+  "fill_status": "filled",
+  "liquidity_bucket": "b0"
+}
+```
+
+### A.4 目标接口（报告 §12.2）
+```text
+GET /api/recommendations?as_of=YYYY-MM-DD&horizon=short|long
+GET /api/models/leaderboard?horizon=12d|21d|63d
+GET /api/models/status
+GET /api/data/freshness?horizon=short|long
+GET /api/agent/explanation?ticker=...&as_of=...&horizon=...
+GET /api/feedback/outcomes?model_id=...&horizon=...
+# 保留但限制为 admin/local：POST /api/execute、GET /api/stream/{cmd_key}、POST /api/chat
+```
+> 注：F-08（admin token + localhost）已在 safety-monitoring-fixes 分支落地；其余接口均待触发后实施。
