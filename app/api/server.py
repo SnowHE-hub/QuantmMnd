@@ -1,13 +1,18 @@
-"""QuantMind FastAPI 后端 — 命令执行 + LLM 分析 + 数据 API."""
+"""QuantMind FastAPI 后端 — 命令执行 + LLM 分析 + 数据 API.
+
+安全收口（F-08）：CORS 白名单（非 *）、运维端点 admin token 鉴权、/api/chat 默认只解释
+不执行、默认 bind 127.0.0.1。运维 API 涉及任意命令执行，绝不可裸奔对外暴露。
+"""
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -20,6 +25,37 @@ from app.api.services import executor as exec_svc
 from app.api.services import analyzer as ai_svc
 from app.api.services import llm_client as llm
 
+# ── 安全配置（F-08）──────────────────────────────────────────────────────────
+#: 运维端点鉴权 token（从环境读取；未配置则运维端点 fail-closed 503）
+ADMIN_TOKEN = os.environ.get("QUANTMIND_ADMIN_TOKEN", "").strip()
+#: CORS 白名单（localhost 默认；可用 QUANTMIND_CORS_ORIGINS 覆盖，逗号分隔）
+_DEFAULT_ORIGINS = ("http://localhost:8501,http://127.0.0.1:8501,"
+                    "http://localhost:3000,http://127.0.0.1:3000")
+ALLOWED_ORIGINS = [o.strip() for o in
+                   os.environ.get("QUANTMIND_CORS_ORIGINS", _DEFAULT_ORIGINS).split(",")
+                   if o.strip()]
+
+
+async def require_admin(
+    authorization: str | None = Header(default=None),
+    x_admin_token: str | None = Header(default=None),
+) -> None:
+    """运维端点鉴权依赖：校验 `X-Admin-Token` 或 `Authorization: Bearer <token>`.
+
+    未配置 QUANTMIND_ADMIN_TOKEN → fail-closed（503），强制设 token 才能调用运维 API。
+    """
+    if not ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="运维 API 未配置鉴权：请设置环境变量 QUANTMIND_ADMIN_TOKEN 后再调用。",
+        )
+    token = x_admin_token
+    if not token and authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+    if not token or token != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="无效或缺失 admin token。")
+
+
 # ── App 初始化 ────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="QuantMind API",
@@ -28,9 +64,10 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,           # F-08：localhost 白名单，不再 *
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "X-Admin-Token", "Content-Type"],
 )
 
 
@@ -40,7 +77,7 @@ class ChatRequest(BaseModel):
     history: list[dict] = []
     provider: str = "dashscope"   # dashscope | ollama | deepseek
     model: str | None = None
-    auto_execute: bool = True     # 是否自动执行识别到的命令
+    auto_execute: bool = False    # F-08：默认只解释不执行；执行须显式 auto_execute=true
 
 
 class AnalyzeRequest(BaseModel):
@@ -154,8 +191,8 @@ async def data_commands():
 
 # ── 命令执行（同步，含 AI 分析）────────────────────────────────────────────────
 @app.post("/api/execute")
-async def execute_command(req: ExecuteRequest):
-    """同步执行命令，返回输出 + AI 分析."""
+async def execute_command(req: ExecuteRequest, _: None = Depends(require_admin)):
+    """同步执行命令，返回输出 + AI 分析.（F-08：需 admin token）"""
     if req.cmd_key not in exec_svc.COMMANDS:
         raise HTTPException(status_code=400, detail=f"未知命令: {req.cmd_key}")
 
@@ -185,8 +222,8 @@ async def execute_command(req: ExecuteRequest):
 
 # ── 命令执行（SSE 流式输出）──────────────────────────────────────────────────
 @app.get("/api/stream/{cmd_key}")
-async def stream_command(cmd_key: str):
-    """SSE 流式输出命令执行日志."""
+async def stream_command(cmd_key: str, _: None = Depends(require_admin)):
+    """SSE 流式输出命令执行日志.（F-08：需 admin token）"""
     if cmd_key not in exec_svc.COMMANDS:
         raise HTTPException(status_code=400, detail=f"未知命令: {cmd_key}")
 
@@ -209,8 +246,8 @@ async def stream_command(cmd_key: str):
 
 # ── AI 对话（含命令识别）─────────────────────────────────────────────────────
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
-    """AI 对话：识别意图 → 可选执行命令 → 生成回复."""
+async def chat(req: ChatRequest, _: None = Depends(require_admin)):
+    """AI 对话：识别意图 → 可选执行命令 → 生成回复.（F-08：需 admin token；默认只解释不执行）"""
     # 1. 解析用户意图
     intent = ai_svc.parse_user_intent(
         req.message, req.history, provider=req.provider
@@ -269,4 +306,7 @@ async def analyze_chart(payload: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.api.server:app", host="0.0.0.0", port=8000, reload=True)
+    # F-08：默认 bind 127.0.0.1（仅本机）；如需对外须显式设 QUANTMIND_API_HOST 并确保 token 已配
+    host = os.environ.get("QUANTMIND_API_HOST", "127.0.0.1")
+    port = int(os.environ.get("QUANTMIND_API_PORT", "8000"))
+    uvicorn.run("app.api.server:app", host=host, port=port, reload=True)
