@@ -38,12 +38,13 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 - decide_direction(val-only) → score*=d。featset full = WHITELIST_35 + 16 surv + Alpha158(a158_*)。
 
 ## P4 Phases
-- [ ] **P4a** v6 qlib bin 重 dump（qlib_bakeoff env）：alpha_prices_panel_v6(5741票)→ data/qlib_cn_daily_v6 + qsym_map_v6
-- [ ] **P4b** Alpha158 在 v6 重提取（qlib_bakeoff）→ alpha158_asof_v6.parquet；G1-mini（1列 vs 手算 corr>0.99，不重做完整G1）
-- [ ] **P4c** Ridge(full) 训练（quantmind）：p3b 复刻，v6 三件套 → preds/ridge_full_12d_quarterly_v6.parquet
-- [ ] **P4d** 两口径评估（quantmind）：UNKNOWN桶中性化；①全市场~5370 ②PIT top-1500(adv20降序,≤as_of)；
-      输出 raw/neut IC、neut ICIR、含成本净超额、逐fold分布、regime IC(3档)、单边换手、maxDD、时长；v5基线并排
-- [ ] **P4e** 报告 + 三档判定（读 PIT top-1500 的 neut IC+净超额+震荡市符号）+ 停
+- [x] **P4a** v6 qlib bin 重 dump ✅ 5741 instruments；close_recon 5.7e-08；raw Alpha158 158列0NaN（默认processor smoke的G1 FAIL是假警，已用raw路径证伪）
+- [x] **P4b** Alpha158 在 v6 重提取 ✅ alpha158_asof_v6 (1.68M×158, nan1.3%, 5731票)；G1-mini a158_ROC5/MA5 corr=1.00000 PASS
+- [x] **P4c** Ridge(full) 训练 ✅ 700,122 preds / 16 folds / 0 flips / 208s
+- [x] **P4d** 两口径评估 ✅ 全市场 neut 0.052/净+1.17%；PIT top-1500 neut **0.057**/净**+2.75%**/ICIR0.99/三regime全正；
+      分解诊断证伪退市崩盘簇 artifact（Δ=0.0001，将退市行仅0.049%）
+- [x] **P4e** 报告 docs/plans/survivorship_p4_verdict.md ✅ **判定=TIER 1（信号站住，且强于幸存者池）**
+      → 待用户放行：解封 backlog + 启 63d 基本面版。**已停，等评审。**
   - ≥0.02 & 净超额≥0 & 震荡正 → 站住：Phase1过，解封 backlog + 启 63d 基本面版
   - 0.01-0.02 / 净超额近零 / 震荡贴线 → 弱化未死：转 63d 基本面主线，12d 留研究
   - <0.01 或 震荡负 → 日线见顶：转分钟数据评估

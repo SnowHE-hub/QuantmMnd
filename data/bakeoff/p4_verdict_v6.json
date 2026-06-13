@@ -1,0 +1,64 @@
+{
+  "model": "ridge_full_12d_quarterly_v6",
+  "train_seconds": 207.6,
+  "regime_cut": {
+    "q33": -0.0363,
+    "q67": 0.0225
+  },
+  "lenses": [
+    {
+      "lens": "full_market",
+      "n_tickers_total": 5324,
+      "raw_ic": 0.0697,
+      "neut_ic": 0.0521,
+      "neut_icir": 0.909,
+      "neut_ic_posfrac": 0.845,
+      "net_excess_cost": 0.0117,
+      "avg_oneway_turnover": 0.71,
+      "max_drawdown": 0.0531,
+      "regime_neut_ic": {
+        "bear": 0.0632,
+        "neutral": 0.0407,
+        "bull": 0.0545
+      },
+      "regime_counts": {
+        "neutral": 53,
+        "bear": 45,
+        "bull": 44
+      },
+      "per_asof_neut_ic_p25_50_75": [
+        0.0201,
+        0.0534,
+        0.0781
+      ],
+      "n_oos_dates": 142
+    },
+    {
+      "lens": "pit_top1500",
+      "n_tickers_total": 4598,
+      "raw_ic": 0.0775,
+      "neut_ic": 0.057,
+      "neut_icir": 0.988,
+      "neut_ic_posfrac": 0.838,
+      "net_excess_cost": 0.0275,
+      "avg_oneway_turnover": 0.763,
+      "max_drawdown": 0.077,
+      "regime_neut_ic": {
+        "bear": 0.0674,
+        "neutral": 0.0498,
+        "bull": 0.0552
+      },
+      "regime_counts": {
+        "neutral": 53,
+        "bear": 45,
+        "bull": 44
+      },
+      "per_asof_neut_ic_p25_50_75": [
+        0.0153,
+        0.0558,
+        0.0897
+      ],
+      "n_oos_dates": 142
+    }
+  ]
+}
