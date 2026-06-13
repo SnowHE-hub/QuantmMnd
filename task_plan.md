@@ -17,12 +17,38 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 - [ ] P5 量化影响（票数差/退市占比/加回行数/逐 as_of universe 曲线）
 - [ ] P6 验收（PIT 正确性 / 退市票价真实 / v5 字节不变 / 评估零改动）
 
-## Status: ⏸ P1 完成，停在评审门（scope 待定），获批前不实现。
+## Status: P1✅ P2✅ P3✅(独立验收 PASS)。**当前：P4 判定跑（active）**。
 
-## Decisions（计划期）
-- 推荐 scope=A（全市场 PIT），不纳入 BSE（单独标注）。
-- v6 命名：alpha_prices_panel_v6 / alpha_panel_weekly_v6，新文件不动 v5。
-- 评估侧零改动；WF/中性化/成本/p3f 不变。
+## Decisions（已落）
+- scope=A（全市场 SH+SZ PIT，L+D+P），不纳 BSE。v6 命名 alpha_prices_panel_v6 / alpha_panel_weekly_v6。
+- 退市标签规则A（算到末交易日真实亏损）；seasoning list+120td；ST 保留。
+- P4 中性化 = UNKNOWN 行业桶（缺行业不剔除）。
 
-## 不做（明确推迟）
-63d / batch B / illiquid 深度 follow-up —— 全部等幸存者修好、Ridge 在 v6 上复核后再议。
+---
+
+# P4 判定跑（active）— v6 上 Ridge(full) 12d 复核
+
+**性质**：单次判定（非优化）。完全复刻 batch-A，唯一变量 = universe/面板（v5→v6）。
+出数即停、不调参、不换方案，带证据回评审。
+
+## batch-A 配置（逐字复刻）
+- RidgePredictor(alpha=10.0)，数值特征 z-score(train 的 mu/sd)，丢 exposure_industry/area。
+- PurgedWalkForwardSplit(cal, horizon=12, embargo=20, mode="rolling", rolling_lookback_td=756, n_val=2)。
+- quarterly cutoffs(cal, 2022-01-01, 2025-10-01)；oos_start=2022-01-01；oos_end=末as_of。
+- decide_direction(val-only) → score*=d。featset full = WHITELIST_35 + 16 surv + Alpha158(a158_*)。
+
+## P4 Phases
+- [ ] **P4a** v6 qlib bin 重 dump（qlib_bakeoff env）：alpha_prices_panel_v6(5741票)→ data/qlib_cn_daily_v6 + qsym_map_v6
+- [ ] **P4b** Alpha158 在 v6 重提取（qlib_bakeoff）→ alpha158_asof_v6.parquet；G1-mini（1列 vs 手算 corr>0.99，不重做完整G1）
+- [ ] **P4c** Ridge(full) 训练（quantmind）：p3b 复刻，v6 三件套 → preds/ridge_full_12d_quarterly_v6.parquet
+- [ ] **P4d** 两口径评估（quantmind）：UNKNOWN桶中性化；①全市场~5370 ②PIT top-1500(adv20降序,≤as_of)；
+      输出 raw/neut IC、neut ICIR、含成本净超额、逐fold分布、regime IC(3档)、单边换手、maxDD、时长；v5基线并排
+- [ ] **P4e** 报告 + 三档判定（读 PIT top-1500 的 neut IC+净超额+震荡市符号）+ 停
+  - ≥0.02 & 净超额≥0 & 震荡正 → 站住：Phase1过，解封 backlog + 启 63d 基本面版
+  - 0.01-0.02 / 净超额近零 / 震荡贴线 → 弱化未死：转 63d 基本面主线，12d 留研究
+  - <0.01 或 震荡负 → 日线见顶：转分钟数据评估
+- [ ] **顺手** v6 manifest 加 sha256（Item7 漏洞）；以后 v* 面板首次落盘即预录哈希
+
+## 约束
+v5 字节不动（每步 md5 守卫）；双环境（dump/Alpha158=qlib_bakeoff，训练/评估=quantmind）；
+长跑 nohup setsid + 监控接力；token 防泄漏；判定对 gate 线、不与 v5 攀比。

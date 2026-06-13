@@ -310,7 +310,9 @@ def cmd_panel(n_workers: int = 4, limit_asof: int | None = None) -> int:
     from scripts.bakeoff.run_manifest import write_run_manifest
     write_run_manifest(REPO / "data/panel", kind="build", data_version="v6",
                        feature_set="whitelist35", label="forward_return_{12,21,63}d",
-                       horizon="weekly", extra={
+                       horizon="weekly",
+                       artifacts=[V6_PANEL, V6_PRICES],
+                       extra={
                            "universe": "full-market SH+SZ, seasoning120td, delist-aware",
                            "n_rows": int(len(panel)),
                            "seasoning_excluded_rows": int(n_seasoning_excluded)})
@@ -398,6 +400,7 @@ def cmd_sh() -> int:
     from scripts.bakeoff.run_manifest import write_run_manifest
     write_run_manifest(REPO / "data/panel", kind="build", data_version="v6",
                        feature_set="short_horizon_16_survivors", label="-", horizon="weekly",
+                       artifacts=[V6_PANEL, out],
                        extra={"missing_industry_dropped": n_dropped, "n_factors": len(facs)})
     ok = check_guard()
     print(f"[guard] v5 unchanged: {ok}")

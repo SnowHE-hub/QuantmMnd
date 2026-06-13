@@ -6,11 +6,24 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+
+def sha256_file(path: str | Path, chunk: int = 1 << 20) -> str:
+    """文件 sha256（流式，省内存）。文件不存在返回 'missing'。"""
+    p = Path(path)
+    if not p.exists():
+        return "missing"
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        while b := f.read(chunk):
+            h.update(b)
+    return h.hexdigest()
 
 
 def _git_sha(repo: Path) -> str:
@@ -41,9 +54,14 @@ def write_run_manifest(
     label: str | None = None,
     horizon: str | int | None = None,
     extra: dict | None = None,
+    artifacts: list[str | Path] | None = None,
     repo: str | Path | None = None,
 ) -> Path:
-    """写运行元数据 JSON 到 out_dir，返回路径。自动采集 git_sha/env/python/timestamp。"""
+    """写运行元数据 JSON 到 out_dir，返回路径。自动采集 git_sha/env/python/timestamp。
+
+    artifacts: 落盘产物路径列表 → 记录各自 sha256（纪律：v* 面板首次落盘即预录哈希，
+    防止后续静默改写无从察觉）。
+    """
     repo = Path(repo) if repo else Path(__file__).resolve().parents[2]
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -58,6 +76,7 @@ def write_run_manifest(
         "label": label,
         "horizon": str(horizon) if horizon is not None else None,
         "timestamp": ts,
+        "artifacts_sha256": {str(Path(a).name): sha256_file(a) for a in (artifacts or [])},
         "extra": extra or {},
     }
     stamp = ts.replace(":", "").replace("-", "").replace("T", "_")
