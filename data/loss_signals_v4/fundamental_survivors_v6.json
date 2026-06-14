@@ -1,0 +1,23 @@
+{
+  "survivors": [
+    "dividend_yield_ttm",
+    "earnings_yield",
+    "asset_turnover",
+    "book_to_market",
+    "revenue_yoy",
+    "fcf_yield_cf",
+    "pe_ttm",
+    "size_rank",
+    "pb",
+    "roe_ttm",
+    "ps_ttm",
+    "net_profit_yoy",
+    "current_ratio"
+  ],
+  "label": "forward_return_63d",
+  "criteria": {
+    "abs_neut_icir_in>=": 0.2,
+    "flip<": 0.35,
+    "max_corr<": 0.7
+  }
+}
