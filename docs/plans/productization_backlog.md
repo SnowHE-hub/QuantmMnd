@@ -1,11 +1,23 @@
-# 产品化 Backlog（Codex 全链路报告的 contract 蓝图，登记 ≠ 实施）
+# 产品化 Backlog（Codex 全链路报告的 contract 蓝图）
 
-> 状态：**全部推迟，未开工**。来源：Codex 全链路交叉排查报告
-> （`quantmind_full_chain_detection_report.md`，Windows 侧）。
-> **触发条件（硬）= 幸存者判定通过**：必须先做 `docs/plans/survivorship_repair_plan.md`，
-> 在**真实 universe(v6)** 上重跑 **Ridge(full)**，确认 **neut IC +0.034 / 净 +1.9% 仍在**，
-> 才围绕"真信号"建以下 contract。**判定为假则全部作废**，改围绕 63d/分钟数据另起。
-> 登记目的：防 scope 漂移 + 不丢 Codex 的设计建议。生成：2026-06-09。
+> ## 🔓 解封记录（2026-06-14）—— Phase 1 闸门通过
+> **触发条件已满足**（幸存者判定通过），凭据：
+> - **P3 独立验收 PASS**（`docs/plans/p3_independent_review.md`）。
+> - **P4 判定 Tier 1**（`docs/plans/survivorship_p4_verdict.md`）：v6 PIT top-1500 **neut IC 0.057**、
+>   3 regime 全正、ICIR 0.99。
+> - **补1 流动性分桶 + Diag A/B 定因**：0.057 抬升机制 = **v5 票池被幸存者压低**，非 v6 被抬高/泄漏；
+>   同模型限制到 v5 的 1373 票上 IC 回到 **0.032 ≈ v5 基线 0.034**（模型/特征无差异，artifact 排除）。
+> - **补2 稳健**：16/16 fold 全正，丢最好 2 fold 后 PIT top-1500 仍 **0.054**。
+>
+> ### ⚠ 不可省的限定（gate 现实）
+> **Ridge(full) v6 PIT top-1500 含成本净超额 = +2.75% < 项目 `wf_gate` formal pass line +5%。**
+> 研究层赢家成立，但**客户交付前必须经 executable NAV 回测**（`docs/plans/executable_nav_design.md`，
+> ⚠ 该文档当前未在仓库找到，需补建）把成本算实再签收。
+> **12d 产品种子状态 = "待 NAV 回测确认"（`research_candidate_pending_nav`），未到生产。**
+> 故本 backlog 解封 = **建契约层（P0，文档+数据）**，**不含**前端/API/Agent 迁移（P1，排在 NAV 之后）。
+
+> 来源：Codex 全链路交叉排查报告（`quantmind_full_chain_detection_report.md`，Windows 侧）。
+> 登记目的：防 scope 漂移 + 不丢 Codex 的设计建议。生成：2026-06-09，解封：2026-06-14。
 
 ---
 
@@ -26,6 +38,18 @@
 > ⚠ **schema 细节**：上表为蓝图级；Codex 报告里的**具体字段 schema 建议**应在触发后从
 > `quantmind_full_chain_detection_report.md` 原样取入对应子计划（本机当前未取到报告内文，
 > 待用户提供路径或内容后补录到此文件的附录）。
+
+## T1 后明确不做（显式登记，防 scope 漂移；2026-06-14）
+- **12d 任何新模型/调参/序列模型 follow-up** → NAV 回测过 gate 才议。
+- **「63d sequence on illiquid」** → 仍拒绝，理由不变（见下"明确拒绝"段）。
+- **Agent 重构 / 前端口径迁移 / FastAPI 公开 API** → 产品化 P1 级，排在 executable NAV 之后。
+
+## T1 已落（2026-06-14）
+- **契约层 P0**（`quantmind/contracts/`）：HorizonRegistry（short12d/robust21d/long63d 单一来源）、
+  ModelRegistry（首条候选 `ridge_full_12d_v6_seed`，gate=research_candidate_pending_nav）、
+  RecommendationContract + OutcomeContract（schema 定义，**未接生产链路**）、run_manifest↔ModelRegistry 联动。
+  测试 `tests/test_contracts.py` 11 passed。**不含** UI/API/Agent 迁移（P1，等 NAV）。
+- **63d 第二产品线启动**：P63-1 财报 PIT 拉数进行中（`long_horizon_fundamental_plan.md`）。
 
 ## 明确拒绝（记录在案，防再提）
 - **「63d sequence illiquid targeted test」（Codex 建议）→ 拒绝**。

@@ -49,7 +49,31 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 - [x] **定因** Diag A v5 重评=0.034（基线实）；Diag B v6∩v5的1373票=0.032≈v5
       → **机制实锤：IC 抬升全来自评估票池组成（幸存者压低IC），模型 v5≈v6，无 artifact/泄漏**
 - [x] **方法论副产物** 已记入 verdict：幸存者限制对截面排序 IC 是【压低】非抬高
-- [ ] ⏸ **HOLD：补1/补2/定因证据齐，待用户拍板解封时机**（不自动启动 解封/63d/12d 三动作）
+- [x] **解封** productization_backlog.md（顶部写解封记录 + gate 限定：净+2.75%<formal 5%，12d=pending_nav）
+
+---
+
+# T1 三动作（解封后，2026-06-14）
+
+## 动作1 — 契约层 P0（✅ 完成，停下报告）
+- [x] quantmind/contracts/：HorizonRegistry（short12/robust21/long63 单一来源）
+- [x] ModelRegistry：注册 ridge_full_12d_v6_seed（gate=research_candidate_pending_nav，gate_pass=False）
+- [x] RecommendationContract + OutcomeContract（schema 定义，未接生产）
+- [x] run_manifest↔ModelRegistry 联动（train manifest 自动注册候选，懒导入）
+- [x] tests/test_contracts.py 11 passed。**不含 UI/API/Agent 迁移（P1，等 NAV）**
+
+## 动作2 — 63d 基本面版（P63-1 拉数中）
+- [~] **P63-1** 财报 PIT 拉数（fina_indicator/income/balancesheet/cashflow，v6 5529票，保留 ann_date）
+      running（~184min，0 token泄漏）；拉完报覆盖摘要 + ann_date 验收（≥3公司≥5期 vs 公开披露）
+- [ ] **P63-2** 基本面因子（价值/质量/成长/盈利）+ short_horizon 同套筛选
+- [ ] **P63-3** 63d Ridge(full+基本面) WF 判定（H63/E63/季度/UNKNOWN桶/两口径）→ **出数前停**
+
+## 动作3 — 不做（显式登记）
+- [x] 登记 backlog：12d深化 / 63d-seq-illiquid / Agent·前端·API迁移 = 全部排在 NAV 之后
+
+## ⚠ 缺失文档（已补建/待确认）
+- long_horizon_fundamental_plan.md：仓库原缺，本 session 据口头规格补建。
+- executable_nav_design.md：仓库**仍缺**，backlog 已标注需补建（NAV 回测前置）。
   - ≥0.02 & 净超额≥0 & 震荡正 → 站住：Phase1过，解封 backlog + 启 63d 基本面版
   - 0.01-0.02 / 净超额近零 / 震荡贴线 → 弱化未死：转 63d 基本面主线，12d 留研究
   - <0.01 或 震荡负 → 日线见顶：转分钟数据评估

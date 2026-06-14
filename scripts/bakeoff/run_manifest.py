@@ -82,6 +82,13 @@ def write_run_manifest(
     stamp = ts.replace(":", "").replace("-", "").replace("T", "_")
     fn = out_dir / f"run_manifest_{kind}_{stamp}.json"
     fn.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    # ModelRegistry 联动：训练 manifest 自动注册一条研究候选（懒导入，保持 stdlib-only 可用性）。
+    if kind == "train":
+        try:
+            from quantmind.contracts.model_registry import register_from_manifest
+            register_from_manifest(manifest)
+        except Exception:
+            pass
     return fn
 
 
