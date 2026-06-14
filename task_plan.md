@@ -63,8 +63,9 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 - [x] tests/test_contracts.py 11 passed。**不含 UI/API/Agent 迁移（P1，等 NAV）**
 
 ## 动作2 — 63d 基本面版（P63-1 拉数中）
-- [~] **P63-1** 财报 PIT 拉数（fina_indicator/income/balancesheet/cashflow，v6 5529票，保留 ann_date）
-      running（~184min，0 token泄漏）；拉完报覆盖摘要 + ann_date 验收（≥3公司≥5期 vs 公开披露）
+- [x] **P63-1** 财报 PIT 拉数 ✅ fina_indicator 148,443行 / 5475票（54失败~1%，退市/无财报）；6.9h；0 token泄漏
+      **ann_date 验收 PASS**：全市场 0 违规（ann_date>end_date 全成立），滞后 p50=47d（Q1→+30d/年报→+88-107d 教科书级 PIT）
+      范围：仅 fina_indicator（估值走 daily_basic 已在 lake，PIT）；现金流因子若 P63-2 要再补拉。
 - [ ] **P63-2** 基本面因子（价值/质量/成长/盈利）+ short_horizon 同套筛选
 - [ ] **P63-3** 63d Ridge(full+基本面) WF 判定（H63/E63/季度/UNKNOWN桶/两口径）→ **出数前停**
 

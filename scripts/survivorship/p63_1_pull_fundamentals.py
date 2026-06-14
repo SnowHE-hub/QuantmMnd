@@ -32,14 +32,14 @@ CKPT.parent.mkdir(parents=True, exist_ok=True)
 START, END = "20190101", "20261231"
 SLEEP = 0.5
 
+# 仅拉 fina_indicator（质量/成长/盈利全覆盖）：2000积分不支持 by-period bulk（必填 ts_code），
+# 按票拉 ~7s/call；4 表=~42h 不可接受。估值(PE/PB/PS/DV)走已在 lake 的 daily_basic（PIT），
+# 成长 yoy 在 fina_indicator(or_yoy/netprofit_yoy/roe_yoy)，故 income/balancesheet/cashflow 冗余，砍掉。
+# 单表 1 call/ticker → ~11h。若 P63-2 发现缺口，再针对性补拉具体表。
 TABLES = {
     "fina_indicator": "ts_code,ann_date,end_date,roe,roa,grossprofit_margin,netprofit_margin,"
                       "assets_turn,current_ratio,quick_ratio,debt_to_assets,ebit_ps,bps,eps,"
                       "or_yoy,netprofit_yoy,roe_yoy",
-    "income": "ts_code,ann_date,end_date,total_revenue,revenue,n_income,n_income_attr_p,operate_profit",
-    "balancesheet": "ts_code,ann_date,end_date,total_assets,total_liab,total_hldr_eqy_exc_min_int,"
-                    "total_cur_assets,total_cur_liab",
-    "cashflow": "ts_code,ann_date,end_date,n_cashflow_act,c_paid_invest",
 }
 
 
