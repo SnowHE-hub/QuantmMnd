@@ -66,11 +66,14 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 - [x] **P63-1** 财报 PIT 拉数 ✅ fina_indicator 148,443行 / 5475票（54失败~1%，退市/无财报）；6.9h；0 token泄漏
       **ann_date 验收 PASS**：全市场 0 违规（ann_date>end_date 全成立），滞后 p50=47d（Q1→+30d/年报→+88-107d 教科书级 PIT）
       范围：仅 fina_indicator（估值走 daily_basic 已在 lake，PIT）；现金流因子若 P63-2 要再补拉。
-- [x] **P63-2** 基本面因子 + 筛选 ✅ 因子面板 1.56M×19（含自定义 fcf_yield_cf，cashflow 153k行/5473票）
-      筛选 13 survivors（in-sample neut ICIR≥0.2 + flip<35% + corr<0.7，63d，UNKNOWN桶）：
-      value 主导(BM/EP/DV/PE/PB/PS) + size_rank + roe/asset_turn/rev_yoy/np_yoy/current/fcf_cf。
-      **OOS 确认：VALUE 站住(BM OOS +0.086/DV +0.060/EP +0.049)，growth/quality OOS 衰减(~0.00-0.01)**。
-      cashflow 拉数 5473票/153k行/0泄漏。stop 等用户 go P63-3。
+- [x] **P63-2** 基本面因子 + 筛选 ✅（扩池后 **27 因子 → 16 survivors**）
+      扩池补拉：fina全字段+income+balancesheet+cashflow（各5475票/0泄漏）→ 解锁全 8 缺失因子。
+      因子面板 1.56M×27（26 fundamental.py + 自定义 fcf_yield_cf），PIT by ann_date，逐截面 winsor。
+      筛选(in-sample neut ICIR≥0.2 + flip<35% + corr<0.7，63d，UNKNOWN桶) → **16 survivors**：
+      新增 accruals(OOS-0.026 站住)/ocf_to_revenue(OOS+0.023 站住)/revenue_accel_q/equity_multiplier/op_yoy。
+      **OOS 核心仍是 VALUE+现金流质量**(BM+0.086/DV+0.060/EP+0.049/ocf+0.023/accruals-0.026)；
+      growth/accel 入选但 OOS 近零。proper fcf_yield(fcff) 无信号(ICIR-0.06)被弃，自定义 fcf_yield_cf 入选。
+      stop 等用户 go P63-3。
 - [ ] **P63-3** 63d Ridge(full+基本面 survivors) WF 判定（H63/E63/季度/UNKNOWN桶/两口径）→ **出数前停**（待 go）
 
 ## 动作3 — 不做（显式登记）
