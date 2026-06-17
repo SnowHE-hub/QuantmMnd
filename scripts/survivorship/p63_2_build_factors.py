@@ -35,15 +35,33 @@ def main():
         db["ticker"] = db["ts_code"].astype(str)
     db_dates = np.array(sorted(db["trade_date"].unique()))
 
-    fi = pd.read_parquet(LAKE / "fina_indicator.parquet")
+    # fina_indicator：优先全字段版（解锁 equity_multiplier/op_yoy/q_*/accel/fcff）
+    fina_path = LAKE / "fina_indicator_full.parquet"
+    if not fina_path.exists():
+        fina_path = LAKE / "fina_indicator.parquet"
+    fi = pd.read_parquet(fina_path)
     fi["ticker"] = fi["ts_code"].astype(str); fi["report_date"] = fi["end_date"]
+    print(f"[p63-2] fina={fina_path.name} ({len(fi):,}行, {len(fi.columns)}列)", flush=True)
 
-    cf_path = LAKE / "cashflow.parquet"
-    cf = None
-    if cf_path.exists():
-        cf = pd.read_parquet(cf_path)
-        cf["ticker"] = cf["ts_code"].astype(str); cf["report_date"] = cf["end_date"]
-        print(f"[p63-2] cashflow 可用：{len(cf):,} 行 → 启用自定义 fcf_yield_cf", flush=True)
+    def _load_stmt(name):
+        p = LAKE / f"{name}.parquet"
+        if not p.exists():
+            return None
+        d = pd.read_parquet(p)
+        d["ticker"] = d["ts_code"].astype(str)
+        d["report_date"] = d["end_date"]
+        d["f_ann_date"] = d["ann_date"]          # accruals/ytd_to_ttm 用 f_ann_date
+        return d
+
+    inc_all = _load_stmt("income")
+    bs_all = _load_stmt("balancesheet")
+    cf_all = _load_stmt("cashflow")
+    print(f"[p63-2] income={None if inc_all is None else len(inc_all)} "
+          f"balancesheet={None if bs_all is None else len(bs_all)} "
+          f"cashflow={None if cf_all is None else len(cf_all)}", flush=True)
+    cf = cf_all  # 自定义 fcf_yield_cf 仍用 cashflow
+    if cf is not None:
+        print(f"[p63-2] cashflow 可用 → 启用自定义 fcf_yield_cf", flush=True)
 
     names = [n for n, _ in FUNDAMENTAL_FACTORS]
     rows = []
@@ -55,6 +73,12 @@ def main():
         db_a = db[db.trade_date == ltd[-1]]
         fi_a = fi[fi["ann_date"] <= asof_str]
         snap = {"daily_basic": db_a, "financial_indicators": fi_a}
+        if inc_all is not None:
+            snap["financials_income"] = inc_all[inc_all["ann_date"] <= asof_str]
+        if bs_all is not None:
+            snap["financials_balance_sheet"] = bs_all[bs_all["ann_date"] <= asof_str]
+        if cf_all is not None:
+            snap["financials_cashflow"] = cf_all[cf_all["ann_date"] <= asof_str]
         fac = compute_all_fundamental_factors(snap, as_of.date())  # index=ticker
         # 自定义 fcf_yield from cashflow（CFO - capex）/ total_mv
         if cf is not None:
