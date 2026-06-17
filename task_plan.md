@@ -74,7 +74,12 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
       **OOS 核心仍是 VALUE+现金流质量**(BM+0.086/DV+0.060/EP+0.049/ocf+0.023/accruals-0.026)；
       growth/accel 入选但 OOS 近零。proper fcf_yield(fcff) 无信号(ICIR-0.06)被弃，自定义 fcf_yield_cf 入选。
       stop 等用户 go P63-3。
-- [ ] **P63-3** 63d Ridge(full+基本面 survivors) WF 判定（H63/E63/季度/UNKNOWN桶/两口径）→ **出数前停**（待 go）
+- [~] **P63-3** 63d WF 判定 —— ⚠ **首跑揭穿 fold 结构退化，停下报告（不下判断）**
+      季度 cutoffs(~63td间隔) + embargo=63 → 内部 fold test 窗口 (C_k+63, C_{k+1}] 坍缩为空；
+      15 fold 仅 fold14(2025-10→2026-04, 26 as_of) 有内容 → 实为单 6 月 OOS 窗，非 walk-forward。
+      net excess(~2 rebal) 无意义、逐fold稳健不可做。**P4 季度模板(E=20<<63td)不能平移到 63d(E=63=季度)**。
+      初步(单窗,不可解读为判定)：ablation B(0.022)>C(0.011) 提示基本面有边际贡献；D(fnd-only)0.040 ICIR1.70 最高；net 全负=fold artifact。
+      待用户定 refit 节奏(建议 semi-annual：间隔126td>E63→正常窗+~7fold) 再正式跑。
 
 ## 动作3 — 不做（显式登记）
 - [x] 登记 backlog：12d深化 / 63d-seq-illiquid / Agent·前端·API迁移 = 全部排在 NAV 之后
