@@ -36,6 +36,21 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# ── 复用既有 .env 机制读取凭证 + 屏蔽 provider 日志（防 token 外泄）──────────────
+import sys
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
+except ImportError:
+    pass
+try:
+    from quantmind.utils.silence_provider_logging import silence_provider_logging
+    silence_provider_logging()
+except Exception:
+    pass
 OUT_DIR = ROOT / "data" / "raw" / "bulk_v1"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR = ROOT / "logs"
@@ -79,24 +94,24 @@ def _init_pro():
     """
     token_a = os.environ.get(
         "TUSHARE_TOKEN",
-        "64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56",
+        "",
     ).strip()
     token_b = os.environ.get(
         "TUSHARE_TOKEN_HI",
-        "5caf9b3022e13d4e915df0af19a076130287cb7837c0b020290691c8",
+        "",
     ).strip()
     url_b = os.environ.get("TUSHARE_HI_URL", "http://tsy.xiaodefa.cn")
 
     # Token A — 官方，用于 trade_cal 等基础接口
     pro_a = _make_api(token_a, timeout=120)
-    print(f"[init] Token A（官方） prefix={token_a[:8]}...", flush=True)
+    print("[init] Token A（官方）已加载", flush=True)  # 不打印 token 前缀（泄漏根因）
 
     # Token B — 先探测代理，可用则走代理（180 req/min），否则走官方
     # 全市场 daily_basic 单次数据量大，设 90s 超时
     proxy_ok = _probe_proxy(token_b, url_b)
     if proxy_ok:
         pro_b = _make_api(token_b, url=url_b, timeout=90)
-        print(f"[init] Token B ✅ 代理可用 → {url_b}  prefix={token_b[:8]}...", flush=True)
+        print(f"[init] Token B ✅ 代理可用 → {url_b}", flush=True)  # 不打印 token 前缀
     else:
         pro_b = _make_api(token_b, timeout=90)
         print(
