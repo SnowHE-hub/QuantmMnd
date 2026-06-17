@@ -55,26 +55,6 @@
     "created": "2026-06-14T11:08:49",
     "updated": "2026-06-14T11:08:49"
   },
-  "ridge_full_v6_63d(B/C/D)_63d_v6": {
-    "model_id": "ridge_full_v6_63d(B/C/D)_63d_v6",
-    "label": "forward_return_63d",
-    "horizon": "long",
-    "feature_set": "full_v6_63d(B/C/D)",
-    "data_version": "v6",
-    "wf_config": {},
-    "neutralization": {},
-    "gate_status": "research_candidate",
-    "metrics": {
-      "train_seconds": null
-    },
-    "artifacts": {
-      "manifest_sha256": {},
-      "preds": null
-    },
-    "git_sha": "7fc3e368a184",
-    "created": "2026-06-17T17:32:36",
-    "updated": "2026-06-17T21:51:16"
-  },
   "ridge_full_fnd_63d_v6_seed": {
     "model_id": "ridge_full_fnd_63d_v6_seed",
     "label": "forward_return_63d",

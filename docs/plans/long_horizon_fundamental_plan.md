@@ -43,8 +43,9 @@
 3. **A 股因子溢价结构(2019-2026)**：价值溢价稳健(BM/DV/EP OOS 站住)；增长/质量溢价漂移严重
    (revenue_yoy/op_yoy/roe OOS 近零)；size 效应弱化但仍在；现金流质量(ocf/accruals) OOS 站住。
    → **16 fundamental survivors 中 OOS 真正可信的核心 = 5 个**(BM/DV/EP/ocf/accruals)。
-4. **IC ≠ 净超额**：12d 量价信号在 63d 上 rank-IC 最高(0.079)但多头净超额为负(−4.15%)；
-   加基本面后 rank-IC 降(0.059)但净超额翻正(+5.33%)。**长持有多头产品看净超额，不看 rank-IC**。
+4. **IC ≠ 净超额**（已升格为项目级原则 → `docs/methodology/ic_vs_net_excess_divergence.md`）：
+   12d 量价信号在 63d 上 rank-IC 最高(0.079)但多头净超额为负(−4.15%)；加基本面后 rank-IC 降(0.059)
+   但净超额翻正(+5.33%)。**rank-IC 是研究诊断，净超额是产品判断；长持有多头产品看净超额**。
    基本面对 63d 多头产品的边际贡献：rank-IC −0.020 但净超额 +9.5pt、maxDD 15.6%→6.4%。
 5. **fundamental 信号票池稳健**：Diag B 限到 v5 1373 票，量价信号(C)IC 腰斩(universe-effect)，
    基本面信号(D)几乎不掉 → 基本面是真 alpha 非票池 artifact。

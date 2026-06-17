@@ -96,3 +96,24 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
 ## 约束
 v5 字节不动（每步 md5 守卫）；双环境（dump/Alpha158=qlib_bakeoff，训练/评估=quantmind）；
 长跑 nohup setsid + 监控接力；token 防泄漏；判定对 gate 线、不与 v5 攀比。
+
+---
+
+# B 种子后 三任务并行（2026-06-18）
+
+## 任务1 — 安全债（最优先）
+- [x] **1c** 删 token 打印根因行：tushare_provider.py:83/85 + prefetch_bulk:107/114（commit 76535a3）；
+      清 4 陈旧 worktree + 4 claude/* 分支。
+- [x] **1b** git 历史 token 清理**镜像演练 PASS**：filter-repo --replace-text，9 文件/4token，
+      镜像残留真token=0、占位1430行，真仓未动。**⏸ 强推前停，等用户确认**（/tmp/qm_mirror.git 可查）。
+- [ ] **1a** ⚠ **阻塞在用户**：需你在 Tushare 后台生成新 token（我无法生成）；给我后我更新 .env/api_key.txt +
+      验通 + 旧 token 作废。**这是真正的修复，比 1b 历史清理更关键**（token 未轮换前历史泄漏仍可用）。
+
+## 任务2 — executable_nav_design.md（B 上线硬前置）
+- [x] 写完即停：net-excess proxy 算法解剖（年化换手公式 0.846×3.97=3.4 已核）+ executable NAV 要素
+      （涨跌停时变/停牌/T+1/分桶滑点/Top-N对齐/真实换手）+ E3 复用 + gate_pass 阈值 + 12d/63d 规格 + CI 标注。
+
+## 任务3 — 方法论文档收尾
+- [x] **3a** docs/methodology/ic_vs_net_excess_divergence.md（C/B/D 示例，rank-IC=诊断/净超额=产品判断）。
+- [x] **3b** long_horizon_fundamental_plan 经验教训定型（fcff/价值稳健·增长漂移/5v16/WF模板陷阱/IC≠净超额交叉引用3a）。
+- [x] **3c** ModelRegistry 核对：2 seed 齐全、字段全、gate=research_candidate_pending_nav；删 1 条自动注册 stray。
