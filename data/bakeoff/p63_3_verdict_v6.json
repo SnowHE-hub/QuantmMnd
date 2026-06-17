@@ -1,0 +1,207 @@
+{
+  "period": "63d",
+  "leaderboard": [
+    {
+      "row": "A",
+      "desc": "P4 v6 12d Ridge(full) top1500",
+      "neut_ic": 0.057,
+      "net_excess_cost": 0.0275,
+      "neut_icir": 0.988,
+      "regime": {
+        "bear": 0.067,
+        "neutral": 0.05,
+        "bull": 0.055
+      }
+    },
+    {
+      "row": "B",
+      "desc": "63d Ridge(full+fnd)",
+      "neut_ic": 0.0591,
+      "net_excess_cost": 0.0533,
+      "neut_icir": 0.748,
+      "regime": {
+        "bear": 0.0537,
+        "neutral": 0.0884,
+        "bull": 0.0447
+      },
+      "per_fold": {
+        "n": 7,
+        "min": -0.0776,
+        "median": 0.0746,
+        "max": 0.119,
+        "n_pos": 6,
+        "drop_best2": 0.0384
+      },
+      "avg_oneway_turnover": 0.846,
+      "max_drawdown": 0.0638
+    },
+    {
+      "row": "C",
+      "desc": "63d Ridge(full,no-fnd) ablation",
+      "neut_ic": 0.0788,
+      "net_excess_cost": -0.0415,
+      "neut_icir": 1.375,
+      "regime": {
+        "bear": 0.0753,
+        "neutral": 0.0868,
+        "bull": 0.0762
+      },
+      "per_fold": {
+        "n": 7,
+        "min": 0.0222,
+        "median": 0.0902,
+        "max": 0.1162,
+        "n_pos": 7,
+        "drop_best2": 0.0669
+      },
+      "avg_oneway_turnover": 0.81,
+      "max_drawdown": 0.1564
+    },
+    {
+      "row": "D",
+      "desc": "63d Ridge(fnd-only)",
+      "neut_ic": 0.0734,
+      "net_excess_cost": 0.0239,
+      "neut_icir": 1.499,
+      "regime": {
+        "bear": 0.0573,
+        "neutral": 0.081,
+        "bull": 0.0792
+      },
+      "per_fold": {
+        "n": 7,
+        "min": 0.0138,
+        "median": 0.0732,
+        "max": 0.1239,
+        "n_pos": 7,
+        "drop_best2": 0.059
+      },
+      "avg_oneway_turnover": 0.843,
+      "max_drawdown": 0.0427
+    }
+  ],
+  "details": {
+    "full_fnd": {
+      "pit_top1500": {
+        "lens": "pit_top1500",
+        "raw_ic": 0.0729,
+        "neut_ic": 0.0591,
+        "neut_icir": 0.748,
+        "net_excess_cost": 0.0533,
+        "avg_oneway_turnover": 0.846,
+        "max_drawdown": 0.0638,
+        "neut_ic_posfrac": 0.79,
+        "regime": {
+          "bear": 0.0537,
+          "neutral": 0.0884,
+          "bull": 0.0447
+        },
+        "regime_counts": {
+          "bull": 36,
+          "bear": 23,
+          "neutral": 22
+        },
+        "n_asof": 81,
+        "per_fold": {
+          "n": 7,
+          "min": -0.0776,
+          "median": 0.0746,
+          "max": 0.119,
+          "n_pos": 6,
+          "drop_best2": 0.0384
+        }
+      },
+      "full_market": {
+        "lens": "full_market",
+        "raw_ic": 0.1051,
+        "neut_ic": 0.0679,
+        "neut_icir": 0.883,
+        "net_excess_cost": 0.129,
+        "avg_oneway_turnover": 0.766,
+        "max_drawdown": 0.0,
+        "neut_ic_posfrac": 0.84,
+        "regime": {
+          "bear": 0.0773,
+          "neutral": 0.1001,
+          "bull": 0.0423
+        },
+        "regime_counts": {
+          "bull": 36,
+          "bear": 23,
+          "neutral": 22
+        },
+        "n_asof": 81,
+        "per_fold": {
+          "n": 7,
+          "min": -0.0329,
+          "median": 0.1014,
+          "max": 0.1324,
+          "n_pos": 6,
+          "drop_best2": 0.046
+        }
+      }
+    },
+    "full_nofnd": {
+      "pit_top1500": {
+        "lens": "pit_top1500",
+        "raw_ic": 0.0796,
+        "neut_ic": 0.0788,
+        "neut_icir": 1.375,
+        "net_excess_cost": -0.0415,
+        "avg_oneway_turnover": 0.81,
+        "max_drawdown": 0.1564,
+        "neut_ic_posfrac": 0.914,
+        "regime": {
+          "bear": 0.0753,
+          "neutral": 0.0868,
+          "bull": 0.0762
+        },
+        "regime_counts": {
+          "bull": 36,
+          "bear": 23,
+          "neutral": 22
+        },
+        "n_asof": 81,
+        "per_fold": {
+          "n": 7,
+          "min": 0.0222,
+          "median": 0.0902,
+          "max": 0.1162,
+          "n_pos": 7,
+          "drop_best2": 0.0669
+        }
+      }
+    },
+    "fnd_only": {
+      "pit_top1500": {
+        "lens": "pit_top1500",
+        "raw_ic": 0.0754,
+        "neut_ic": 0.0734,
+        "neut_icir": 1.499,
+        "net_excess_cost": 0.0239,
+        "avg_oneway_turnover": 0.843,
+        "max_drawdown": 0.0427,
+        "neut_ic_posfrac": 0.938,
+        "regime": {
+          "bear": 0.0573,
+          "neutral": 0.081,
+          "bull": 0.0792
+        },
+        "regime_counts": {
+          "bull": 36,
+          "bear": 23,
+          "neutral": 22
+        },
+        "n_asof": 81,
+        "per_fold": {
+          "n": 7,
+          "min": 0.0138,
+          "median": 0.0732,
+          "max": 0.1239,
+          "n_pos": 7,
+          "drop_best2": 0.059
+        }
+      }
+    }
+  }
+}

@@ -16,7 +16,7 @@ from scripts.survivorship.p4d_eval_v6 import (
 from scripts._diag_wf_v2 import build_regime
 from quantmind.data.lake import load_trading_calendar
 from quantmind.backtest.wf_split import PurgedWalkForwardSplit
-from scripts.bakeoff.p3b_tabular import make_quarterly_cutoffs
+from scripts.survivorship.p63_3_train_v6 import make_semiannual_cutoffs
 
 PREDS = REPO / "data/bakeoff/preds"
 LABEL, PERIOD = "forward_return_63d", "63d"
@@ -65,7 +65,7 @@ def main():
     # fold 映射（同训练配置）
     cal = load_trading_calendar()
     sp = PurgedWalkForwardSplit(cal, horizon=63, embargo=63, mode="rolling", rolling_lookback_td=756, n_val=2)
-    cut = make_quarterly_cutoffs(cal, pd.Timestamp("2022-01-01"), pd.Timestamp("2025-07-01"))
+    cut = make_semiannual_cutoffs(cal, "2022-04-01", "2025-10-31")
     folds = sp.make_folds(as_of_list, cut, oos_start=pd.Timestamp("2022-01-01"), oos_end=as_of_list[-1])
     asof2fold = {pd.Timestamp(dt): i for i, f in enumerate(folds) for dt in f.test_dates}
 

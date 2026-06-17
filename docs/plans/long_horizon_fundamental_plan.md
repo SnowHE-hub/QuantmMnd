@@ -33,3 +33,18 @@
 ## 纪律
 - 不同时做 12d 任何深化（12d 等 executable NAV 回测）。
 - P63-1 拉数后报覆盖摘要；P63-3 出数前停下。
+
+## 经验教训（P63 留给未来）
+1. **WF 模板平移陷阱**：P4 季度 refit 模板在 63d 上 fold 退化——根因 `embargo(63) ≈ cutoff 间距(63td)`，
+   内部 fold 的 test 窗口 `(C_k+E, C_{k+1}]` 坍缩为空。**任何新 horizon/节奏开局先查
+   `wf_horizon_compatibility_checklist.md`**（规则：refit 间距 ≥ 2×embargo）。63d 用半年 refit。
+2. **Tushare 衍生字段慎用**：现成 `fcf_yield`(读 fina_indicator.fcff) 无信号(ICIR −0.06)被弃；
+   自定义 `(CFO−capex)/总市值` 入选。规则：**能用原始字段自己算，不用人家衍生字段**。
+3. **A 股因子溢价结构(2019-2026)**：价值溢价稳健(BM/DV/EP OOS 站住)；增长/质量溢价漂移严重
+   (revenue_yoy/op_yoy/roe OOS 近零)；size 效应弱化但仍在；现金流质量(ocf/accruals) OOS 站住。
+   → **16 fundamental survivors 中 OOS 真正可信的核心 = 5 个**(BM/DV/EP/ocf/accruals)。
+4. **IC ≠ 净超额**：12d 量价信号在 63d 上 rank-IC 最高(0.079)但多头净超额为负(−4.15%)；
+   加基本面后 rank-IC 降(0.059)但净超额翻正(+5.33%)。**长持有多头产品看净超额，不看 rank-IC**。
+   基本面对 63d 多头产品的边际贡献：rank-IC −0.020 但净超额 +9.5pt、maxDD 15.6%→6.4%。
+5. **fundamental 信号票池稳健**：Diag B 限到 v5 1373 票，量价信号(C)IC 腰斩(universe-effect)，
+   基本面信号(D)几乎不掉 → 基本面是真 alpha 非票池 artifact。

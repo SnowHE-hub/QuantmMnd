@@ -18,7 +18,21 @@ from quantmind.data.lake import load_trading_calendar
 from quantmind.features.weekly_panel import WHITELIST_35, merge_increment
 from quantmind.backtest.wf_split import PurgedWalkForwardSplit
 from quantmind.backtest.wf_gate import decide_direction
-from scripts.bakeoff.p3b_tabular import RidgePredictor, make_quarterly_cutoffs
+from scripts.bakeoff.p3b_tabular import RidgePredictor
+
+
+def make_semiannual_cutoffs(cal, start, end):
+    """半年 refit：每年 4 月底 / 10 月底（财报披露后），snap 到首个 ≥ 的交易日。"""
+    cal_sorted = sorted(cal); out = []
+    for y in range(pd.Timestamp(start).year, pd.Timestamp(end).year + 1):
+        for mmdd in ("04-30", "10-31"):
+            d = pd.Timestamp(f"{y}-{mmdd}")
+            if d < pd.Timestamp(start) or d > pd.Timestamp(end):
+                continue
+            after = [c for c in cal_sorted if c >= d]
+            if after:
+                out.append(after[0])
+    return sorted(set(out))
 
 V6_PANEL = REPO / "data/panel/alpha_panel_weekly_v6.parquet"
 FND = REPO / "data/panel/fundamental_factors_v6.parquet"
@@ -82,7 +96,7 @@ def main():
     oos_start = pd.Timestamp("2022-01-01"); oos_end = as_of[-1]
     sp = PurgedWalkForwardSplit(cal, horizon=H, embargo=EMB, mode="rolling",
                                 rolling_lookback_td=756, n_val=2)
-    cut = make_quarterly_cutoffs(cal, oos_start, pd.Timestamp("2025-07-01"))  # →2025Q3，splitter 自动收尾
+    cut = make_semiannual_cutoffs(cal, "2022-04-01", "2025-10-31")  # 半年 refit，自检门已 PASS
     folds = sp.make_folds(as_of, cut, oos_start=oos_start, oos_end=oos_end)
     print(f"[p63-3] panel={panel.shape} cutoffs={len(cut)} folds={len(folds)} "
           f"oos={oos_start.date()}→{oos_end.date()}", flush=True)

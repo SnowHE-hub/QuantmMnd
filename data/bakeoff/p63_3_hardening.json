@@ -1,0 +1,74 @@
+{
+  "B": {
+    "variant": "full_fnd",
+    "fold": {
+      "n_folds": 7,
+      "per_fold": [
+        0.119,
+        0.1177,
+        0.1165,
+        0.0746,
+        0.0419,
+        0.0363,
+        -0.0776
+      ],
+      "n_pos": 6,
+      "drop_best2": 0.0384
+    },
+    "liquidity_bucket": {
+      "top500": 0.0574,
+      "mid500_1500": 0.0325,
+      "small1500+": 0.0447
+    },
+    "diagB_v5universe_neut_ic": 0.0325,
+    "diagB_n_tickers": 1282
+  },
+  "C": {
+    "variant": "full_nofnd",
+    "fold": {
+      "n_folds": 7,
+      "per_fold": [
+        0.1162,
+        0.1094,
+        0.0982,
+        0.0902,
+        0.0784,
+        0.0454,
+        0.0222
+      ],
+      "n_pos": 7,
+      "drop_best2": 0.0669
+    },
+    "liquidity_bucket": {
+      "top500": 0.0783,
+      "mid500_1500": 0.0508,
+      "small1500+": 0.04
+    },
+    "diagB_v5universe_neut_ic": 0.039,
+    "diagB_n_tickers": 1282
+  },
+  "D": {
+    "variant": "fnd_only",
+    "fold": {
+      "n_folds": 7,
+      "per_fold": [
+        0.1239,
+        0.0991,
+        0.0843,
+        0.0732,
+        0.0724,
+        0.0513,
+        0.0138
+      ],
+      "n_pos": 7,
+      "drop_best2": 0.059
+    },
+    "liquidity_bucket": {
+      "top500": 0.0674,
+      "mid500_1500": 0.053,
+      "small1500+": 0.0542
+    },
+    "diagB_v5universe_neut_ic": 0.0607,
+    "diagB_n_tickers": 1282
+  }
+}

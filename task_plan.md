@@ -74,12 +74,13 @@ Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨
       **OOS 核心仍是 VALUE+现金流质量**(BM+0.086/DV+0.060/EP+0.049/ocf+0.023/accruals-0.026)；
       growth/accel 入选但 OOS 近零。proper fcf_yield(fcff) 无信号(ICIR-0.06)被弃，自定义 fcf_yield_cf 入选。
       stop 等用户 go P63-3。
-- [~] **P63-3** 63d WF 判定 —— ⚠ **首跑揭穿 fold 结构退化，停下报告（不下判断）**
-      季度 cutoffs(~63td间隔) + embargo=63 → 内部 fold test 窗口 (C_k+63, C_{k+1}] 坍缩为空；
-      15 fold 仅 fold14(2025-10→2026-04, 26 as_of) 有内容 → 实为单 6 月 OOS 窗，非 walk-forward。
-      net excess(~2 rebal) 无意义、逐fold稳健不可做。**P4 季度模板(E=20<<63td)不能平移到 63d(E=63=季度)**。
-      初步(单窗,不可解读为判定)：ablation B(0.022)>C(0.011) 提示基本面有边际贡献；D(fnd-only)0.040 ICIR1.70 最高；net 全负=fold artifact。
-      待用户定 refit 节奏(建议 semi-annual：间隔126td>E63→正常窗+~7fold) 再正式跑。
+- [x] **P63-3** 63d WF 判定 ✅（半年 refit 重跑，fold 自检门 PASS：8cutoff 间距~120td>E63，7有效fold/81as_of）
+      首跑季度退化已诊断 → 改半年 refit + 建 wf_horizon_compatibility_checklist.md。
+      **ABCD(PIT top1500)**：A(12d)0.057/+2.75% · **B(full+fnd)0.059/+5.33%** · C(no-fnd)0.079/−4.15% · D(fnd-only)0.073/+2.39%。
+      硬化全做：逐fold(B6/7·C/D7/7 丢2后均≥0.02) · 分桶(三者top500最高,无小盘红旗) · regime全正 · Diag B(C腰斩=universe-effect,D稳=真alpha)。
+      **判定 B=第二产品线种子**(IC0.059≥0.02/净+5.33%≥0/震荡+0.088≥0)，gate=research_candidate_pending_nav，需 NAV 过5%。
+      核心交付：基本面 vs C 边际贡献 = rank-IC −0.020 但净超额 +9.5pt、maxDD15.6%→6.4%（多头产品决定性正向）。
+      OOS 可信核心 5 因子(BM/DV/EP/ocf/accruals)。注册 ridge_full_fnd_63d_v6_seed。**停，带证据回评审。**
 
 ## 动作3 — 不做（显式登记）
 - [x] 登记 backlog：12d深化 / 63d-seq-illiquid / Agent·前端·API迁移 = 全部排在 NAV 之后
