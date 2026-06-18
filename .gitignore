@@ -162,3 +162,10 @@ data/paper_trading/forward_positions.json
 data/paper_trading/performance.json
 data/paper_trading/strategy_config.json
 data/sim30d/summary.json
+
+# 大数据产物(≥10MB parquet/产物，不入库，靠 data_manifest.md + sha256 溯源)
+data/lake/*.parquet
+data/panel/*.parquet
+data/bakeoff/
+data/feedback/
+data/loss_signals_v4/*.parquet
