@@ -23,16 +23,31 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# ── 复用既有 .env 机制读取凭证 + 屏蔽 provider 日志（防 token 外泄）──────────────
+import sys
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
+except ImportError:
+    pass
+try:
+    from quantmind.utils.silence_provider_logging import silence_provider_logging
+    silence_provider_logging()
+except Exception:
+    pass
 REPORT_DIR = ROOT / "reports" / "data"
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 TOKEN_A = os.environ.get(
     "TUSHARE_TOKEN",
-    "64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56",
+    "",
 )
 TOKEN_B = os.environ.get(
     "TUSHARE_TOKEN_HI",
-    "5caf9b3022e13d4e915df0af19a076130287cb7837c0b020290691c8",
+    "",
 )
 URL_B = os.environ.get("TUSHARE_HI_URL", "http://tsy.xiaodefa.cn")
 
