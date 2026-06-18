@@ -60,6 +60,8 @@ data/snapshots/*
 data/kb/*
 data/panel/*
 data/prices/*
+data/lake/*
+data/lake/_checkpoints/*
 data/alpha_universe/*.parquet
 data/alpha_universe/*.csv
 data/agent_models/*
@@ -154,3 +156,9 @@ node_modules/
 # ============================================================================
 uv.lock
 # poetry.lock  # 是否提交 lock 看团队约定
+
+# 运行时 paper-trade 状态(每跑必churn,不入库)
+data/paper_trading/forward_positions.json
+data/paper_trading/performance.json
+data/paper_trading/strategy_config.json
+data/sim30d/summary.json
