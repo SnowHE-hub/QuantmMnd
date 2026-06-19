@@ -1,0 +1,62 @@
+{
+  "v5_neut_ic_baseline": 0.034,
+  "buckets": {
+    "top500 (rank≤500)": {
+      "neut_ic": 0.0557,
+      "neut_icir": 0.887,
+      "posfrac": 0.803,
+      "n_asof": 142,
+      "regime": {
+        "bear": 0.0726,
+        "neutral": 0.0503,
+        "bull": 0.0449
+      }
+    },
+    "mid 500-1500": {
+      "neut_ic": 0.0447,
+      "neut_icir": 0.77,
+      "posfrac": 0.761,
+      "n_asof": 142,
+      "regime": {
+        "bear": 0.0534,
+        "neutral": 0.0379,
+        "bull": 0.0439
+      }
+    },
+    "small 1500+": {
+      "neut_ic": 0.039,
+      "neut_icir": 0.628,
+      "posfrac": 0.817,
+      "n_asof": 142,
+      "regime": {
+        "bear": 0.0518,
+        "neutral": 0.0287,
+        "bull": 0.0382
+      }
+    }
+  },
+  "folds": {
+    "full_market": {
+      "n_folds": 16,
+      "min": 0.0105,
+      "p25": 0.0239,
+      "median": 0.0673,
+      "p75": 0.0794,
+      "max": 0.1045,
+      "n_folds_positive": 16,
+      "mean_drop_best2": 0.0493,
+      "robust_pass": true
+    },
+    "pit_top1500": {
+      "n_folds": 16,
+      "min": 0.0134,
+      "p25": 0.0354,
+      "median": 0.062,
+      "p75": 0.0792,
+      "max": 0.1339,
+      "n_folds_positive": 16,
+      "mean_drop_best2": 0.0541,
+      "robust_pass": true
+    }
+  }
+}

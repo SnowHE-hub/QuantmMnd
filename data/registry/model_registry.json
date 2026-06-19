@@ -1,0 +1,124 @@
+{
+  "ridge_full_12d_v6_seed": {
+    "model_id": "ridge_full_12d_v6_seed",
+    "label": "forward_return_12d",
+    "horizon": "short",
+    "feature_set": "full_35_16_158",
+    "data_version": "v6",
+    "wf_config": {
+      "splitter": "PurgedWalkForwardSplit",
+      "horizon": 12,
+      "embargo": 20,
+      "mode": "rolling",
+      "rolling_lookback_td": 756,
+      "n_val": 2,
+      "refit": "quarterly",
+      "oos_start": "2022-01-01",
+      "decide_direction": "val_only",
+      "alpha": 10.0,
+      "n_folds": 16,
+      "n_flips": 0
+    },
+    "neutralization": {
+      "industry_dummies": true,
+      "unknown_bucket": true,
+      "size": "log_circ_mv_zscore",
+      "per_cross_section": true
+    },
+    "gate_status": "research_candidate_pending_nav",
+    "metrics": {
+      "pit_top1500_neut_ic": 0.057,
+      "pit_top1500_net_excess_cost": 0.0275,
+      "pit_top1500_neut_icir": 0.988,
+      "pit_top1500_regime": {
+        "bear": 0.0674,
+        "neutral": 0.0498,
+        "bull": 0.0552
+      },
+      "full_market_neut_ic": 0.0521,
+      "full_market_net_excess_cost": 0.0117,
+      "robust_drop_best2_pit_top1500": 0.0541,
+      "folds_positive": "16/16",
+      "formal_gate_line_net_excess": 0.05,
+      "gate_pass": false,
+      "v5_baseline_neut_ic": 0.034,
+      "v6_on_v5_universe_neut_ic": 0.032,
+      "train_seconds": 208
+    },
+    "artifacts": {
+      "preds": "data/bakeoff/preds/ridge_full_12d_quarterly_v6.parquet",
+      "preds_sha256": "774eecf97465c489475d41f7459160107c4eb9667cb5aa215fe1b1802eb05d5a",
+      "verdict_doc": "docs/plans/survivorship_p4_verdict.md",
+      "verdict_json": "data/bakeoff/p4_verdict_v6.json"
+    },
+    "git_sha": null,
+    "created": "2026-06-14T11:08:49",
+    "updated": "2026-06-14T11:08:49"
+  },
+  "ridge_full_fnd_63d_v6_seed": {
+    "model_id": "ridge_full_fnd_63d_v6_seed",
+    "label": "forward_return_63d",
+    "horizon": "long",
+    "feature_set": "full_v6_63d_35_16sh_16fnd_158",
+    "data_version": "v6",
+    "wf_config": {
+      "splitter": "PurgedWalkForwardSplit",
+      "horizon": 63,
+      "embargo": 63,
+      "mode": "rolling",
+      "rolling_lookback_td": 756,
+      "n_val": 2,
+      "refit": "semi-annual(Apr/Oct)",
+      "oos_start": "2022-01-01",
+      "decide_direction": "val_only",
+      "alpha": 10.0,
+      "n_folds": 8
+    },
+    "neutralization": {
+      "industry_dummies": true,
+      "unknown_bucket": true,
+      "size": "log_circ_mv_zscore"
+    },
+    "gate_status": "research_candidate_pending_nav",
+    "metrics": {
+      "pit_top1500_neut_ic": 0.0591,
+      "pit_top1500_net_excess_cost": 0.0533,
+      "pit_top1500_neut_icir": 0.748,
+      "pit_top1500_regime": {
+        "bear": 0.0537,
+        "neutral": 0.0884,
+        "bull": 0.0447
+      },
+      "per_fold_drop_best2": 0.0384,
+      "per_fold_pos": "6/7",
+      "liquidity_buckets": {
+        "top500": 0.0574,
+        "mid500_1500": 0.0325,
+        "small1500+": 0.0447
+      },
+      "diagB_v5universe_neut_ic": 0.0325,
+      "ablation_marginal_ic_vs_C": -0.0197,
+      "ablation_marginal_net_vs_C": 0.0948,
+      "formal_gate_line_net_excess": 0.05,
+      "gate_pass_research": true,
+      "needs_executable_nav": true,
+      "oos_trustworthy_factors": [
+        "book_to_market",
+        "dividend_yield_ttm",
+        "earnings_yield",
+        "ocf_to_revenue_ttm",
+        "accruals"
+      ]
+    },
+    "artifacts": {
+      "preds": "data/bakeoff/preds/ridge_full_fnd_63d_quarterly_v6.parquet",
+      "preds_sha256": "73a762a3ff44d9ec70cb26785cac7f8121d37ce45dd15eee69e7146d569decd6",
+      "verdict_doc": "docs/plans/survivorship_p63_3_verdict.md",
+      "verdict_json": "data/bakeoff/p63_3_verdict_v6.json",
+      "hardening_json": "data/bakeoff/p63_3_hardening.json"
+    },
+    "git_sha": null,
+    "created": "2026-06-17T21:59:37",
+    "updated": "2026-06-17T21:59:37"
+  }
+}

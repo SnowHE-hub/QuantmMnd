@@ -21,6 +21,7 @@ SNAP_ROOT = PROJECT_ROOT / "data" / "snapshots"
 
 @pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="csi300_full_panel.parquet not built")
+@pytest.mark.stale_panel_fixture
 def test_full_panel_rowcount_vs_snapshots() -> None:
     panel = pd.read_parquet(PANEL_PATH)
     as_of_level = panel.index.get_level_values(0).unique()
@@ -37,6 +38,7 @@ def test_full_panel_rowcount_vs_snapshots() -> None:
 
 @pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
+@pytest.mark.stale_panel_fixture
 def test_expansion_nonempty_after_2021() -> None:
     panel = pd.read_parquet(PANEL_PATH)
     exp_names = [n for n, _ in EXPANSION_FACTORS]
@@ -48,6 +50,7 @@ def test_expansion_nonempty_after_2021() -> None:
 
 @pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
+@pytest.mark.stale_panel_fixture
 def test_expansion_all_nan_2019_2020() -> None:
     panel = pd.read_parquet(PANEL_PATH)
     exp_names = [n for n, _ in EXPANSION_FACTORS]
@@ -70,6 +73,7 @@ def test_labels_nonnull_except_last_two_periods() -> None:
 
 @pytest.mark.integration
 @pytest.mark.skipif(not PANEL_PATH.exists(), reason="panel missing")
+@pytest.mark.stale_panel_fixture
 def test_expansion_many_nonempty_columns_modern() -> None:
     panel = pd.read_parquet(PANEL_PATH)
     cut = pd.Timestamp(date(2021, 1, 1))
@@ -100,6 +104,7 @@ def test_forward_returns_no_lookahead() -> None:
 
 @pytest.mark.integration
 @pytest.mark.skipif(not SPLIT_META.exists(), reason="split not built")
+@pytest.mark.stale_panel_fixture
 def test_split_no_date_overlap() -> None:
     meta = json.loads(SPLIT_META.read_text(encoding="utf-8"))
 

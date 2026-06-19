@@ -52,6 +52,7 @@ _REQUIRES_TUSHARE = pytest.mark.skipif(
 @pytest.mark.pit
 @pytest.mark.slow
 @_REQUIRES_TUSHARE
+@pytest.mark.requires_network
 def test_tushare_price_pit_strict() -> None:
     """断言 tushare daily 不返回 > as_of 的行情."""
     from quantmind.data import TushareProvider
@@ -115,6 +116,7 @@ def test_tushare_financials_f_ann_date_pit(statement: str) -> None:
 
 @pytest.mark.pit
 @pytest.mark.slow
+@pytest.mark.requires_network
 def test_akshare_income_notice_date_pit() -> None:
     from quantmind.data import AkshareProvider
 
@@ -134,6 +136,7 @@ def test_akshare_income_notice_date_pit() -> None:
 @pytest.mark.pit
 @pytest.mark.slow
 @_REQUIRES_TUSHARE
+@pytest.mark.requires_network
 def test_universe_changes_over_time() -> None:
     """csi300 在 2020 vs 2024 应有显著差异（>=20只换仓）."""
     from quantmind.data import get_universe
@@ -158,6 +161,7 @@ def test_universe_changes_over_time() -> None:
 @pytest.mark.pit
 @pytest.mark.slow
 @_REQUIRES_TUSHARE
+@pytest.mark.requires_network
 def test_universe_cross_validate_current() -> None:
     """当前时点 tushare 与 akshare csi300 应 ≥95% 一致."""
     from quantmind.data import cross_validate_universe
@@ -179,6 +183,7 @@ def test_universe_cross_validate_current() -> None:
 @pytest.mark.pit
 @pytest.mark.slow
 @_REQUIRES_TUSHARE
+@pytest.mark.requires_network
 def test_tushare_vs_akshare_f_ann_date_alignment_post_ipo() -> None:
     """对同一 ticker / 同一**上市后**报告期，两源披露日应相差 <= 7 天.
 

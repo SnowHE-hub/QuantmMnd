@@ -141,7 +141,7 @@ pip install -r requirements.txt
 ```bash
 # Step 1: 拉取全A股数据（首次约 30-60min，后续使用本地缓存）
 python scripts/run_30day_sim.py --step fetch \
-    --token 64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56
+    --token <YOUR_TUSHARE_TOKEN>
 
 # Step 2: 执行 30 日三系统模拟（每日 5535只 → 10只 final picks）
 python scripts/run_30day_sim.py --step simulate

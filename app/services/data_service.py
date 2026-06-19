@@ -861,13 +861,17 @@ class DataService:
 
     # (展示标签, 相对路径, 预期最大滞后小时数)
     _FRESHNESS_SPECS = [
-        ("每日推荐",   "data/recommendations",                          48),
-        ("已结算 PnL", "data/feedback/realized_pnl.parquet",            24 * 8),
-        ("前向持仓",   "data/paper_trading/forward_positions.json",     24 * 8),
-        ("特征面板",   "data/panel/alpha_panel_v4.parquet",             24 * 35),
-        ("Regime 历史", "data/regime/regime_history.parquet",           48),
-        ("策略配置",   "data/paper_trading/strategy_config_v2.json",    24 * 35),
-        ("损失信号",   "data/loss_signals_v4/latest.json",              24 * 8),
+        ("每日推荐",       "data/recommendations",                       48),
+        ("已结算 PnL",     "data/feedback/realized_pnl.parquet",         24 * 8),
+        ("前向持仓",       "data/paper_trading/forward_positions.json",  24 * 8),
+        # F-05：指向现役周频面板 v5（原 alpha_panel_v4 已停用）
+        ("特征面板(v5)",   "data/panel/alpha_panel_weekly_v5.parquet",   24 * 35),
+        ("Regime 历史",    "data/regime/regime_history.parquet",         48),
+        ("策略配置",       "data/paper_trading/strategy_config_v2.json", 24 * 35),
+        ("损失信号",       "data/loss_signals_v4/latest.json",           24 * 8),
+        # F-05：bake-off 产物新鲜度
+        ("Bakeoff leaderboard", "data/bakeoff/bucket_leaderboard.csv",   24 * 60),
+        ("Bakeoff 预测",   "data/bakeoff/preds",                         24 * 60),
     ]
 
     def get_data_freshness(self) -> list[dict]:

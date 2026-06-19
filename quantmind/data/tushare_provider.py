@@ -80,9 +80,9 @@ def _get_tushare_pro():
         hi_url = os.getenv("TUSHARE_HI_URL", "").strip()
         if hi_url:
             _tushare_pro._DataApi__http_url = hi_url  # type: ignore[attr-defined]
-            log.info(f"tushare pro_api initialized (proxy={hi_url}, token={token[:8]}...)")
+            log.info(f"tushare pro_api initialized (proxy={hi_url})")  # 不打印 token（历史泄漏根因行）
         else:
-            log.info(f"tushare pro_api initialized (official, token={token[:8]}...)")
+            log.info("tushare pro_api initialized (official)")          # 不打印 token
         return _tushare_pro
 
 
