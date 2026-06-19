@@ -27,7 +27,7 @@
 **仓库**：`git@github.com:SnowHE-hub/QuantmMnd.git`（注意仓库名拼写）  
 **主分支**：`main`（最新 commit: 442f0ca）  
 **运行环境**：WSL2 Ubuntu / conda env `quantmind` / Python 3.11  
-**Tushare Token**：`64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56`
+**Tushare Token**：`<YOUR_TUSHARE_TOKEN>`
 
 ---
 
@@ -545,7 +545,7 @@ conda 环境：quantmind（Python 3.11）。
 - Meta-Learner v2：CV AUC=0.6025，正确定位为 hit 分类（非绝对收益回归）
 
 【安全规则】
-- Tushare Token: 64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56
+- Tushare Token: <YOUR_TUSHARE_TOKEN>
 - API Key 从 .env 读取，绝不硬编码
 - 提交前 git add 具体文件，不要 git add -A
 ```
