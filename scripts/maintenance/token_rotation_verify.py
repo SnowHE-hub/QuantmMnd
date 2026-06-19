@@ -1,3 +1,4 @@
+# 触发：每次 token 轮换后跑——验新 token 通 + 全部旧 token 死（stock_basic 鉴权）。
 """1a：token 轮换验证。新 token 通 + 旧 token(历史中)死。全程不打印任何 token 字符。
 
 输出仅：api / status / 记录数 / 各 token 用 sha256[:8] 标识（非 token 本身）。
