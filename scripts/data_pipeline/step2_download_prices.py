@@ -37,6 +37,21 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# ── 复用既有 .env 机制读取凭证 + 屏蔽 provider 日志（防 token 外泄）──────────────
+import sys
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
+except ImportError:
+    pass
+try:
+    from quantmind.utils.silence_provider_logging import silence_provider_logging
+    silence_provider_logging()
+except Exception:
+    pass
 UNIVERSE_TXT = ROOT / "data" / "alpha_universe" / "alpha_universe.txt"
 OUT_DIR = ROOT / "data" / "raw"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -55,7 +70,7 @@ def _init_pro(hi_mode: bool = False):
     if hi_mode:
         token = os.environ.get(
             "TUSHARE_TOKEN_HI",
-            "5caf9b3022e13d4e915df0af19a076130287cb7837c0b020290691c8",
+            "",
         ).strip()
         ts.set_token(token)
         # timeout=120s：早期日期（2019）返回约 32s，需要充足余量
@@ -66,7 +81,7 @@ def _init_pro(hi_mode: bool = False):
     else:
         token = os.environ.get(
             "TUSHARE_TOKEN",
-            "64a18c359c1d28fab92fed6bebd1f1662cc6e34872ad9ee643b55f56",
+            "",
         ).strip()
         ts.set_token(token)
         pro = ts.pro_api(timeout=120)
