@@ -1,6 +1,7 @@
 """Momentum LSTM / MomentumAgent 行为测试（不训练全量模型）."""
 
 from __future__ import annotations
+import pytest
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -19,6 +20,8 @@ from quantmind.models.momentum_lstm import (
     build_lstm_arrays,
 )
 
+
+pytestmark = pytest.mark.requires_optional_deps  # B2: 默认套件排除
 
 def _write_minimal_price_ohlcv(tmp: Path) -> tuple[Path, Path]:
     rng = np.random.default_rng(42)

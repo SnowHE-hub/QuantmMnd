@@ -46,6 +46,25 @@
 2. 不在"必修"内：(a)(b) 加 marker 默认排除；(c) 视决策2（在途 refactor 去留）处理——
    若在途 refactor 随 Phase 1 合，则 8 个测试需修或 mark；若 stash 单独 PR，则它们随该工作走。
 
-## 待评审确认
-- 确认必修清单 = 仅"提交未跟踪核心模块"。
-- 确认 (a)(b) 走 marker；(c) 的去留绑定 wip_inventory 决策 2（在途 refactor 是否随 Phase 1 合）。
+## B2 执行结果（markers 落地）
+默认套件 = `-m "not requires_network and not requires_db and not requires_optional_deps and not stale_panel_fixture"`
+（pyproject.toml）。实测：**1189 collected / 1121 passed / 1 skipped / 67 deselected / 0 fail / 0 error**。
+
+### 债务登记：stale_panel_fixture（10 个，非掩盖——解封 stash@{0} 时连同修复）
+> 这些不是"清掉"，是**登记**。marker 只让默认 CI 绿；修复触发 = **panel/model refactor（stash@{0}）解封**。
+
+| 测试 | 根因（具体缺什么） | 修复触发 |
+|---|---|---|
+| `test_full_panel::test_full_panel_rowcount_vs_snapshots` | panel 行数 6905 vs 期望 28680（fixture 偏少） | refactor 重建全 panel |
+| `test_full_panel::test_expansion_nonempty_after_2021` | 缺列 `relative_strength_vs_csi500_60d` `volume_price_corr_20d` | refactor 产出 expansion 因子 |
+| `test_full_panel::test_expansion_all_nan_2019_2020` | 同上 expansion 列缺 | 同上 |
+| `test_full_panel::test_expansion_many_nonempty_columns_modern` | 同上 expansion 列缺 | 同上 |
+| `test_full_panel::test_split_no_date_overlap` | panel 数据/切分不匹配 | refactor 重建 panel |
+| `test_lgbm_training::test_train_lgbm_base_produces_model_and_metrics` | 依赖 stashed factor_model/lgbm_ranker | refactor 解封 |
+| `test_lgbm_training::test_predict_rankings_csv_columns` | 同上 | refactor 解封 |
+| `test_backfill_realism::test_nav_ratio_reasonable` | NAV ratio 断言（数据 fixture） | refactor/数据修 |
+| `test_wf_gate::test_lgbm_predictor_handles_string_categorical` | import `detect_categorical_cols`（仅在 stashed factor_model 中） | refactor 解封（factor_model 新函数） |
+| `test_wf_gate::test_detect_and_encode_categorical_helpers` | 同上 `detect_categorical_cols` | 同上 |
+
+### requires_network(7) / requires_db(16, module) / requires_optional_deps(factor_cnn+momentum_lstm, torch)
+环境/可选依赖，默认排除；`pytest -m requires_network`（等）可单独跑。详见 `docs/maintenance/test_markers.md`。

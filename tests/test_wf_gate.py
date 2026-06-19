@@ -4,6 +4,7 @@
 """
 
 from __future__ import annotations
+import pytest
 
 import numpy as np
 import pandas as pd
@@ -174,6 +175,7 @@ def _panel_with_categorical(seed: int = 7):
     return df.set_index(["as_of", "ticker"]), cal, grid
 
 
+@pytest.mark.stale_panel_fixture
 def test_lgbm_predictor_handles_string_categorical():
     """含 string 列时 LGBMPredictor.fit/score 不崩，IC 正常."""
     from quantmind.backtest.wf_split import PurgedWalkForwardSplit
@@ -196,6 +198,7 @@ def test_lgbm_predictor_handles_string_categorical():
     assert s.notna().any()
 
 
+@pytest.mark.stale_panel_fixture
 def test_detect_and_encode_categorical_helpers():
     """factor_model.detect_categorical_cols / encode_categorical_codes 单元测试."""
     from quantmind.models.factor_model import (

@@ -57,6 +57,8 @@ from quantmind.models.factor_cnn import (
 
 # ─── 工具：构造最小合法 panel ──────────────────────────────────────────────────
 
+pytestmark = pytest.mark.requires_optional_deps  # B2: 默认套件排除
+
 def _make_mini_panel(
     n_quarters: int = 3,
     n_stocks: int = 40,

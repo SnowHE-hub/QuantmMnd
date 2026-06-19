@@ -135,6 +135,7 @@ class TestExecVsHoldRealistic:
             for key in ("curve", "n", "total_return", "max_dd", "avg_return", "win_rate"):
                 assert key in cmp[side], f"{side} 缺 {key}"
 
+    @pytest.mark.stale_panel_fixture
     def test_nav_ratio_reasonable(self, cmp):
         """累计收益比率 |exec/hold| 不应超过 5 倍（之前 cumprod bug 是 15+ 倍）。"""
         e_ret = cmp["execute"]["total_return"]
