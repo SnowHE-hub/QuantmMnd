@@ -1,5 +1,13 @@
 # Task Plan — 幸存者偏差修复（Survivorship Repair）
 
+## ✅ Phase 1 闸门：已合 main（2026-06-19）
+- **状态**：Phase 1 闸门通过 + 已合并主线。**main SHA = `67bb891`**（merge of safety-monitoring-fixes）。
+- **PR**：https://github.com/SnowHE-hub/QuantmMnd/pull/1（37 commit，+10,590/−2,526）。
+- **收尾**：见 `docs/plans/phase1_closure.md`。下方 P1-P4 / P63 / A-B 子任务历史保留作审计痕迹。
+- **下一步**：executable NAV 实现（C 阶段）= 两条种子 → 可上线产品的硬前置（待用户放行）。
+
+---
+
 ## 上一阶段（已关闭）
 Bake-off batch-A 定案：**Ridge(full) 赢**（neut IC 0.0340 / 净 +1.9% / 跨流动性均匀）；序列模型 raw IC 追平但优势全在 illiquid、含成本为负；LGBM 落后。详见 `docs/plans/model_bakeoff_plan.md §14`。
 收尾修正已落：① 序列模型"全1374"是 3 桶拼接（†标，不与 Ridge 单模型混比）；② illiquid 0.05-0.075 是幸存者+成本双重角落，**最不可信、非 follow-up 线索**。
