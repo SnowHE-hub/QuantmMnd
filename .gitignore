@@ -169,3 +169,15 @@ data/panel/*.parquet
 data/bakeoff/
 data/feedback/
 data/loss_signals_v4/*.parquet
+
+# 运行时信号/评分状态（dispatch_loss_signals / watchlist 每跑必churn，不入库）
+data/loss_signals/
+data/loss_signals_v4/
+data/watchlist/scores/
+
+# qlib bin 数据目录（dump_bin 产物，可由脚本重建）
+data/qlib_cn_daily/
+data/qlib_cn_daily_v6/
+
+# 本地工具索引/缓存
+.codegraph/

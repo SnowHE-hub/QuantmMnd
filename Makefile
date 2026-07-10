@@ -93,8 +93,9 @@ RANGE_END ?= 2024-12-31
 smoke:
 	python -m quantmind.core.smoke
 
+# ⚠ legacy：quantmind/ui/ 已弃用；当前主 UI = app/main.py（推荐 bash start_all.sh）
 run-ui:
-	streamlit run quantmind/ui/streamlit_app.py
+	streamlit run app/main.py
 
 download-data:
 	python scripts/download_data.py --as-of 2024-06-30 --universe csi300
