@@ -1,0 +1,77 @@
+{
+  "config": {
+    "horizon_td": 63,
+    "rebalance_step": 13,
+    "top_n": 300,
+    "universe_size": 1500,
+    "commission_bp": 3.0,
+    "transfer_bp": 0.2,
+    "slippage_tiers_bp": [
+      5.0,
+      15.0,
+      30.0
+    ],
+    "delist_writeoff_td": 20
+  },
+  "period": {
+    "start": "2022-08-04",
+    "end": "2026-05-11",
+    "n_trading_days": 898,
+    "n_rebalances": 7
+  },
+  "nav": {
+    "final_net": 1.5147751625713388,
+    "final_gross": 1.5377165951639218,
+    "final_bench": 1.4090324082628547,
+    "ann_return_net": 0.12359540820301085,
+    "ann_return_gross": 0.1283449822417453,
+    "ann_return_bench": 0.10100868126371831,
+    "ann_net_excess": 0.022586726939292534,
+    "information_ratio": 0.3310522165579339,
+    "max_drawdown_net": -0.3542850769201509,
+    "cum_return_net": 0.5147751625713388,
+    "yearly_net_excess": {
+      "2022": 0.04608038134735715,
+      "2023": -0.026373151858542054,
+      "2024": 0.03545417048445043,
+      "2025": -0.01960732870029258,
+      "2026": 0.039576253325592115
+    }
+  },
+  "costs": {
+    "total_cost_nav_units": 0.022941432592582908,
+    "cost_drag_ann": 0.004749574038734439
+  },
+  "turnover": {
+    "avg_oneway_per_rebalance": 0.763798820210061,
+    "annualized_oneway": 1.5003798650896965,
+    "annualized_twoway": 3.000759730179393
+  },
+  "execution": {
+    "n_trades_filled": 3515,
+    "n_rejection_events": 3620,
+    "rejection_reason_counts": {
+      "insufficient_cash": 3386,
+      "limit_down_locked": 121,
+      "limit_up_locked": 55,
+      "suspended_no_bar": 24,
+      "expired_unfilled": 24,
+      "one_line_board": 10
+    },
+    "n_writeoffs": 3
+  },
+  "coverage": {
+    "n_rebalance_targets_logged": 7,
+    "n_filtered_events": 24355,
+    "filtered_reason_counts": {
+      "not_in_universe": 24355
+    }
+  },
+  "inputs": {
+    "model_id": "ridge_full_fnd_63d_v6_seed",
+    "preds": "data/bakeoff/preds/ridge_full_fnd_63d_quarterly_v6.parquet",
+    "prices": "data/raw/alpha_prices_panel_v6.parquet",
+    "amihud_panel": "data/panel/alpha_panel_weekly_v6.parquet",
+    "n_pred_as_of": 91
+  }
+}

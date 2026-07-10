@@ -1,0 +1,222 @@
+{
+  "run_id": "executable_nav_20260710",
+  "created": "2026-07-10T18:56:04",
+  "command": "python scripts/run_executable_nav.py --model all",
+  "registry_sha256_before_after": "50e5cdaf2339cb8b39f8e45d98d1b5f58380c6ee79a123bd72e95e7fc26bcb14",
+  "registry_updated": false,
+  "gate_pass": {
+    "ridge_full_12d_v6_seed": false,
+    "ridge_full_fnd_63d_v6_seed": false
+  },
+  "config": {
+    "top_n": 300,
+    "universe_size": 1500,
+    "prices": "data/raw/alpha_prices_panel_v6.parquet",
+    "amihud_panel": "data/panel/alpha_panel_weekly_v6.parquet",
+    "models": {
+      "12d": {
+        "model_id": "ridge_full_12d_v6_seed",
+        "preds": "data/bakeoff/preds/ridge_full_12d_quarterly_v6.parquet",
+        "horizon_td": 12,
+        "rebalance_step": 3,
+        "max_drawdown_threshold": 0.15
+      },
+      "63d": {
+        "model_id": "ridge_full_fnd_63d_v6_seed",
+        "preds": "data/bakeoff/preds/ridge_full_fnd_63d_quarterly_v6.parquet",
+        "horizon_td": 63,
+        "rebalance_step": 13,
+        "max_drawdown_threshold": 0.12
+      }
+    }
+  },
+  "committed_summaries": [
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_summary.json",
+      "bytes": 2100,
+      "sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3",
+      "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/summary.json",
+      "mirrors_sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3"
+    },
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_gate_report.json",
+      "bytes": 3962,
+      "sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007",
+      "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.json",
+      "mirrors_sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007"
+    },
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_gate_report.md",
+      "bytes": 1536,
+      "sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4",
+      "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.md",
+      "mirrors_sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4"
+    },
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_summary.json",
+      "bytes": 2068,
+      "sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc",
+      "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/summary.json",
+      "mirrors_sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc"
+    },
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_gate_report.json",
+      "bytes": 3868,
+      "sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88",
+      "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.json",
+      "mirrors_sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88"
+    },
+    {
+      "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_gate_report.md",
+      "bytes": 1479,
+      "sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9",
+      "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.md",
+      "mirrors_sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9"
+    }
+  ],
+  "local_only_artifacts": [
+    {
+      "path": "reports/executable_nav/nav_curves.png",
+      "bytes": 346151,
+      "sha256": "c1c49c4bcd50528e0458f5ed1ce267576eb7f4f3a4c8b75044dae4099afe63b0",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/filtered.parquet",
+      "bytes": 296317,
+      "sha256": "fe32a5becd41569e0110fc7c3db18486445f9fb0090c5af88bff36462e56ef8b",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.json",
+      "bytes": 3962,
+      "sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.md",
+      "bytes": 1536,
+      "sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/holdings_daily.parquet",
+      "bytes": 7792067,
+      "sha256": "4d654cde061141c9a30b25ac71a2ee1de2a509ceec2b190f0cfb0dcd780ed065",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/nav_daily.csv",
+      "bytes": 170470,
+      "sha256": "60914d6b22275deefe273c641d4a9807e91f19109c346f1996bbf892e324a952",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/nav_daily.parquet",
+      "bytes": 74805,
+      "sha256": "1c9e95041309c9ec4d9e0c534b3ac7e11d33513d882013fefe6de1b8f6464054",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/rejected_trades.parquet",
+      "bytes": 16482,
+      "sha256": "119d59438904e14376dc84ff3b101899cc8cb2a1a138d40e9b251edca9fabf1f",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/summary.json",
+      "bytes": 2100,
+      "sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/targets.parquet",
+      "bytes": 45838,
+      "sha256": "ed788a7269fe770d61cbb20d1fbe29f9ae5e94556db34d939404955dcccb767d",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/trades.parquet",
+      "bytes": 917657,
+      "sha256": "319d6c18476f2f128e3020c0fd3697e72cfd20df204a8d3f85a9481415636758",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_12d_v6_seed/turnover.parquet",
+      "bytes": 2559,
+      "sha256": "721bdc1461247713656d563feb2425f36de5d166c893926673ea3c23dc8f442a",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/filtered.parquet",
+      "bytes": 63752,
+      "sha256": "eb1f32261341a7acb1bd48b9d1034d414a07778e03f0b159439bc5a2740c8bcb",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.json",
+      "bytes": 3868,
+      "sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.md",
+      "bytes": 1479,
+      "sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/holdings_daily.parquet",
+      "bytes": 6567313,
+      "sha256": "5691f3e6b1173a09d51cfc2aba0c9bda8b9282461d3467b14dc2ae15a948a22a",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/nav_daily.csv",
+      "bytes": 154830,
+      "sha256": "4ddd872c6775d65dd77cc27a8963727020c9e85af4fcdc7a049fcd68f5fe4e97",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/nav_daily.parquet",
+      "bytes": 64659,
+      "sha256": "30885037d8f20c59373708284ec022c134cf92c59bc6c7decb8f4a8fea003946",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/rejected_trades.parquet",
+      "bytes": 11651,
+      "sha256": "807b94c27e102b30c4fd9532d18c9ddf37dfcd96146b12c4b9ad053f72ad3ded",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/summary.json",
+      "bytes": 2068,
+      "sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/targets.parquet",
+      "bytes": 16489,
+      "sha256": "7859f3b928e7ed2227058a535ed5bcabf3306bdc65f2167645b1c311fa15fefb",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/trades.parquet",
+      "bytes": 129809,
+      "sha256": "f747e6046c62a60e275179ecf8e7c84d1d55cd5cb57cc1506c5ff8c9797e2182",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/turnover.parquet",
+      "bytes": 1920,
+      "sha256": "2fc32bc6a3fa9964883930c97022302094e01c980f8f012ef50267db893a0990",
+      "committed": false
+    }
+  ],
+  "reproduce": [
+    "python scripts/run_executable_nav.py --model all --no-registry",
+    "Compare reports/executable_nav/<model_id>/*.parquet sha256 against local_only_artifacts in this manifest"
+  ],
+  "note": "Large daily NAV/holdings/trades/rejected parquet files stay local under reports/ (gitignored). Re-run CLI to regenerate; sha256 listed for verification."
+}

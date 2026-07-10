@@ -1,6 +1,10 @@
 # Executable NAV 回测设计（12d / 63d 产品上线硬前置）
 
-> 状态：**设计文档（不实现）**。B(63d full+fnd) 与 12d 种子均 `research_candidate_pending_nav`；
+> 状态更新（2026-07-10）：**已实现**——引擎 `quantmind/execution/nav_engine.py` +
+> gate `quantmind/execution/nav_gate.py` + CLI `scripts/run_executable_nav.py`；
+> 首轮结果与 gate 判定见 `docs/plans/executable_nav_results_20260710.md`（两种子均 FAIL，registry 未动）。
+>
+> 状态：~~设计文档（不实现）~~。B(63d full+fnd) 与 12d 种子均 `research_candidate_pending_nav`；
 > 本文定义"研究层净超额 → 可上线 NAV"的升级路径与判定阈值。写完即停，不写代码。
 > 关联：`survivorship_p4_verdict.md`(12d) / `survivorship_p63_3_verdict.md`(63d) /
 > `ic_vs_net_excess_divergence.md`(读数原则)。

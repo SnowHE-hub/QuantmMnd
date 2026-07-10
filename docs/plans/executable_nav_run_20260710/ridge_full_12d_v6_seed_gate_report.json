@@ -1,0 +1,140 @@
+{
+  "model_id": "ridge_full_12d_v6_seed",
+  "gate": {
+    "gate_pass": false,
+    "checks": [
+      {
+        "criterion": "ann_net_excess",
+        "actual": -0.022279801343460748,
+        "op": ">=",
+        "threshold": 0.05,
+        "passed": false,
+        "note": ""
+      },
+      {
+        "criterion": "max_drawdown_net",
+        "actual": -0.4887542220258395,
+        "op": ">=",
+        "threshold": -0.15,
+        "passed": false,
+        "note": ""
+      },
+      {
+        "criterion": "information_ratio",
+        "actual": -0.2667603712361268,
+        "op": ">=",
+        "threshold": 1.0,
+        "passed": false,
+        "note": ""
+      },
+      {
+        "criterion": "ann_twoway_turnover",
+        "actual": 17.900021183479872,
+        "op": "<=",
+        "threshold": null,
+        "passed": true,
+        "note": "设计未定阈值 → 仅报告不阻断（设计缺口）"
+      },
+      {
+        "criterion": "yearly_net_excess_all_positive",
+        "actual": {
+          "2022": -0.0248568101133666,
+          "2023": -0.05130530069299255,
+          "2024": -0.017764431663146896,
+          "2025": -0.028543183127419436,
+          "2026": 0.04106707389746589
+        },
+        "op": "all>0",
+        "threshold": 0.0,
+        "passed": false,
+        "note": "负年份: {'2022': -0.0248568101133666, '2023': -0.05130530069299255, '2024': -0.017764431663146896, '2025': -0.028543183127419436}"
+      }
+    ],
+    "thresholds": {
+      "min_ann_net_excess": 0.05,
+      "max_drawdown": 0.15,
+      "min_information_ratio": 1.0,
+      "max_ann_twoway_turnover": null,
+      "require_yearly_positive": true
+    },
+    "evaluated_at": "2026-07-10T18:31:18"
+  },
+  "nav_summary": {
+    "config": {
+      "horizon_td": 12,
+      "rebalance_step": 3,
+      "top_n": 300,
+      "universe_size": 1500,
+      "commission_bp": 3.0,
+      "transfer_bp": 0.2,
+      "slippage_tiers_bp": [
+        5.0,
+        15.0,
+        30.0
+      ],
+      "delist_writeoff_td": 20
+    },
+    "period": {
+      "start": "2022-02-09",
+      "end": "2026-05-11",
+      "n_trading_days": 1018,
+      "n_rebalances": 48
+    },
+    "nav": {
+      "final_net": 0.9641941620620701,
+      "final_gross": 1.0964002865200038,
+      "final_bench": 1.0547997567410294,
+      "ann_return_net": -0.00898549027028317,
+      "ann_return_gross": 0.023043567515343533,
+      "ann_return_bench": 0.013294311073177578,
+      "ann_net_excess": -0.022279801343460748,
+      "information_ratio": -0.2667603712361268,
+      "max_drawdown_net": -0.4887542220258395,
+      "cum_return_net": -0.03580583793792991,
+      "yearly_net_excess": {
+        "2022": -0.0248568101133666,
+        "2023": -0.05130530069299255,
+        "2024": -0.017764431663146896,
+        "2025": -0.028543183127419436,
+        "2026": 0.04106707389746589
+      }
+    },
+    "costs": {
+      "total_cost_nav_units": 0.1322061244579337,
+      "cost_drag_ann": 0.0320290577856267
+    },
+    "turnover": {
+      "avg_oneway_per_rebalance": 0.7532333649463668,
+      "annualized_oneway": 8.950010591739936,
+      "annualized_twoway": 17.900021183479872
+    },
+    "execution": {
+      "n_trades_filled": 24933,
+      "n_rejection_events": 1635,
+      "rejection_reason_counts": {
+        "insufficient_cash": 758,
+        "suspended_no_bar": 469,
+        "limit_up_locked": 220,
+        "one_line_board": 97,
+        "limit_down_locked": 48,
+        "expired_unfilled": 43
+      },
+      "n_writeoffs": 8
+    },
+    "coverage": {
+      "n_rebalance_targets_logged": 48,
+      "n_filtered_events": 166433,
+      "filtered_reason_counts": {
+        "not_in_universe": 166428,
+        "no_recent_price": 5
+      }
+    },
+    "inputs": {
+      "model_id": "ridge_full_12d_v6_seed",
+      "preds": "data/bakeoff/preds/ridge_full_12d_quarterly_v6.parquet",
+      "prices": "data/raw/alpha_prices_panel_v6.parquet",
+      "amihud_panel": "data/panel/alpha_panel_weekly_v6.parquet",
+      "n_pred_as_of": 142
+    }
+  }
+}
