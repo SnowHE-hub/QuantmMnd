@@ -2,6 +2,10 @@
 
 > 更新于 2026-05-23，基于 Phase E1/E2/E3 + 阶段1（HMM/文本情绪/Meta-Learner）+ **阶段2（全部完成）**。  
 > 本文档供下一位 Claude Code 实例快速接手，无需重读历史对话。
+>
+> ⚠ **过期提示（2026-07-10 校正）**：本文档反映 2026-05 状态，其后 Phase 1（幸存者修复 + Ridge 种子 +
+> 安全收口）已合 main（SHA `67bb891`），最新权威状态见 `docs/plans/phase1_closure.md` 与 `task_plan.md`。
+> 下文个别条目已过时（如 Step5c 实际已实现，见本文件内标注）。
 
 ---
 
@@ -25,7 +29,7 @@
 | **Meta-Learner v2** | 改为分类（hit预测），CV AUC=0.6025，正确数据源 | ✅ 已完成 |
 
 **仓库**：`git@github.com:SnowHE-hub/QuantmMnd.git`（注意仓库名拼写）  
-**主分支**：`main`（最新 commit: 442f0ca）  
+**主分支**：`main`（最新 commit: `67bb891`，2026-06-19 merge PR #1；本文撰写时为 442f0ca，已过期）  
 **运行环境**：WSL2 Ubuntu / conda env `quantmind` / Python 3.11  
 **Tushare Token**：`<YOUR_TUSHARE_TOKEN>`
 
@@ -69,7 +73,7 @@
 
 ### 待完成（阶段3后）
 
-- **FactorCNN v2 推理接入 daily_update.py**：Step5c 已预留接口，需加载 `models/factor_cnn_v2_augmented.pkl` 并调用 `ensemble_scores(lgbm, cnn, lgbm_weight, cnn_weight)`
+- ~~**FactorCNN v2 推理接入 daily_update.py**~~ ✅ 已实现（2026-07-10 校正：`daily_update.py` `step5c_cnn_ensemble` 已落地，pkl 缺失时自动降级纯 LGBM，可用 `--no-cnn` 关闭）
 - FactorCNN Regime 分层重训：Bull/Bear/Neutral 各训一个子模型，集成时按 HMM 状态切换
 - analyst_revision 真实 IC 验证：Tushare 积分升级后拉取完整研报数据
 - EM 因子均值 IC 提升：当前 0.015，接近但未达 0.02 阈值；A股基本面噪声限制

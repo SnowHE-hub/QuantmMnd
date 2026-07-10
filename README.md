@@ -10,6 +10,18 @@
 
 ---
 
+## ⚡ 项目状态速览（2026-07-10 事实校正）
+
+> 本节为事实性状态标注，权威来源：`docs/plans/phase1_closure.md`（Phase 1 闭幕，main `67bb891`）。
+
+- **两条并行主线**：
+  - **演示/既有运行链路**：本 README 下文描述的 LGBM v6 + 三系统 + sim30d 模拟盘 + `scripts/daily_update.py` 日更管道，是当前可运行的既有链路（绩效数字来自 v4 面板/sim30d 演示口径）。
+  - **研究主线（Phase 1 已合 main）**：v6 全市场 PIT 面板 + Ridge bake-off。两条种子 `ridge_full_12d_v6_seed` / `ridge_full_fnd_63d_v6_seed` 状态均为 **`research_candidate_pending_nav`，未接生产**（须先过 executable NAV 回测，见 `docs/plans/executable_nav_design.md`）。
+- **主 UI**：`app/main.py` + `app/pages/`（14 页 Streamlit），启动方式 `bash start_all.sh`。`quantmind/ui/` 为 **legacy，已弃用**（保留不删）。
+- **默认存储后端**：`DATA_BACKEND=parquet`、`WRITE_MODE=parquet_only`。PostgreSQL/MongoDB 为实验性，多数表未填充，勿在未迁移数据时切换。
+
+---
+
 ## 📊 核心绩效
 
 ### 日频真实 NAV 回测（Alpha 1374 宇宙，2019-03 → 2026-05，E3 含交易成本）
@@ -133,7 +145,8 @@ quantmind/
 ```bash
 conda create -n quantmind python=3.11
 conda activate quantmind
-pip install -r requirements.txt
+# 依赖由 pyproject.toml 管理（无 requirements.txt）
+pip install -e ".[data,ml,viz,ui,dev]"   # 按需选 extras；全量：pip install -e ".[all]"
 ```
 
 ### 运行 30 日全A股三系统模拟
@@ -192,8 +205,10 @@ python scripts/run_barra_attribution.py \
 ### 启动 Dashboard
 
 ```bash
-streamlit run app/主页.py
-# 访问 http://localhost:8501（7页：推荐/漏斗/单股/归因/模型/QA/控制台）
+bash start_all.sh            # FastAPI(8000) + Streamlit(8501) 一键启动
+# 或单独启动前端：
+streamlit run app/main.py
+# 访问 http://localhost:8501（共 14 页；quantmind/ui/ 为 legacy，勿用）
 ```
 
 ---

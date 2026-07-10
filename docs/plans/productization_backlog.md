@@ -12,7 +12,7 @@
 > ### ⚠ 不可省的限定（gate 现实）
 > **Ridge(full) v6 PIT top-1500 含成本净超额 = +2.75% < 项目 `wf_gate` formal pass line +5%。**
 > 研究层赢家成立，但**客户交付前必须经 executable NAV 回测**（`docs/plans/executable_nav_design.md`，
-> ⚠ 该文档当前未在仓库找到，需补建）把成本算实再签收。
+> ✅ 2026-07-10 校正：该设计文档已存在于仓库，此前"未找到需补建"的描述过期）把成本算实再签收。
 > **12d 产品种子状态 = "待 NAV 回测确认"（`research_candidate_pending_nav`），未到生产。**
 > 故本 backlog 解封 = **建契约层（P0，文档+数据）**，**不含**前端/API/Agent 迁移（P1，排在 NAV 之后）。
 
