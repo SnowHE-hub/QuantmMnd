@@ -1,0 +1,19 @@
+{
+  "stage": "probe",
+  "numpy": "1.26.4",
+  "pandas": "2.1.4",
+  "torch": "2.11.0+cu128",
+  "qlib": "0.9.7",
+  "cuda_available": true,
+  "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "capability": [
+    12,
+    0
+  ],
+  "torch_cuda": "12.8",
+  "qlib_import": true,
+  "gru_gpu_trainstep": true,
+  "gru_final_loss": 1.0259876251220703,
+  "gru_device": "cuda",
+  "R2_path": "real_qlib"
+}

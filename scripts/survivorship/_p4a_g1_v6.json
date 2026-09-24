@@ -1,0 +1,9 @@
+{
+  "features_rows": 1498,
+  "close_recon_maxrelerr": 5.695212679080213e-08,
+  "close_recon_ok": true,
+  "handler_ok": false,
+  "handler_err": "TypeError(\"Only valid with DatetimeIndex, TimedeltaIndex or PeriodIndex, but got an instance of 'Index'\")",
+  "pit_note": "qlib Ref/Mean 为 causal 滚动；篡改未来值不改历史输出（结构性保证）",
+  "g1_pass": false
+}

@@ -181,3 +181,8 @@ data/qlib_cn_daily_v6/
 
 # 本地工具索引/缓存
 .codegraph/
+
+# run outputs and scratch (added 2026-09-24)
+scripts/**/_*.out
+scripts/**/_*status*.txt
+scripts/**/_commit_msg*.txt

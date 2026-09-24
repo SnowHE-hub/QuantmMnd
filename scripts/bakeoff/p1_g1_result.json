@@ -1,0 +1,116 @@
+{
+  "close_recon_maxrelerr": 5.8341214188209035e-08,
+  "close_recon_ok": true,
+  "alpha158_shape": [
+    174,
+    159
+  ],
+  "alpha360_shape": [
+    174,
+    361
+  ],
+  "handler_ok": true,
+  "pandas": "2.2.3",
+  "numpy": "1.26.4",
+  "pit_note": "qlib Ref/Mean causal；篡改未来不改历史（结构性保证）",
+  "g1_pass": true,
+  "label_align": {
+    "n_compared": 10,
+    "max_abs_diff_12d": 6.776966454680178e-08,
+    "max_abs_diff_63d": 8.86305537850518e-08,
+    "exact_12d": true,
+    "exact_63d": true,
+    "offbyone_guard": {
+      "mean_diff_vs_-11": 0.009785200874703326,
+      "mean_diff_vs_-13": 0.014055849233247264,
+      "ok": true
+    },
+    "sample": [
+      {
+        "datetime": "2021-01-06",
+        "instrument": "SZ000001",
+        "forward_return_12d": "0.126281",
+        "q12": "0.126281",
+        "forward_return_63d": "0.176384",
+        "q63": "0.176384"
+      },
+      {
+        "datetime": "2021-01-20",
+        "instrument": "SH600000",
+        "forward_return_12d": "0.074148",
+        "q12": "0.074148",
+        "forward_return_63d": "-0.003006",
+        "q63": "-0.003006"
+      },
+      {
+        "datetime": "2021-02-03",
+        "instrument": "SH600519",
+        "forward_return_12d": "-0.030654",
+        "q12": "-0.030654",
+        "forward_return_63d": "-0.054167",
+        "q63": "-0.054167"
+      },
+      {
+        "datetime": "2021-03-03",
+        "instrument": "SZ000001",
+        "forward_return_12d": "-0.066058",
+        "q12": "-0.066058",
+        "forward_return_63d": "0.018812",
+        "q63": "0.018812"
+      },
+      {
+        "datetime": "2021-03-25",
+        "instrument": "SH600000",
+        "forward_return_12d": "0.01223",
+        "q12": "0.01223",
+        "forward_return_63d": "-0.059266",
+        "q63": "-0.059266"
+      },
+      {
+        "datetime": "2021-04-09",
+        "instrument": "SZ000001",
+        "forward_return_12d": "0.076995",
+        "q12": "0.076995",
+        "forward_return_63d": "-0.01769",
+        "q63": "-0.01769"
+      }
+    ]
+  },
+  "handler_cols": {
+    "alpha158_MA5_corr_vs_hand": 1.0,
+    "n": 2484,
+    "alpha158_MA5_ok": true,
+    "alpha360_col": "CLOSE5",
+    "alpha360_corr_vs_hand": 1.0,
+    "alpha360_ok": true,
+    "f158_cols": [
+      "KMID",
+      "KLEN",
+      "KMID2",
+      "KUP",
+      "KUP2",
+      "KLOW"
+    ],
+    "f360_cols": [
+      "CLOSE59",
+      "CLOSE58",
+      "CLOSE57",
+      "CLOSE56",
+      "CLOSE55",
+      "CLOSE54"
+    ]
+  },
+  "join_pit_tamper": {
+    "t": "2022-06-15",
+    "feature_MA5_orig": 0.9850560426712036,
+    "feature_MA5_tamper": 0.9850560426712036,
+    "feature_unchanged_by_future": true,
+    "close_t_orig": 113.07846069335938,
+    "close_t_tamper": 113.07846069335938,
+    "close_t_unchanged": true,
+    "label_orig": -0.004981279373168945,
+    "label_tamper": 0.9900374412536621,
+    "label_changed_by_future": true
+  },
+  "g1_full_pass": true
+}
