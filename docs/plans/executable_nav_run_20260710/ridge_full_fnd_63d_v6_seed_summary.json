@@ -58,6 +58,15 @@
       "expired_unfilled": 24,
       "one_line_board": 10
     },
+    "n_distinct_rejected_orders": 286,
+    "rejection_distinct_order_counts": {
+      "insufficient_cash": 124,
+      "limit_down_locked": 106,
+      "expired_unfilled": 24,
+      "limit_up_locked": 20,
+      "suspended_no_bar": 6,
+      "one_line_board": 6
+    },
     "n_writeoffs": 3
   },
   "coverage": {

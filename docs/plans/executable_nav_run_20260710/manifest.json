@@ -33,48 +33,78 @@
   "committed_summaries": [
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_summary.json",
-      "bytes": 2100,
-      "sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3",
+      "bytes": 2366,
+      "sha256": "205b9642b5e68d602b6515dbd058de2888e9414fd7d707d3e06dc0883cb5f79e",
       "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/summary.json",
-      "mirrors_sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3"
+      "mirrors_sha256": "205b9642b5e68d602b6515dbd058de2888e9414fd7d707d3e06dc0883cb5f79e"
     },
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_gate_report.json",
-      "bytes": 3962,
-      "sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007",
+      "bytes": 4246,
+      "sha256": "4a6e90ffe629e5839e8a8faa271418399c51faaa666a354fdeb7a98b8e594665",
       "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.json",
-      "mirrors_sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007"
+      "mirrors_sha256": "4a6e90ffe629e5839e8a8faa271418399c51faaa666a354fdeb7a98b8e594665"
     },
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_12d_v6_seed_gate_report.md",
       "bytes": 1536,
-      "sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4",
+      "sha256": "3f86f06a55498a20ee5d184d86103659d2ae3dac29b4c6b92c412e369ae3078a",
       "mirrors": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.md",
-      "mirrors_sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4"
+      "mirrors_sha256": "3f86f06a55498a20ee5d184d86103659d2ae3dac29b4c6b92c412e369ae3078a"
     },
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_summary.json",
-      "bytes": 2068,
-      "sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc",
+      "bytes": 2333,
+      "sha256": "06f8c2359d2caa99e7447bfff8593c32a9c0b8736683d459a371cfda61d191bd",
       "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/summary.json",
-      "mirrors_sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc"
+      "mirrors_sha256": "06f8c2359d2caa99e7447bfff8593c32a9c0b8736683d459a371cfda61d191bd"
     },
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_gate_report.json",
-      "bytes": 3868,
-      "sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88",
+      "bytes": 4151,
+      "sha256": "08c217742872d038227e980f3cc33fd76f555e04f5ae71fb091325caed86ada0",
       "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.json",
-      "mirrors_sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88"
+      "mirrors_sha256": "08c217742872d038227e980f3cc33fd76f555e04f5ae71fb091325caed86ada0"
     },
     {
       "path": "docs/plans/executable_nav_run_20260710/ridge_full_fnd_63d_v6_seed_gate_report.md",
       "bytes": 1479,
-      "sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9",
+      "sha256": "ccdc755dae664ea3fedd4c7f25617854480cbeecfed5bac3a5ee5b13217a3b4d",
       "mirrors": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.md",
-      "mirrors_sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9"
+      "mirrors_sha256": "ccdc755dae664ea3fedd4c7f25617854480cbeecfed5bac3a5ee5b13217a3b4d"
     }
   ],
   "local_only_artifacts": [
+    {
+      "path": "reports/executable_nav/audit/cash_insufficient_by_rebalance.csv",
+      "bytes": 582,
+      "sha256": "031976865925cc163bd4b5bcc5d10070b53dc7d3db26350b8e85d68049bd7ffa",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/audit/rebalance_schedule.csv",
+      "bytes": 2093,
+      "sha256": "91343e601c0b8227af16325edf910aae144e7069631bceee53b36ad562792b2a",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/audit/reconciliation.json",
+      "bytes": 5328,
+      "sha256": "3cb12ff4d7e992ef47cd42a38d6a556650aabc8c29debc4500cd56d0b77da39f",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/audit/return_waterfall.csv",
+      "bytes": 628,
+      "sha256": "21ad4c289ec2921a9ba5cfaaaa68884b16332ebf6a4f009feda1c6c5f446025c",
+      "committed": false
+    },
+    {
+      "path": "reports/executable_nav/audit/return_waterfall.json",
+      "bytes": 2877,
+      "sha256": "674b793c580c55a61415a894d39936479da26627d17731feaa5829aab92ed433",
+      "committed": false
+    },
     {
       "path": "reports/executable_nav/nav_curves.png",
       "bytes": 346151,
@@ -89,14 +119,14 @@
     },
     {
       "path": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.json",
-      "bytes": 3962,
-      "sha256": "0d345b5df8d1dbd84c8af27881c16020de0271eddc78133272a8269dd6f61007",
+      "bytes": 4246,
+      "sha256": "4a6e90ffe629e5839e8a8faa271418399c51faaa666a354fdeb7a98b8e594665",
       "committed": false
     },
     {
       "path": "reports/executable_nav/ridge_full_12d_v6_seed/gate_report.md",
       "bytes": 1536,
-      "sha256": "445ebccc7907f659079673215374544d6045c50228a68e2e9ffee13d551d85b4",
+      "sha256": "3f86f06a55498a20ee5d184d86103659d2ae3dac29b4c6b92c412e369ae3078a",
       "committed": false
     },
     {
@@ -125,8 +155,8 @@
     },
     {
       "path": "reports/executable_nav/ridge_full_12d_v6_seed/summary.json",
-      "bytes": 2100,
-      "sha256": "905c00138c5a0e9f08290fc068d2cc43f6b51103c146c37dfcdcbf4794011ec3",
+      "bytes": 2366,
+      "sha256": "205b9642b5e68d602b6515dbd058de2888e9414fd7d707d3e06dc0883cb5f79e",
       "committed": false
     },
     {
@@ -155,14 +185,14 @@
     },
     {
       "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.json",
-      "bytes": 3868,
-      "sha256": "d56e261bf8303eb749b5bb5d2ba24ea6c49aeb89b9d7ee7349bbb5c8f93f2e88",
+      "bytes": 4151,
+      "sha256": "08c217742872d038227e980f3cc33fd76f555e04f5ae71fb091325caed86ada0",
       "committed": false
     },
     {
       "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/gate_report.md",
       "bytes": 1479,
-      "sha256": "4412ef0bc11e78bd8e62743ec1ad421f54a95b7c80ab6e55d47ce15142133df9",
+      "sha256": "ccdc755dae664ea3fedd4c7f25617854480cbeecfed5bac3a5ee5b13217a3b4d",
       "committed": false
     },
     {
@@ -191,8 +221,8 @@
     },
     {
       "path": "reports/executable_nav/ridge_full_fnd_63d_v6_seed/summary.json",
-      "bytes": 2068,
-      "sha256": "969042077de9f6984ca7a9e1773083a750bca0264a96bf7aa14d66b35fe931fc",
+      "bytes": 2333,
+      "sha256": "06f8c2359d2caa99e7447bfff8593c32a9c0b8736683d459a371cfda61d191bd",
       "committed": false
     },
     {
@@ -218,5 +248,7 @@
     "python scripts/run_executable_nav.py --model all --no-registry",
     "Compare reports/executable_nav/<model_id>/*.parquet sha256 against local_only_artifacts in this manifest"
   ],
-  "note": "Large daily NAV/holdings/trades/rejected parquet files stay local under reports/ (gitignored). Re-run CLI to regenerate; sha256 listed for verification."
+  "note": "Large daily NAV/holdings/trades/rejected parquet files stay local under reports/ (gitignored). Re-run CLI to regenerate; sha256 listed for verification.",
+  "updated": "2026-07-10T19:37:00",
+  "audit_note_20260710_1": "Refreshed after stage-1.5 additive rejection-stat fix (NAV/trades/gate byte-identical; only n_distinct_rejected_orders + rejection_distinct_order_counts added)."
 }

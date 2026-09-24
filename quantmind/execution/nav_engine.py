@@ -576,6 +576,17 @@ class ExecutableNavEngine:
         n_rej = len(rejected)
         rej_counts = (rejected["reason_code"].value_counts().to_dict()
                       if not rejected.empty else {})
+        # 去重后按"底层订单"计数：同一挂单被多日重试会在 rejected 里产生多行（reason 相同，
+        # decision_asof/ticker/side 不变）。n_rejection_events 会因每日重试而膨胀（审计发现），
+        # 故额外报告 distinct-order 口径（不改 NAV/trades/gate，仅补充真实拒单画像）。
+        if not rejected.empty:
+            key_cols = ["side", "ticker", "decision_asof", "reason_code"]
+            distinct = rejected.drop_duplicates(key_cols)
+            n_distinct_rej = int(len(distinct))
+            rej_distinct_counts = distinct["reason_code"].value_counts().to_dict()
+        else:
+            n_distinct_rej = 0
+            rej_distinct_counts = {}
         summary = {
             "config": {
                 "horizon_td": self.cfg.horizon_td, "rebalance_step": self.cfg.rebalance_step,
@@ -604,6 +615,8 @@ class ExecutableNavEngine:
             "execution": {"n_trades_filled": int(len(trades)),
                           "n_rejection_events": int(n_rej),
                           "rejection_reason_counts": rej_counts,
+                          "n_distinct_rejected_orders": n_distinct_rej,
+                          "rejection_distinct_order_counts": rej_distinct_counts,
                           "n_writeoffs": int((trades["status"] == R_DELIST_WRITEOFF).sum())
                           if not trades.empty else 0},
             "coverage": {"n_rebalance_targets_logged": len(self.targets_log),

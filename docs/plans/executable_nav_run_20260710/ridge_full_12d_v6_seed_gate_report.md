@@ -1,6 +1,6 @@
 # Executable NAV Gate 报告 — `ridge_full_12d_v6_seed`
 
-- 判定时间：2026-07-10T18:31:18
+- 判定时间：2026-07-10T19:32:56
 - **gate_pass = False**
 
 ## 逐项判定

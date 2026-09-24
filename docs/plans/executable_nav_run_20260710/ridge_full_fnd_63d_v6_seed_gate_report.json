@@ -57,7 +57,7 @@
       "max_ann_twoway_turnover": null,
       "require_yearly_positive": true
     },
-    "evaluated_at": "2026-07-10T18:27:45"
+    "evaluated_at": "2026-07-10T19:33:21"
   },
   "nav_summary": {
     "config": {
@@ -118,6 +118,15 @@
         "suspended_no_bar": 24,
         "expired_unfilled": 24,
         "one_line_board": 10
+      },
+      "n_distinct_rejected_orders": 286,
+      "rejection_distinct_order_counts": {
+        "insufficient_cash": 124,
+        "limit_down_locked": 106,
+        "expired_unfilled": 24,
+        "limit_up_locked": 20,
+        "suspended_no_bar": 6,
+        "one_line_board": 6
       },
       "n_writeoffs": 3
     },
