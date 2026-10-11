@@ -1,0 +1,19 @@
+{
+ "rows": 1683972,
+ "coverage_l1": 0.9942,
+ "n_l1": 31,
+ "nonnull": {
+  "ind_mom_1m": 0.986,
+  "ind_mom_3m": 0.9695,
+  "ind_mom_6m": 0.9426,
+  "rel_mom_3m": 0.9647,
+  "rel_mom_6m": 0.9367,
+  "ind_dm_roe_ttm": 0.9566,
+  "ind_dm_pb": 0.9834,
+  "ind_dm_pe_ttm": 0.7744,
+  "ind_dm_operating_profit_yoy": 0.9637
+ },
+ "min_l1_size_median": 24,
+ "seconds": 14.5,
+ "output": "/home/lenovo/projects/quantmind/data/panel/sector_features_v6_1.parquet"
+}

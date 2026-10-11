@@ -1,0 +1,10 @@
+{
+ "taxonomy_public": "2021-12-13",
+ "rows": 1683972,
+ "nonnull_l1_before_public": 0,
+ "nonnull_features_before_public": 0,
+ "coverage_l1_after_public": 0.9988,
+ "n_l1": 31,
+ "seconds": 12.3,
+ "output": "/home/lenovo/projects/quantmind/data/panel/sector_features_v6_1_pit.parquet"
+}
