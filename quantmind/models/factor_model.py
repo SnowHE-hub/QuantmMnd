@@ -45,6 +45,8 @@ __all__ = [
     "WalkForwardFold",
     "WalkForwardSplit",
     "build_lgbm_arrays",
+    "detect_categorical_cols",
+    "encode_categorical_codes",
 ]
 
 
@@ -305,6 +307,33 @@ class FactorSelector:
 # ============================================================================
 
 
+def detect_categorical_cols(df: pd.DataFrame, feature_cols: list[str]) -> list[str]:
+    """从 feature_cols 中选出 string / object / category 列（供 LightGBM categorical_feature）."""
+    cat: list[str] = []
+    for col in feature_cols:
+        if col not in df.columns:
+            continue
+        ser = df[col]
+        if isinstance(ser.dtype, pd.CategoricalDtype):
+            cat.append(col)
+        elif pd.api.types.is_string_dtype(ser):
+            cat.append(col)
+        elif pd.api.types.is_object_dtype(ser) and not pd.api.types.is_bool_dtype(ser):
+            cat.append(col)
+    return cat
+
+
+def encode_categorical_codes(df: pd.DataFrame, cat_cols: list[str]) -> pd.DataFrame:
+    """将 categorical 列转为 int32 编码；缺失值 → -1（LightGBM 单独成类）."""
+    out = df.copy()
+    for col in cat_cols:
+        if col not in out.columns:
+            continue
+        codes, _ = pd.factorize(out[col], sort=False, use_na_sentinel=True)
+        out[col] = codes.astype(np.int32)
+    return out
+
+
 def build_lgbm_arrays(
     panel: pd.DataFrame,
     dates: list[pd.Timestamp],
@@ -325,6 +354,9 @@ def build_lgbm_arrays(
     labeler = CrossSectionalLabel(n_quantiles=n_quantiles)
     label_series = labeler.transform(panel, dates, label_col)
 
+    cat_cols = detect_categorical_cols(panel, feature_cols)
+    panel_enc = encode_categorical_codes(panel, cat_cols) if cat_cols else panel
+
     X_rows: list[np.ndarray] = []
     y_rows: list[int] = []
     group_sizes: list[int] = []
@@ -332,7 +364,7 @@ def build_lgbm_arrays(
     for d in sorted(dates):
         if d not in panel.index.get_level_values("as_of"):
             continue
-        xs = panel.xs(d, level="as_of")
+        xs = panel_enc.xs(d, level="as_of")
         # 只保留有标签的行
         idx_with_label = label_series.xs(d, level="as_of").index if d in label_series.index.get_level_values("as_of") else pd.Index([])
         if len(idx_with_label) == 0:
@@ -341,7 +373,15 @@ def build_lgbm_arrays(
         if xs_valid.empty:
             continue
 
-        x = xs_valid[feature_cols].fillna(0.0).values.astype(np.float32)
+        feat = xs_valid[feature_cols]
+        if cat_cols:
+            num_cols = [c for c in feature_cols if c not in cat_cols]
+            if num_cols:
+                feat = feat.copy()
+                feat[num_cols] = feat[num_cols].fillna(0.0)
+        else:
+            feat = feat.fillna(0.0)
+        x = feat.values.astype(np.float32)
         y_vals = label_series.xs(d, level="as_of").reindex(xs_valid.index).values.astype(np.int32)
 
         X_rows.append(x)

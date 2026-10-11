@@ -72,13 +72,11 @@ class LGBMPredictor:
         X, y, g = build_lgbm_arrays(panel, train_core, feature_cols, label_col, self.n_quantiles)
         Xv, yv, gv = build_lgbm_arrays(panel, val_dates, feature_cols, label_col, self.n_quantiles)
         self._model = LGBMRankerModel(auto_flip=False, **self.lgbm_kwargs)
-        cat_arg = self._cat_cols if self._cat_cols else None
         if len(Xv) and len(yv):
             self._model.fit(X, y, groups=g, X_val=Xv, y_val=yv, groups_val=gv,
-                            feature_names=feature_cols, categorical_feature=cat_arg)
+                            feature_names=feature_cols)
         else:
-            self._model.fit(X, y, groups=g, feature_names=feature_cols,
-                            categorical_feature=cat_arg)
+            self._model.fit(X, y, groups=g, feature_names=feature_cols)
         return self
 
     def score(self, panel, test_date, feature_cols):
