@@ -27,17 +27,25 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install core dependencies
+      # T-002：只装 .[dev] 时 38 个测试文件在收集阶段就 ImportError（scipy/akshare/langgraph/torch…），
+      # pytest 直接中断。这里装默认测试集实际 import 到的依赖。
+      # torch 用 CPU wheel（避免拉 CUDA 版）；cvxpy/mlflow/pymongo 未声明在任何 extra 里，chromadb 在 rag extra
+      # 但 rag 还会拉 FlagEmbedding/unstructured 等重依赖——四者先显式安装，声明位置交 C1 决定。
+      - name: Install dependencies used by the default test set
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[data,ml,llm,viz,dev]"
+          pip install cvxpy "mlflow==3.12.0" pymongo chromadb   # mlflow 3.13+ 取消了文件系统 tracking 后端
 
       - name: Run unit tests (exclude integration)
         env:
           NO_NETWORK: "1"   # conftest.block_external_network 闸门：单元测试禁外网，漏标的联网测试立即响亮失败
+        # 命令行 -m 会整体覆盖 pyproject addopts 里的 -m，所以这里必须写全：
+        # = pyproject 默认过滤（requires_network/db/optional_deps、stale_panel_fixture）再去掉 integration
         run: |
           python -m pytest tests/ \
-            -m "not integration" \
+            -m "not integration and not requires_network and not requires_db and not requires_optional_deps and not stale_panel_fixture" \
             --tb=short \
             -q \
             --no-cov \
