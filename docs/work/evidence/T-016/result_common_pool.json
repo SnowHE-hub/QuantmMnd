@@ -1,0 +1,175 @@
+{
+ "inputs": {
+  "a_scores": "docs/work/evidence/T-010/run_v4_1/oos_scores.csv",
+  "a_scores_sha256": "0e130d3b005905e13879d89527ad4f9ccb5f879d61e1e0efde109d6446565fe9",
+  "b_preds": "data/bakeoff/preds/ridge_full_fnd_63d_quarterly_v6.parquet",
+  "b_preds_sha256": "73a762a3ff44d9ec70cb26785cac7f8121d37ce45dd15eee69e7146d569decd6"
+ },
+ "nature": "回顾性分析：第一次结果之后才做；不是预登记检验",
+ "pools_per_rebalance": [
+  {
+   "as_of": "2022-09-30",
+   "n_A_own_common": 1296,
+   "sha_A_own_common": "41edcf42c116fc53",
+   "n_B_on_A_candidates": 1296,
+   "sha_B_on_A_candidates": "41edcf42c116fc53",
+   "n_A_own_original": 1374,
+   "sha_A_own_original": "35ea43f02836c0a6",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 78
+  },
+  {
+   "as_of": "2023-03-31",
+   "n_A_own_common": 1326,
+   "sha_A_own_common": "81fb1d2cdc2d6fd1",
+   "n_B_on_A_candidates": 1326,
+   "sha_B_on_A_candidates": "81fb1d2cdc2d6fd1",
+   "n_A_own_original": 1374,
+   "sha_A_own_original": "35ea43f02836c0a6",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 48
+  },
+  {
+   "as_of": "2023-09-30",
+   "n_A_own_common": 300,
+   "sha_A_own_common": "5785d0150ffdc947",
+   "n_B_on_A_candidates": 300,
+   "sha_B_on_A_candidates": "5785d0150ffdc947",
+   "n_A_own_original": 300,
+   "sha_A_own_original": "5785d0150ffdc947",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 0
+  },
+  {
+   "as_of": "2024-03-29",
+   "n_A_own_common": 1361,
+   "sha_A_own_common": "0ca86c1983e54a79",
+   "n_B_on_A_candidates": 1361,
+   "sha_B_on_A_candidates": "0ca86c1983e54a79",
+   "n_A_own_original": 1374,
+   "sha_A_own_original": "35ea43f02836c0a6",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 13
+  },
+  {
+   "as_of": "2024-09-30",
+   "n_A_own_common": 1367,
+   "sha_A_own_common": "27a08e77419e1f47",
+   "n_B_on_A_candidates": 1367,
+   "sha_B_on_A_candidates": "27a08e77419e1f47",
+   "n_A_own_original": 1374,
+   "sha_A_own_original": "35ea43f02836c0a6",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 7
+  },
+  {
+   "as_of": "2025-03-31",
+   "n_A_own_common": 300,
+   "sha_A_own_common": "5f411de925e85c49",
+   "n_B_on_A_candidates": 300,
+   "sha_B_on_A_candidates": "5f411de925e85c49",
+   "n_A_own_original": 300,
+   "sha_A_own_original": "5f411de925e85c49",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 0
+  },
+  {
+   "as_of": "2025-09-30",
+   "n_A_own_common": 300,
+   "sha_A_own_common": "4a99610da08e71a7",
+   "n_B_on_A_candidates": 300,
+   "sha_B_on_A_candidates": "4a99610da08e71a7",
+   "n_A_own_original": 300,
+   "sha_A_own_original": "4a99610da08e71a7",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 0
+  },
+  {
+   "as_of": "2026-03-31",
+   "n_A_own_common": 300,
+   "sha_A_own_common": "2c65f2563dd3dfa5",
+   "n_B_on_A_candidates": 300,
+   "sha_B_on_A_candidates": "2c65f2563dd3dfa5",
+   "n_A_own_original": 300,
+   "sha_A_own_original": "2c65f2563dd3dfa5",
+   "same_pool_A_common_vs_B": true,
+   "n_dropped_from_A_original": 0
+  }
+ ],
+ "results": {
+  "A_own_common": {
+   "ann_net": 0.02516171026638303,
+   "ann_bench": 0.07153234631190841,
+   "excess": -0.04637063604552538,
+   "ir": -0.41859336957114235,
+   "mdd": -0.31149961618430755,
+   "yearly_excess": {
+    "2022": -0.04701726665493866,
+    "2023": -0.06938532930265873,
+    "2024": 0.009669915635404092,
+    "2025": -0.05923767156467019,
+    "2026": 0.019634427872959215
+   },
+   "turnover_oneway": 1.805548122110907,
+   "cost_drag": 0.007496811217792443,
+   "period": {
+    "start": "2022-09-30",
+    "end": "2026-10-09",
+    "n_trading_days": 971,
+    "n_rebalances": 8
+   }
+  },
+  "B_on_A_candidates": {
+   "ann_net": 0.04591395587373093,
+   "ann_bench": 0.07153234631190841,
+   "excess": -0.025618390438177485,
+   "ir": -0.19326000207579183,
+   "mdd": -0.24378416163132482,
+   "yearly_excess": {
+    "2022": 0.055653705581812485,
+    "2023": -0.011833357630629315,
+    "2024": 0.1682366420390473,
+    "2025": -0.2810080364811768,
+    "2026": 0.03185117024863415
+   },
+   "turnover_oneway": 1.8637951731282099,
+   "cost_drag": 0.00863945397385324,
+   "period": {
+    "start": "2022-09-30",
+    "end": "2026-10-09",
+    "n_trading_days": 971,
+    "n_rebalances": 8
+   }
+  },
+  "A_own_original": {
+   "ann_net": 0.02516171026638303,
+   "ann_bench": 0.07153234631190841,
+   "excess": -0.04637063604552538,
+   "ir": -0.41859336957114235,
+   "mdd": -0.31149961618430755,
+   "yearly_excess": {
+    "2022": -0.04701726665493866,
+    "2023": -0.06938532930265873,
+    "2024": 0.009669915635404092,
+    "2025": -0.05923767156467019,
+    "2026": 0.019634427872959215
+   },
+   "turnover_oneway": 1.805548122110907,
+   "cost_drag": 0.007496811217792443,
+   "period": {
+    "start": "2022-09-30",
+    "end": "2026-10-09",
+    "n_trading_days": 971,
+    "n_rebalances": 8
+   }
+  }
+ },
+ "B_minus_A_common": {
+  "n_days": 970,
+  "ann_mean_diff": 0.02770575698770372,
+  "ci95_block63": [
+   -0.1354709903375707,
+   0.2061903366465684
+  ]
+ }
+}
