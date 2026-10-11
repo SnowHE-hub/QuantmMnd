@@ -240,6 +240,7 @@ class LGBMRankerModel(FactorModel):
         y_val: np.ndarray | None = None,
         groups_val: np.ndarray | None = None,
         feature_names: list[str] | None = None,
+        categorical_feature: list[str] | None = None,
     ) -> "LGBMRankerModel":
         """拟合 LightGBM LambdaRank 模型.
 
@@ -249,7 +250,15 @@ class LGBMRankerModel(FactorModel):
             groups:     (n_groups,) int   每个截面的样本数
             X_val / y_val / groups_val: 验证集（用于 early stopping）
             feature_names: 特征名列表（用于 feature importance）
+            categorical_feature: 以 LightGBM 原生类别特征处理的列名（须在 feature_names 中，
+                取值为非负整数编码，负值视为缺失；见 factor_model.encode_categorical_codes）
         """
+        if categorical_feature:
+            if not feature_names:
+                raise ValueError("categorical_feature requires feature_names")
+            unknown = [c for c in categorical_feature if c not in feature_names]
+            if unknown:
+                raise ValueError(f"categorical_feature not in feature_names: {unknown}")
         if groups is None:
             raise ValueError("groups is required for lambdarank")
 
@@ -275,6 +284,7 @@ class LGBMRankerModel(FactorModel):
             eval_set=eval_set,
             eval_group=eval_group,
             feature_name=feature_names or "auto",
+            categorical_feature=list(categorical_feature) if categorical_feature else "auto",
             callbacks=callbacks if callbacks else None,
         )
         return self

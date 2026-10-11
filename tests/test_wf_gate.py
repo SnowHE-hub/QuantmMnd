@@ -223,3 +223,61 @@ def test_detect_and_encode_categorical_helpers():
     assert enc["str_col"].iloc[3] == -1
     # 相同字符串得到相同 code
     assert enc["str_col"].iloc[0] == enc["str_col"].iloc[2]
+
+
+# ===========================================================================
+# T-009：原生 categorical_feature + fit 时保存的取值字典
+# ===========================================================================
+def test_encode_with_saved_categories_is_row_independent():
+    from quantmind.models.factor_model import categorical_categories, encode_categorical_codes
+    df = pd.DataFrame({"ind": pd.Series(["银行", "科技", None, "医疗"], dtype="string")})
+    cats = categorical_categories(df, ["ind"])
+    assert cats == {"ind": ["医疗", "科技", "银行"]}
+    full = encode_categorical_codes(df, ["ind"], cats)["ind"].tolist()
+    # 只取后两行、再加一个字典外的取值：编码不随行集合变化，未知 → -1
+    part = pd.DataFrame({"ind": pd.Series([None, "医疗", "能源"], dtype="string")})
+    assert encode_categorical_codes(part, ["ind"], cats)["ind"].tolist() == [-1, full[3], -1]
+    assert full == [2, 1, -1, 0]
+
+
+def test_lgbm_ranker_forwards_categorical_feature(monkeypatch):
+    import lightgbm as lgb
+    from quantmind.models.lgbm_ranker import LGBMRankerModel
+
+    seen = {}
+    orig = lgb.LGBMRanker.fit
+
+    def spy(self, *args, **kwargs):
+        seen.update(kwargs)
+        return orig(self, *args, **kwargs)
+
+    monkeypatch.setattr(lgb.LGBMRanker, "fit", spy)
+    rng = np.random.default_rng(0)
+    X = np.column_stack([rng.standard_normal(200), rng.integers(0, 4, 200)]).astype(np.float32)
+    y = rng.integers(0, 5, 200)
+    LGBMRankerModel(n_estimators=5, verbose=-1).fit(
+        X, y, groups=np.array([50] * 4), feature_names=["num", "ind"], categorical_feature=["ind"])
+    assert seen["categorical_feature"] == ["ind"]
+
+
+def test_lgbm_ranker_rejects_unknown_categorical():
+    from quantmind.models.lgbm_ranker import LGBMRankerModel
+    X = np.zeros((10, 1), dtype=np.float32)
+    with pytest.raises(ValueError, match="not in feature_names"):
+        LGBMRankerModel(n_estimators=2).fit(X, np.zeros(10, int), groups=np.array([10]),
+                                            feature_names=["a"], categorical_feature=["b"])
+
+
+def test_lgbm_predictor_score_independent_of_panel_rows():
+    """score 传入整张 panel 与只传入测试截面，结果相同（编码字典在 fit 时保存）."""
+    panel, cal, grid = _panel_with_categorical()
+    sp = PurgedWalkForwardSplit(cal, horizon=12, embargo=12)
+    fold = sp.split(grid, grid[len(grid) // 2], oos_start=grid[len(grid) // 2], oos_end=grid[-1])
+    feats = ["signal", "exposure_industry"]
+    pred = g.LGBMPredictor(n_quantiles=5, n_estimators=30, learning_rate=0.1, verbose=-1)
+    pred.fit(panel, fold.train_dates, fold.val_dates, feats, "forward_return_12d")
+    d = fold.test_dates[0]
+    only_test = panel.xs(pd.Timestamp(d), level="as_of", drop_level=False).iloc[::-1]
+    a = pred.score(panel, d, feats)
+    b = pred.score(only_test, d, feats).reindex(a.index)
+    pd.testing.assert_series_equal(a, b)

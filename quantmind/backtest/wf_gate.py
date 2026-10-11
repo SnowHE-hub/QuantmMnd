@@ -48,9 +48,10 @@ class LGBMPredictor:
     ``decide_direction`` 仅凭训练/验证段决定（H-A）。
 
     **Categorical 支持**：``feature_cols`` 含 string/object/category 列时，
-    自动检测并以 LightGBM 原生 categorical_feature 形式传入（无 one-hot；
-    NaN→-1 单独成类）。编码字典由 ``panel`` 列的全局 unique 决定，train/test
-    一致，无数据泄漏。
+    自动检测、编码为整数，并以 LightGBM 原生 ``categorical_feature`` 形式传入
+    （无 one-hot；缺失值编码为 -1，LightGBM 视为缺失）。取值字典在 fit 时由传入的
+    ``panel`` 决定并保存，score 时复用，因此 score 传入任意行子集编码都一致。
+    字典只含类别名称，不含标签信息。
     """
 
     def __init__(self, n_quantiles: int = 5, **lgbm_kwargs):
@@ -59,31 +60,38 @@ class LGBMPredictor:
         self._model = None
         self._feature_cols: list[str] = []
         self._cat_cols: list[str] = []
+        self._cat_map: dict[str, list[str]] = {}
 
     def fit(self, panel, train_dates, val_dates, feature_cols, label_col):
         from quantmind.models.factor_model import (
-            build_lgbm_arrays, detect_categorical_cols,
+            build_lgbm_arrays, categorical_categories, detect_categorical_cols,
         )
         from quantmind.models.lgbm_ranker import LGBMRankerModel
 
         self._feature_cols = list(feature_cols)
         self._cat_cols = detect_categorical_cols(panel, feature_cols)
+        self._cat_map = categorical_categories(panel, self._cat_cols)
+        cats = self._cat_map or None
         train_core = [d for d in train_dates if d not in set(val_dates)] or train_dates
-        X, y, g = build_lgbm_arrays(panel, train_core, feature_cols, label_col, self.n_quantiles)
-        Xv, yv, gv = build_lgbm_arrays(panel, val_dates, feature_cols, label_col, self.n_quantiles)
+        X, y, g = build_lgbm_arrays(panel, train_core, feature_cols, label_col, self.n_quantiles,
+                                    categories=cats)
+        Xv, yv, gv = build_lgbm_arrays(panel, val_dates, feature_cols, label_col, self.n_quantiles,
+                                       categories=cats)
         self._model = LGBMRankerModel(auto_flip=False, **self.lgbm_kwargs)
+        cat_arg = self._cat_cols or None
         if len(Xv) and len(yv):
             self._model.fit(X, y, groups=g, X_val=Xv, y_val=yv, groups_val=gv,
-                            feature_names=feature_cols)
+                            feature_names=feature_cols, categorical_feature=cat_arg)
         else:
-            self._model.fit(X, y, groups=g, feature_names=feature_cols)
+            self._model.fit(X, y, groups=g, feature_names=feature_cols,
+                            categorical_feature=cat_arg)
         return self
 
     def score(self, panel, test_date, feature_cols):
         from quantmind.models.factor_model import encode_categorical_codes
-        # score 时用与 fit 一致的 categorical 编码（同 panel 同 unique → 同 codes）
+        # 复用 fit 时保存的取值字典，与 score 传入的行集合无关
         if self._cat_cols:
-            panel = encode_categorical_codes(panel, self._cat_cols)
+            panel = encode_categorical_codes(panel, self._cat_cols, self._cat_map)
         xs = panel.xs(pd.Timestamp(test_date), level="as_of")
         X = xs[feature_cols].fillna(0.0).values.astype(np.float32)
         s = self._model.predict(X)

@@ -45,6 +45,7 @@ __all__ = [
     "WalkForwardFold",
     "WalkForwardSplit",
     "build_lgbm_arrays",
+    "categorical_categories",
     "detect_categorical_cols",
     "encode_categorical_codes",
 ]
@@ -323,14 +324,35 @@ def detect_categorical_cols(df: pd.DataFrame, feature_cols: list[str]) -> list[s
     return cat
 
 
-def encode_categorical_codes(df: pd.DataFrame, cat_cols: list[str]) -> pd.DataFrame:
-    """将 categorical 列转为 int32 编码；缺失值 → -1（LightGBM 单独成类）."""
+def categorical_categories(df: pd.DataFrame, cat_cols: list[str]) -> dict[str, list[str]]:
+    """每个类别列的取值字典（按字符串排序，不含缺失值）；fit 时保存、score 时复用."""
+    return {
+        col: sorted(df[col].dropna().astype(str).unique().tolist())
+        for col in cat_cols
+        if col in df.columns
+    }
+
+
+def encode_categorical_codes(
+    df: pd.DataFrame,
+    cat_cols: list[str],
+    categories: dict[str, list[str]] | None = None,
+) -> pd.DataFrame:
+    """将 categorical 列转为 int32 编码；缺失值 → -1（LightGBM 把负值视为缺失）.
+
+    ``categories`` 给定时按该字典编码（字典外的取值 → -1），编码与传入 df 的行集合无关；
+    未给定时沿用按出现顺序 factorize 的旧行为——只有 fit 与 score 传入同一张 panel 时才一致。
+    """
     out = df.copy()
     for col in cat_cols:
         if col not in out.columns:
             continue
-        codes, _ = pd.factorize(out[col], sort=False, use_na_sentinel=True)
-        out[col] = codes.astype(np.int32)
+        if categories is not None and col in categories:
+            vals = out[col].astype("string").astype(object)
+            codes = pd.Categorical(vals, categories=categories[col]).codes
+        else:
+            codes, _ = pd.factorize(out[col], sort=False, use_na_sentinel=True)
+        out[col] = np.asarray(codes).astype(np.int32)
     return out
 
 
@@ -340,10 +362,12 @@ def build_lgbm_arrays(
     feature_cols: list[str],
     label_col: str = "forward_return_21d",
     n_quantiles: int = 5,
+    categories: dict[str, list[str]] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """将 panel 子集转换为 LightGBM lambdarank 所需的数组格式.
 
     LightGBM 要求数据按 group 连续排列（同一截面日期的所有行排在一起）。
+    ``categories``：类别列的取值字典（见 ``categorical_categories``），给定时用它编码。
 
     Returns:
         (X, y, groups) 三元组:
@@ -355,7 +379,7 @@ def build_lgbm_arrays(
     label_series = labeler.transform(panel, dates, label_col)
 
     cat_cols = detect_categorical_cols(panel, feature_cols)
-    panel_enc = encode_categorical_codes(panel, cat_cols) if cat_cols else panel
+    panel_enc = encode_categorical_codes(panel, cat_cols, categories) if cat_cols else panel
 
     X_rows: list[np.ndarray] = []
     y_rows: list[int] = []
