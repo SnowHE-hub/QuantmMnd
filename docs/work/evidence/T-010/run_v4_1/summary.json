@@ -1,0 +1,342 @@
+{
+  "inputs": {
+    "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_1.parquet",
+    "model_meta": "/home/lenovo/projects/quantmind/models/lgbm_v6_alpha.meta.json",
+    "label": "forward_return_63d",
+    "n_features": 42,
+    "gap": 1,
+    "n_val": 2,
+    "min_train": 8,
+    "params": {
+      "n_estimators": 400,
+      "num_leaves": 31,
+      "learning_rate": 0.05,
+      "early_stopping_rounds": 50,
+      "n_jobs": 8,
+      "random_state": 42
+    }
+  },
+  "folds": [
+    {
+      "test": "2021-12-31",
+      "n_train": 8,
+      "train_end": "2020-12-31",
+      "val": [
+        "2021-03-31",
+        "2021-06-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.067490588591331
+    },
+    {
+      "test": "2022-03-31",
+      "n_train": 9,
+      "train_end": "2021-03-31",
+      "val": [
+        "2021-06-30",
+        "2021-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.07915553146039918
+    },
+    {
+      "test": "2022-06-30",
+      "n_train": 10,
+      "train_end": "2021-06-30",
+      "val": [
+        "2021-09-30",
+        "2021-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.07139381257985752
+    },
+    {
+      "test": "2022-09-30",
+      "n_train": 11,
+      "train_end": "2021-09-30",
+      "val": [
+        "2021-12-31",
+        "2022-03-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.06916417602262691
+    },
+    {
+      "test": "2022-12-31",
+      "n_train": 12,
+      "train_end": "2021-12-31",
+      "val": [
+        "2022-03-31",
+        "2022-06-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.05655702149614434
+    },
+    {
+      "test": "2023-03-31",
+      "n_train": 13,
+      "train_end": "2022-03-31",
+      "val": [
+        "2022-06-30",
+        "2022-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.049429938842275166
+    },
+    {
+      "test": "2023-06-30",
+      "n_train": 14,
+      "train_end": "2022-06-30",
+      "val": [
+        "2022-09-30",
+        "2022-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.004376738902661562
+    },
+    {
+      "test": "2023-09-30",
+      "n_train": 15,
+      "train_end": "2022-09-30",
+      "val": [
+        "2022-12-31",
+        "2023-03-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.0303329077590425
+    },
+    {
+      "test": "2023-12-29",
+      "n_train": 16,
+      "train_end": "2022-12-31",
+      "val": [
+        "2023-03-31",
+        "2023-06-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.024345729445079935
+    },
+    {
+      "test": "2024-03-29",
+      "n_train": 17,
+      "train_end": "2023-03-31",
+      "val": [
+        "2023-06-30",
+        "2023-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.01635567568961152
+    },
+    {
+      "test": "2024-06-28",
+      "n_train": 18,
+      "train_end": "2023-06-30",
+      "val": [
+        "2023-09-30",
+        "2023-12-29"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.03418668818463939
+    },
+    {
+      "test": "2024-09-30",
+      "n_train": 19,
+      "train_end": "2023-09-30",
+      "val": [
+        "2023-12-29",
+        "2024-03-29"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.10416452663042632
+    },
+    {
+      "test": "2024-12-31",
+      "n_train": 20,
+      "train_end": "2023-12-29",
+      "val": [
+        "2024-03-29",
+        "2024-06-28"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.011504636113398683
+    },
+    {
+      "test": "2025-03-31",
+      "n_train": 21,
+      "train_end": "2024-03-29",
+      "val": [
+        "2024-06-28",
+        "2024-09-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.08926106896701108
+    },
+    {
+      "test": "2025-06-30",
+      "n_train": 22,
+      "train_end": "2024-06-28",
+      "val": [
+        "2024-09-30",
+        "2024-12-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.012751877021692995
+    },
+    {
+      "test": "2025-09-30",
+      "n_train": 23,
+      "train_end": "2024-09-30",
+      "val": [
+        "2024-12-31",
+        "2025-03-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.01979483003074817
+    },
+    {
+      "test": "2025-12-31",
+      "n_train": 24,
+      "train_end": "2024-12-31",
+      "val": [
+        "2025-03-31",
+        "2025-06-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.0023050592322824024
+    },
+    {
+      "test": "2026-03-31",
+      "n_train": 25,
+      "train_end": "2025-03-31",
+      "val": [
+        "2025-06-30",
+        "2025-09-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": NaN
+    },
+    {
+      "test": "2026-06-30",
+      "n_train": 26,
+      "train_end": "2025-06-30",
+      "val": [
+        "2025-09-30",
+        "2025-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": NaN
+    }
+  ],
+  "rank_ic": {
+    "n": 17,
+    "mean": -0.009202998328204051,
+    "std": 0.05441830519420146,
+    "icir": -0.1691158571616941,
+    "win_rate": 0.47058823529411764
+  },
+  "legacy_equal": {
+    "start_date": "2021-12-31",
+    "end_date": "2026-05-11",
+    "total_return": 0.1703,
+    "ann_return": 0.0389,
+    "ann_volatility": 0.2119,
+    "sharpe_ratio": 0.042,
+    "calmar_ratio": 0.124,
+    "max_drawdown": -0.313,
+    "monthly_win_rate": 0.5094,
+    "n_trading_days": 1039,
+    "cost_bps": 13.0,
+    "avg_turnover": 0.9281,
+    "avg_round_trip_cost": 0.002413,
+    "total_cost_drag": -0.044863,
+    "n_rebalances": 19
+  },
+  "legacy_hrp": {
+    "start_date": "2021-12-31",
+    "end_date": "2026-05-11",
+    "total_return": 0.5462,
+    "ann_return": 0.1115,
+    "ann_volatility": 0.23,
+    "sharpe_ratio": 0.354,
+    "calmar_ratio": 0.429,
+    "max_drawdown": -0.2597,
+    "monthly_win_rate": 0.566,
+    "n_trading_days": 1039,
+    "cost_bps": 13.0,
+    "avg_turnover": 0.9571,
+    "avg_round_trip_cost": 0.002488,
+    "total_cost_drag": -0.046234,
+    "n_rebalances": 19
+  },
+  "executable": {
+    "config": {
+      "horizon_td": 63,
+      "rebalance_step": 1,
+      "top_n": 30,
+      "universe_size": 1500,
+      "commission_bp": 3.0,
+      "transfer_bp": 0.2,
+      "slippage_tiers_bp": [
+        5.0,
+        15.0,
+        30.0
+      ],
+      "delist_writeoff_td": 20
+    },
+    "period": {
+      "start": "2021-12-31",
+      "end": "2026-05-11",
+      "n_trading_days": 1040,
+      "n_rebalances": 19
+    },
+    "nav": {
+      "final_net": 0.757359795113121,
+      "final_gross": 0.808591056088221,
+      "final_bench": 1.0663229210285161,
+      "ann_return_net": -0.06512401047795557,
+      "ann_return_gross": -0.05017846768859224,
+      "ann_return_bench": 0.01568176949085842,
+      "ann_net_excess": -0.080805779968814,
+      "information_ratio": -0.7331450507183407,
+      "max_drawdown_net": -0.5531630409128101,
+      "cum_return_net": -0.24264020488687899,
+      "yearly_net_excess": {
+        "2021": 0.0,
+        "2022": -0.0849759858378667,
+        "2023": -0.03822584013773378,
+        "2024": -0.1164576579420078,
+        "2025": 0.013484184140453603,
+        "2026": -0.06550358275771462
+      }
+    },
+    "costs": {
+      "total_cost_nav_units": 0.05123126097509996,
+      "cost_drag_ann": 0.01494554278936333
+    },
+    "turnover": {
+      "avg_oneway_per_rebalance": 0.8830157691759692,
+      "annualized_oneway": 3.851307239405958,
+      "annualized_twoway": 7.702614478811916
+    },
+    "execution": {
+      "n_trades_filled": 1000,
+      "n_rejection_events": 21,
+      "rejection_reason_counts": {
+        "limit_up_locked": 21
+      },
+      "n_distinct_rejected_orders": 21,
+      "rejection_distinct_order_counts": {
+        "limit_up_locked": 21
+      },
+      "n_writeoffs": 0
+    },
+    "coverage": {
+      "n_rebalance_targets_logged": 19,
+      "n_filtered_events": 8182,
+      "filtered_reason_counts": {
+        "not_in_universe": 8181,
+        "no_recent_price": 1
+      }
+    }
+  }
+}

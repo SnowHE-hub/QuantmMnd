@@ -1,0 +1,348 @@
+{
+  "inputs": {
+    "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_1.parquet",
+    "model_meta": "/home/lenovo/projects/quantmind/models/lgbm_v6_alpha.meta.json",
+    "label": "forward_return_63d",
+    "n_features": 38,
+    "gap": 1,
+    "n_val": 2,
+    "min_train": 8,
+    "params": {
+      "n_estimators": 400,
+      "num_leaves": 31,
+      "learning_rate": 0.05,
+      "early_stopping_rounds": 50,
+      "n_jobs": 8,
+      "random_state": 42
+    }
+  },
+  "folds": [
+    {
+      "test": "2021-12-31",
+      "n_train": 8,
+      "train_end": "2020-12-31",
+      "val": [
+        "2021-03-31",
+        "2021-06-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.051954845141918914
+    },
+    {
+      "test": "2022-03-31",
+      "n_train": 9,
+      "train_end": "2021-03-31",
+      "val": [
+        "2021-06-30",
+        "2021-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.04806575517239035
+    },
+    {
+      "test": "2022-06-30",
+      "n_train": 10,
+      "train_end": "2021-06-30",
+      "val": [
+        "2021-09-30",
+        "2021-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.055486784702085214
+    },
+    {
+      "test": "2022-09-30",
+      "n_train": 11,
+      "train_end": "2021-09-30",
+      "val": [
+        "2021-12-31",
+        "2022-03-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.061561419246323155
+    },
+    {
+      "test": "2022-12-31",
+      "n_train": 12,
+      "train_end": "2021-12-31",
+      "val": [
+        "2022-03-31",
+        "2022-06-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.030170067089142626
+    },
+    {
+      "test": "2023-03-31",
+      "n_train": 13,
+      "train_end": "2022-03-31",
+      "val": [
+        "2022-06-30",
+        "2022-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.04731871996770509
+    },
+    {
+      "test": "2023-06-30",
+      "n_train": 14,
+      "train_end": "2022-06-30",
+      "val": [
+        "2022-09-30",
+        "2022-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.040286941562470126
+    },
+    {
+      "test": "2023-09-30",
+      "n_train": 15,
+      "train_end": "2022-09-30",
+      "val": [
+        "2022-12-31",
+        "2023-03-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.03587097240719099
+    },
+    {
+      "test": "2023-12-29",
+      "n_train": 16,
+      "train_end": "2022-12-31",
+      "val": [
+        "2023-03-31",
+        "2023-06-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.08773705435695389
+    },
+    {
+      "test": "2024-03-29",
+      "n_train": 17,
+      "train_end": "2023-03-31",
+      "val": [
+        "2023-06-30",
+        "2023-09-30"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.004148670359770795
+    },
+    {
+      "test": "2024-06-28",
+      "n_train": 18,
+      "train_end": "2023-06-30",
+      "val": [
+        "2023-09-30",
+        "2023-12-29"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.04987513099381912
+    },
+    {
+      "test": "2024-09-30",
+      "n_train": 19,
+      "train_end": "2023-09-30",
+      "val": [
+        "2023-12-29",
+        "2024-03-29"
+      ],
+      "n_scored": 1374,
+      "rank_ic": -0.04935040534909613
+    },
+    {
+      "test": "2024-12-31",
+      "n_train": 20,
+      "train_end": "2023-12-29",
+      "val": [
+        "2024-03-29",
+        "2024-06-28"
+      ],
+      "n_scored": 1374,
+      "rank_ic": 0.06796035273913832
+    },
+    {
+      "test": "2025-03-31",
+      "n_train": 21,
+      "train_end": "2024-03-29",
+      "val": [
+        "2024-06-28",
+        "2024-09-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.07747695725163772
+    },
+    {
+      "test": "2025-06-30",
+      "n_train": 22,
+      "train_end": "2024-06-28",
+      "val": [
+        "2024-09-30",
+        "2024-12-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": -0.01714434085273749
+    },
+    {
+      "test": "2025-09-30",
+      "n_train": 23,
+      "train_end": "2024-09-30",
+      "val": [
+        "2024-12-31",
+        "2025-03-31"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.02203698090573357
+    },
+    {
+      "test": "2025-12-31",
+      "n_train": 24,
+      "train_end": "2024-12-31",
+      "val": [
+        "2025-03-31",
+        "2025-06-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": 0.03824781517073355
+    },
+    {
+      "test": "2026-03-31",
+      "n_train": 25,
+      "train_end": "2025-03-31",
+      "val": [
+        "2025-06-30",
+        "2025-09-30"
+      ],
+      "n_scored": 300,
+      "rank_ic": NaN
+    },
+    {
+      "test": "2026-06-30",
+      "n_train": 26,
+      "train_end": "2025-06-30",
+      "val": [
+        "2025-09-30",
+        "2025-12-31"
+      ],
+      "n_scored": 1374,
+      "rank_ic": NaN
+    }
+  ],
+  "rank_ic": {
+    "n": 17,
+    "mean": -0.003873366311435945,
+    "std": 0.051951874729140174,
+    "icir": -0.07455681496828345,
+    "win_rate": 0.5294117647058824
+  },
+  "legacy_equal": {
+    "start_date": "2021-12-31",
+    "end_date": "2026-05-11",
+    "total_return": 0.281,
+    "ann_return": 0.0619,
+    "ann_volatility": 0.2294,
+    "sharpe_ratio": 0.139,
+    "calmar_ratio": 0.175,
+    "max_drawdown": -0.3544,
+    "monthly_win_rate": 0.5283,
+    "n_trading_days": 1039,
+    "cost_bps": 13.0,
+    "avg_turnover": 0.8965,
+    "avg_round_trip_cost": 0.002331,
+    "total_cost_drag": -0.04337,
+    "n_rebalances": 19
+  },
+  "legacy_hrp": {
+    "start_date": "2021-12-31",
+    "end_date": "2026-05-11",
+    "total_return": 0.1561,
+    "ann_return": 0.0358,
+    "ann_volatility": 0.2385,
+    "sharpe_ratio": 0.024,
+    "calmar_ratio": 0.094,
+    "max_drawdown": -0.3828,
+    "monthly_win_rate": 0.434,
+    "n_trading_days": 1039,
+    "cost_bps": 13.0,
+    "avg_turnover": 0.9353,
+    "avg_round_trip_cost": 0.002432,
+    "total_cost_drag": -0.045207,
+    "n_rebalances": 19
+  },
+  "executable": {
+    "config": {
+      "horizon_td": 63,
+      "rebalance_step": 1,
+      "top_n": 30,
+      "universe_size": 1500,
+      "commission_bp": 3.0,
+      "transfer_bp": 0.2,
+      "slippage_tiers_bp": [
+        5.0,
+        15.0,
+        30.0
+      ],
+      "delist_writeoff_td": 20
+    },
+    "period": {
+      "start": "2021-12-31",
+      "end": "2026-05-11",
+      "n_trading_days": 1040,
+      "n_rebalances": 19
+    },
+    "nav": {
+      "final_net": 0.8637857429351032,
+      "final_gross": 0.9213814054529961,
+      "final_bench": 1.0663229210285161,
+      "ann_return_net": -0.03485916208641704,
+      "ann_return_gross": -0.019644920006289368,
+      "ann_return_bench": 0.01568176949085842,
+      "ann_net_excess": -0.05054093157727546,
+      "information_ratio": -0.4766891672060358,
+      "max_drawdown_net": -0.4679703469030583,
+      "cum_return_net": -0.13621425706489676,
+      "yearly_net_excess": {
+        "2021": 0.0,
+        "2022": 0.12157434800820965,
+        "2023": -0.07614121277111119,
+        "2024": -0.060827970103080164,
+        "2025": -0.026701013605219703,
+        "2026": -0.10967330476683712
+      }
+    },
+    "costs": {
+      "total_cost_nav_units": 0.05759566251789278,
+      "cost_drag_ann": 0.015214242080127671
+    },
+    "turnover": {
+      "avg_oneway_per_rebalance": 0.8530912141516448,
+      "annualized_oneway": 3.7207901417229428,
+      "annualized_twoway": 7.4415802834458855
+    },
+    "execution": {
+      "n_trades_filled": 983,
+      "n_rejection_events": 84,
+      "rejection_reason_counts": {
+        "insufficient_cash": 66,
+        "limit_up_locked": 16,
+        "limit_down_locked": 1,
+        "expired_unfilled": 1
+      },
+      "n_distinct_rejected_orders": 20,
+      "rejection_distinct_order_counts": {
+        "limit_up_locked": 16,
+        "insufficient_cash": 2,
+        "limit_down_locked": 1,
+        "expired_unfilled": 1
+      },
+      "n_writeoffs": 0
+    },
+    "coverage": {
+      "n_rebalance_targets_logged": 19,
+      "n_filtered_events": 8182,
+      "filtered_reason_counts": {
+        "not_in_universe": 8181,
+        "no_recent_price": 1
+      }
+    }
+  }
+}
