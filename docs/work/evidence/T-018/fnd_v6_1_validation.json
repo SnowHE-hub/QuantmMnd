@@ -1,0 +1,165 @@
+{
+ "survivors": [
+  "dividend_yield_ttm",
+  "earnings_yield",
+  "revenue_accel_q",
+  "asset_turnover",
+  "book_to_market",
+  "ocf_to_revenue_ttm",
+  "accruals",
+  "equity_multiplier",
+  "fcf_yield_cf",
+  "pe_ttm",
+  "size_rank",
+  "pb",
+  "ps_ttm",
+  "roe_ttm",
+  "operating_profit_yoy",
+  "current_ratio"
+ ],
+ "shape_new": [
+  1683972,
+  16
+ ],
+ "shape_old": [
+  1561617,
+  16
+ ],
+ "common_rows": 411042,
+ "common_as_of": 110,
+ "per_factor": {
+  "dividend_yield_ttm": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "earnings_yield": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "revenue_accel_q": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "asset_turnover": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "book_to_market": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "ocf_to_revenue_ttm": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "accruals": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "equity_multiplier": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "fcf_yield_cf": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "pe_ttm": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "size_rank": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "pb": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "ps_ttm": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "roe_ttm": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "operating_profit_yoy": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  },
+  "current_ratio": {
+   "n": 411042,
+   "diff_share": 0.0,
+   "nan_new_only": 0,
+   "nan_old_only": 0
+  }
+ },
+ "new_as_of_after_2026_04_20": 21,
+ "coverage_after_2026_04_20": {
+  "dividend_yield_ttm": 0.6595,
+  "earnings_yield": 0.7091,
+  "revenue_accel_q": 0.9994,
+  "asset_turnover": 0.9998,
+  "book_to_market": 0.9896,
+  "ocf_to_revenue_ttm": 0.9966,
+  "accruals": 1.0,
+  "equity_multiplier": 0.9931,
+  "fcf_yield_cf": 0.6699,
+  "pe_ttm": 0.7091,
+  "size_rank": 0.9976,
+  "pb": 0.9896,
+  "ps_ttm": 0.9966,
+  "roe_ttm": 0.9937,
+  "operating_profit_yoy": 1.0,
+  "current_ratio": 0.9822
+ },
+ "coverage_overall_new": {
+  "dividend_yield_ttm": 0.6876,
+  "earnings_yield": 0.7789,
+  "revenue_accel_q": 0.9681,
+  "asset_turnover": 0.9687,
+  "book_to_market": 0.989,
+  "ocf_to_revenue_ttm": 0.8676,
+  "accruals": 0.973,
+  "equity_multiplier": 0.9618,
+  "fcf_yield_cf": 0.6556,
+  "pe_ttm": 0.7789,
+  "size_rank": 0.9966,
+  "pb": 0.989,
+  "ps_ttm": 0.9957,
+  "roe_ttm": 0.9617,
+  "operating_profit_yoy": 0.9689,
+  "current_ratio": 0.9509
+ }
+}

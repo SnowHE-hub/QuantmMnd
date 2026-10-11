@@ -1,0 +1,22 @@
+{
+ "new_shape": [
+  1814158,
+  158
+ ],
+ "old_shape": [
+  1683466,
+  158
+ ],
+ "columns_equal": true,
+ "new_as_of": [
+  "2019-01-08",
+  "2026-09-15",
+  374
+ ],
+ "new_nan_frac": 0.0124,
+ "old_nan_frac": 0.0131,
+ "common_as_of": 110,
+ "diff_share_untouched": 0.0,
+ "diff_share_touched": 0.47159214870016253,
+ "n_as_of_touched": 5
+}

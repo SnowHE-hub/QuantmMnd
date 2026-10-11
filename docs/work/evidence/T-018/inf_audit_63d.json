@@ -1,0 +1,33 @@
+{
+ "seed": "63d",
+ "n_rows": 1683972,
+ "n_features": 223,
+ "features_with_inf": {
+  "sh_wq44_corr_high_rkvol_5": {
+   "n_inf": 95,
+   "n_as_of": 73,
+   "first_as_of": "2019-01-22",
+   "by_board": {
+    "MAIN": 89,
+    "CHINEXT": 4,
+    "STAR": 2
+   },
+   "sign": {
+    "pos": 54,
+    "neg": 41
+   }
+  },
+  "sh_wq3_rkopen_rkvol_10": {
+   "n_inf": 67,
+   "n_as_of": 64,
+   "first_as_of": "2019-02-26",
+   "by_board": {
+    "MAIN": 67
+   },
+   "sign": {
+    "pos": 28,
+    "neg": 39
+   }
+  }
+ }
+}
