@@ -22,8 +22,10 @@ from quantmind.features.expansion import (
     EXPANSION_FACTORS,
 )
 from quantmind.features.panel import (
+    build_return_index_pivot,
     compute_forward_returns,
     fetch_forward_price_pivot,
+    splice_return_index,
 )
 from quantmind.features.pipeline import ALL_FACTOR_GROUPS, FeaturePipeline
 
@@ -81,6 +83,186 @@ def _price_pivot_from_snapshots(
     return long.pivot(index="trade_date", columns="ticker", values="close").sort_index()
 
 
+# 每个数据源：(它实际有数据的交易日——不按股票过滤, 它出现过的股票)
+Coverage = list[tuple[pd.DatetimeIndex, frozenset]]
+DEFAULT_TRADE_CALENDAR = Path("data/lake/trade_cal_sse.parquet")
+
+
+def _return_index_from_snapshots(
+    snapshot_root: Path,
+    tickers: list[str] | None = None,
+    *,
+    through: pd.Timestamp | None = None,
+    extra_long: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """合并 ``snapshot_root`` 下全部快照的 pct_change，连乘成单一基准的收益指数宽表（T-003）.
+
+    取代 ``_price_pivot_from_snapshots``：后者拼接的是各快照以自身日期为基准的前复权
+    close，跨快照基准不一致。读全部快照（而不只是入选截面的快照）以覆盖每个交易日；
+    pct_change 跨快照一致，重复日期保留排序靠后的快照的行。
+
+    ``extra_long``（列同上）补充快照里没有的 (trade_date, ticker) 行，例如日线长表；
+    快照已有的行以快照为准。只有与 pct_change 同定义的日收益才能放进来。
+
+    注意：缺行在这里按停牌处理（不贡献收益）。只有数据源确实覆盖该票时才成立，
+    计算标签时必须配合 ``_observed_mask`` + ``_drop_unobserved`` 使用。
+    """
+    long, _ = _load_return_sources(snapshot_root, tickers, through=through, extra_long=extra_long)
+    return build_return_index_pivot(long) if not long.empty else pd.DataFrame()
+
+
+def _load_return_sources(
+    snapshot_root: Path,
+    tickers: list[str] | None = None,
+    *,
+    through: pd.Timestamp | None = None,
+    extra_long: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, Coverage]:
+    """读取全部日收益来源（按 ``tickers`` 过滤后的长表），并返回每个来源的覆盖 (日期集合, 股票集合).
+
+    一个来源"覆盖" (d, t) 指该来源在 d 这天有数据（任意股票有行）且 t 出现在该来源里：此时 t 当天无行才是
+    真正的停牌。覆盖在**按股票过滤之前**计算——面板里的票全体停牌、其他票照常交易的日子仍算被覆盖（T-003 重验修复）。
+    快照只含其自身票池；某票不在某快照里时，那段日期对它而言是**缺数据**，不是停牌；
+    来源内部整日缺失的日期不算被该来源覆盖。
+    """
+    tick_set = set(tickers) if tickers else None
+    chunks: list[pd.DataFrame] = []
+    coverage: Coverage = []
+
+    def take(df: pd.DataFrame) -> pd.DataFrame:
+        df["trade_date"] = pd.to_datetime(df["trade_date"])
+        if through is not None:
+            df = df[df["trade_date"] <= through]
+        if not df.empty:
+            coverage.append((pd.DatetimeIndex(df["trade_date"].unique()).sort_values(),
+                             frozenset(df["ticker"].astype(str).unique())))
+        return df[df["ticker"].isin(tick_set)] if tick_set is not None else df
+
+    if extra_long is not None and not extra_long.empty:
+        # 放在最前，同日同票时被快照行覆盖
+        chunks.append(take(extra_long[["trade_date", "ticker", "close", "pct_change"]].copy()))
+    for d_dir in sorted(snapshot_root.iterdir()):
+        if not d_dir.is_dir():
+            continue
+        try:
+            date.fromisoformat(d_dir.name)
+        except ValueError:
+            continue
+        p = d_dir / "prices.parquet"
+        if not p.exists():
+            continue
+        chunks.append(take(pd.read_parquet(p, columns=["trade_date", "ticker", "close", "pct_change"])))
+    chunks = [c for c in chunks if not c.empty]
+    if not chunks:
+        return pd.DataFrame(), coverage
+    long = pd.concat(chunks, ignore_index=True)
+    long = long.sort_values(["trade_date", "ticker"], kind="stable")
+    return long, coverage
+
+
+def _load_trade_calendar(path: Path | None) -> pd.DatetimeIndex | None:
+    """独立交易日历（Tushare trade_cal，列 cal_date）；不存在时返回 None。"""
+    if path is None or not path.is_file():
+        return None
+    return pd.DatetimeIndex(pd.to_datetime(pd.read_parquet(path)["cal_date"])).sort_values().unique()
+
+
+def _label_axis(coverage: Coverage, calendar: pd.DatetimeIndex | None) -> pd.DatetimeIndex:
+    """标签的交易日轴：各来源实际有数据的日期（不按股票过滤）∪ 来源日期区间内的独立交易日历.
+
+    与面板票池无关，因此面板里的票全体停牌的日子不会从轴上消失、horizon 不会错位。
+    日历里有、但没有任何来源有数据的日子留在轴上，由 ``_observed_mask`` 标为未覆盖（标签置 NaN）。
+    来源里出现日历范围内的非交易日 → ValueError。
+    """
+    if not coverage:
+        return pd.DatetimeIndex([])
+    src = coverage[0][0]
+    for dates, _ in coverage[1:]:
+        src = src.union(dates)
+    if calendar is None or len(calendar) == 0:
+        return src
+    inside = src[(src >= calendar.min()) & (src <= calendar.max())]
+    bad = inside.difference(calendar)
+    if len(bad):
+        raise ValueError(f"{len(bad)} source dates are not trading days in the calendar, e.g. {list(bad[:5])}")
+    return src.union(calendar[(calendar >= src.min()) & (calendar <= src.max())])
+
+
+def _observed_mask(index: pd.DatetimeIndex, columns: pd.Index, coverage: Coverage) -> pd.DataFrame:
+    """(交易日 × 股票) 布尔矩阵：该票在该日是否被至少一个数据源覆盖（该源当天有数据且含该票）."""
+    arr = np.zeros((len(index), len(columns)), dtype=bool)
+    colpos = {str(c): i for i, c in enumerate(columns)}
+    for dates, names in coverage:
+        pos = index.get_indexer(dates)
+        rows = pos[pos >= 0]
+        cols = [colpos[t] for t in names if t in colpos]
+        if len(rows) and cols:
+            arr[np.ix_(rows, cols)] = True
+    return pd.DataFrame(arr, index=index, columns=columns)
+
+
+def _align_to_axis(
+    pivot: pd.DataFrame, coverage: Coverage, calendar: pd.DatetimeIndex | None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """收益指数宽表对齐到 ``_label_axis``（补出的行全为 NaN；指数值不变：没有行的日子本就不贡献收益），
+    并给出同轴的覆盖矩阵。"""
+    axis = _label_axis(coverage, calendar)
+    missing = pivot.index.difference(axis)
+    if len(missing):
+        raise ValueError(f"return index has {len(missing)} dates outside the label axis, e.g. {list(missing[:5])}")
+    out = pivot.reindex(axis)
+    observed = _observed_mask(out.index, out.columns, coverage)
+    uncovered = int((~observed.any(axis=1)).sum())
+    log.info("label axis: {} days ({} added beyond the panel tickers' own rows); days no source covers: {}",
+             len(axis), len(axis) - len(pivot.index), uncovered)
+    return out, observed
+
+
+def _drop_unobserved(
+    fr: pd.DataFrame, observed: pd.DataFrame, as_of: date, horizons: tuple[int, ...],
+) -> tuple[pd.DataFrame, int]:
+    """标签窗口 (基准日, 目标日] 内有任何一天未被覆盖的票，标签置 NaN；返回 (结果, 置空个数).
+
+    基准日与目标日的确定方式与 ``compute_forward_returns`` 相同。
+    """
+    idx = observed.index
+    target = pd.Timestamp(as_of)
+    on_or_before = idx[idx <= target]
+    after = idx[idx >= target]
+    if len(after) == 0:
+        return fr, 0
+    base = on_or_before[-1] if len(on_or_before) else after[0]
+    future = idx[idx > base]
+    out, n = fr.copy(), 0
+    for h in horizons:
+        col = f"forward_return_{h}d"
+        if col not in out.columns or len(future) < h:
+            continue
+        window = observed.loc[(idx > base) & (idx <= future[h - 1])]
+        gap = ~window.all(axis=0)
+        hit = out.index.intersection(gap.index[gap.to_numpy()])
+        n += int(out.loc[hit, col].notna().sum())
+        out.loc[hit, col] = np.nan
+    return out, n
+
+
+def _daily_panel_long(raw_parquet: Path) -> pd.DataFrame | None:
+    """日线长表 → (trade_date, ticker, close, pct_change)；无 pct_chg 列时返回 None.
+
+    [实测 2026-10-10] daily_prices_panel.parquet 的 pct_chg 与快照 pct_change 在
+    670,254 个重叠 (trade_date, ticker) 上逐条相同。
+    """
+    if not raw_parquet.is_file():
+        return None
+    import pyarrow.parquet as pq
+
+    names = set(pq.read_schema(raw_parquet).names)
+    if not {"trade_date", "ts_code", "close", "pct_chg"}.issubset(names):
+        return None
+    df = pd.read_parquet(raw_parquet, columns=["trade_date", "ts_code", "close", "pct_chg"])
+    return df.rename(columns={"ts_code": "ticker", "pct_chg": "pct_change"})
+
+
 def _extend_pivot_with_daily_parquet(
     pivot: pd.DataFrame,
     tickers: list[str],
@@ -88,7 +270,10 @@ def _extend_pivot_with_daily_parquet(
     raw_parquet: Path,
     extend_through: pd.Timestamp,
 ) -> pd.DataFrame:
-    """快照拼接的行情往往止于截面日，用工行长表补足后续交易日以便计算末期的 forward 标签."""
+    """快照行情往往止于截面日，用日线长表补足后续交易日以便计算末期的 forward 标签.
+
+    ``pivot`` 是收益指数（见 ``_return_index_from_snapshots``），补足部分按日收益接续。
+    """
     if pivot.empty or not raw_parquet.is_file():
         return pivot
     if pivot.index.max() >= extend_through:
@@ -119,12 +304,8 @@ def _extend_pivot_with_daily_parquet(
     if not cols:
         log.warning("extend pivot: no overlapping ticker columns with {}", raw_parquet)
         return pivot
-    merged_part = pd.concat([pivot[cols], wide[cols]], axis=0)
-    merged_part = merged_part[~merged_part.index.duplicated(keep="last")].sort_index()
-    new_index = pivot.index.union(merged_part.index).sort_values()
-    out = pivot.reindex(index=new_index).copy()
-    for c in cols:
-        out[c] = merged_part[c].reindex(new_index)
+    # T-003：按日收益衔接，不按价格水平拼接（两段复权基准不同）
+    out = splice_return_index(pivot, wide)
     log.info(
         "extended pivot: {}→{} sessions (via {})",
         len(pivot.index),
@@ -207,6 +388,102 @@ def _expansion_column_order() -> list[str]:
     return [name for name, _ in EXPANSION_FACTORS]
 
 
+LABEL_COLS = ["forward_return_21d", "forward_return_63d"]
+
+
+def _relabel_panel(
+    src: Path,
+    out: Path,
+    *,
+    snapshot_root: Path,
+    raw_daily: Path,
+    through: pd.Timestamp | None,
+    keep_label_mask: bool = False,
+    trade_calendar: Path | None = None,
+) -> int:
+    """只重算已有面板的两列标签（T-003），因子列原样保留；输出写新文件，不覆盖任何已有文件.
+
+    ``keep_label_mask``：新标签只写在源面板该列非空的位置，使新旧面板的样本集合完全一致，
+    差别只在标签数值（用于隔离"价格基准"这一个变量）。
+    ``trade_calendar``：独立交易日历 parquet（列 cal_date）；None 时日期轴只由各来源的日期（不按股票过滤）构成。
+    """
+    if out.resolve() == src.resolve():
+        log.error("--output must differ from --relabel-from ({})", src)
+        return 1
+    if out.exists():
+        log.error("output exists, refusing to overwrite: {}", out)
+        return 1
+    panel = pd.read_parquet(src)
+    missing = [c for c in LABEL_COLS if c not in panel.columns]
+    if missing:
+        log.error("panel {} lacks label columns {}", src, missing)
+        return 1
+    as_ofs = sorted(pd.Timestamp(x) for x in panel.index.get_level_values("as_of").unique())
+    tickers = sorted(panel.index.get_level_values("ticker").astype(str).unique())
+
+    daily_long = _daily_panel_long(raw_daily)
+    long, coverage = _load_return_sources(
+        snapshot_root, tickers, through=through, extra_long=daily_long,
+    )
+    if long.empty:
+        log.error("no snapshot prices under {}", snapshot_root)
+        return 1
+    pivot = build_return_index_pivot(long)
+    need_through = as_ofs[-1] + timedelta(days=65)
+    if daily_long is None and raw_daily.is_file() and pivot.index.max() < need_through:
+        last = pivot.index.max()
+        pivot = _extend_pivot_with_daily_parquet(
+            pivot, tickers, raw_parquet=raw_daily, extend_through=need_through,
+        )
+        if pivot.index.max() > last:  # 接续段：无价即停牌的语义由 splice 保证
+            coverage.append((pivot.index[pivot.index > last], frozenset(map(str, pivot.columns))))
+    if through is not None:
+        pivot = pivot[pivot.index <= through]
+        coverage = [(d[d <= through], n) for d, n in coverage]
+    pivot, observed = _align_to_axis(pivot, coverage, _load_trade_calendar(trade_calendar))
+    log.info("relabel: return index {} sessions × {} tickers, last {}",
+             pivot.shape[0], pivot.shape[1], pivot.index.max().date())
+
+    parts: list[pd.DataFrame] = []
+    n_unobserved = 0
+    for as_of in as_ofs:
+        fr = compute_forward_returns(pivot, as_of.date(), (21, 63))
+        if fr.empty:
+            continue
+        fr, k = _drop_unobserved(fr, observed, as_of.date(), (21, 63))
+        n_unobserved += k
+        fr.index.name = "ticker"
+        fr["as_of"] = as_of
+        parts.append(fr.reset_index())
+    labels = (
+        pd.concat(parts, ignore_index=True).set_index(["as_of", "ticker"])
+        if parts else pd.DataFrame(columns=LABEL_COLS)
+    )
+
+    new = panel.copy()
+    for lc in LABEL_COLS:
+        new[lc] = labels[lc].reindex(new.index).astype(float) if lc in labels else np.nan
+        if keep_label_mask:
+            new[lc] = new[lc].where(panel[lc].notna())
+    pd.testing.assert_frame_equal(
+        new.drop(columns=LABEL_COLS), panel.drop(columns=LABEL_COLS), check_exact=True,
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    new.to_parquet(out)
+
+    for lc in LABEL_COLS:
+        old_v, new_v = panel[lc], new[lc]
+        both = old_v.notna() & new_v.notna()
+        diff = (old_v[both] - new_v[both]).abs()
+        print(
+            f"{lc}: old non-NaN {int(old_v.notna().sum())} · new non-NaN {int(new_v.notna().sum())} · "
+            f"both {int(both.sum())} · |diff|>0.5% {int((diff > 0.005).sum())} · |diff|>10% {int((diff > 0.10).sum())}"
+        )
+    print(f"labels set to NaN because the window has days no source covers: {n_unobserved}")
+    print(f"RELABELED shape={new.shape} path={out}")
+    return 0
+
+
 def main() -> int:
     setup_logger()
     parser = argparse.ArgumentParser(description="Build full cross-sectional feature panel")
@@ -266,10 +543,56 @@ def main() -> int:
             "别名：--universe。因子仍由各快照 universe.parquet 驱动。"
         ),
     )
+    parser.add_argument(
+        "--relabel-from",
+        type=Path,
+        default=None,
+        help=(
+            "T-003：只重算该面板的 forward_return_21d/63d（单一价格基准），因子列原样保留，"
+            "写入 --output（不得与输入相同，且不得已存在）。指定后忽略其余构建参数。"
+        ),
+    )
+    parser.add_argument(
+        "--price-through",
+        type=_parse_date,
+        default=None,
+        help="仅与 --relabel-from 配合：只使用该日（含）之前的行情，用于复现历史面板的标签可得范围。",
+    )
+    parser.add_argument(
+        "--keep-label-mask",
+        action="store_true",
+        help="仅与 --relabel-from 配合：只在源面板标签非空的位置写新标签（样本集合不变，只改数值）。",
+    )
+    parser.add_argument(
+        "--trade-calendar",
+        type=Path,
+        default=DEFAULT_TRADE_CALENDAR,
+        help=(
+            "独立交易日历 parquet（列 cal_date，Tushare trade_cal）。标签的交易日轴 = 各价格来源的日期（不按股票过滤）"
+            "∪ 该日历；日历里有、没有任何来源覆盖的日子使相关标签为 NaN。文件不存在时只用来源日期，并给出警告。"
+        ),
+    )
     args = parser.parse_args()
 
     snapshot_root = _resolve_under_root(args.snapshot_dir)
+    trade_cal_path = _resolve_under_root(args.trade_calendar)
+    if not trade_cal_path.is_file():
+        log.warning("trade calendar {} not found; label axis uses source dates only", trade_cal_path)
     out_path = _resolve_under_root(args.output)
+    if args.relabel_from is not None:
+        return _relabel_panel(
+            _resolve_under_root(args.relabel_from),
+            out_path,
+            snapshot_root=snapshot_root,
+            raw_daily=(
+                _resolve_under_root(args.price_panel)
+                if args.price_panel is not None
+                else PROJECT_ROOT / "data/raw/daily_prices_panel.parquet"
+            ),
+            through=pd.Timestamp(args.price_through) if args.price_through else None,
+            keep_label_mask=args.keep_label_mask,
+            trade_calendar=trade_cal_path,
+        )
     log_dir = _resolve_under_root(args.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -323,7 +646,7 @@ def main() -> int:
 
     base_order = _base_column_order()
     exp_order = _expansion_column_order()
-    label_cols = ["forward_return_21d", "forward_return_63d"]
+    label_cols = list(LABEL_COLS)
 
     pipe_base = FeaturePipeline(
         groups=BASE_GROUPS,
@@ -384,21 +707,29 @@ def main() -> int:
     all_tickers = sorted(panel_long["ticker"].astype(str).unique())
     earliest = min(dates_kept)
     latest = max(dates_kept)
-    pivot = _price_pivot_from_snapshots(snapshot_root, dates_kept)
     raw_daily = (
         _resolve_under_root(args.price_panel)
         if args.price_panel is not None
         else PROJECT_ROOT / "data/raw/daily_prices_panel.parquet"
     )
-    if raw_daily.is_file() and not pivot.empty:
+    daily_long = _daily_panel_long(raw_daily)
+    long, coverage = _load_return_sources(snapshot_root, all_tickers, extra_long=daily_long)
+    pivot = build_return_index_pivot(long) if not long.empty else pd.DataFrame()
+    if daily_long is None and raw_daily.is_file() and not pivot.empty:
         need_through = pd.Timestamp(latest) + timedelta(days=65)
         if pivot.index.max() < need_through:
+            last = pivot.index.max()
             pivot = _extend_pivot_with_daily_parquet(
                 pivot,
                 all_tickers,
                 raw_parquet=raw_daily,
                 extend_through=need_through,
             )
+            if pivot.index.max() > last:
+                coverage.append((pivot.index[pivot.index > last], frozenset(map(str, pivot.columns))))
+    observed = None
+    if not pivot.empty:
+        pivot, observed = _align_to_axis(pivot, coverage, _load_trade_calendar(trade_cal_path))
     if pivot.empty:
         log.warning("merged snapshot prices empty; falling back to Tushare fetch")
         fwd_end = latest + timedelta(days=int(63 * 1.6) + 10)
@@ -419,6 +750,8 @@ def main() -> int:
             fr = compute_forward_returns(pivot, as_of, (21, 63))
             if fr.empty:
                 continue
+            if observed is not None:  # Tushare 回退路径是单次一致抓取，不需要覆盖检查
+                fr, _ = _drop_unobserved(fr, observed, as_of, (21, 63))
             fr = fr.reset_index().rename(columns={"index": "ticker"})
             fr["as_of"] = pd.Timestamp(as_of)
             fr_parts.append(fr)

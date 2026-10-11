@@ -32,7 +32,8 @@
 ====
 
 - PIT：因子层 ``_assert_pit`` 已保证；label 是「未来收益」，不应出现在 features 里
-- Forward returns 用 ``adjust='qfq'`` 复权后的 close 计算
+- Forward returns：``build_panel`` 仍用 ``adjust='qfq'`` 的 close；``scripts/build_full_panel.py``
+  用 ``build_return_index_pivot``（pct_change 连乘的单一基准指数，T-003）
 - panel 的 columns = 全部因子列 + forward_return_{h}d
 """
 
@@ -197,6 +198,75 @@ def compute_forward_returns(
     return out
 
 
+def build_return_index_pivot(long: pd.DataFrame) -> pd.DataFrame:
+    """由日收益连乘出单一基准的收益指数宽表，供 ``compute_forward_returns`` 计算标签.
+
+    快照 ``prices.parquet`` 的 ``close`` 是以各自快照日为基准的前复权价，跨快照拼接
+    会在除权日附近混用不同基准（T-003）。``pct_change`` 是相对除权参考价
+    ``pre_close`` 的日收益，与复权基准无关，跨快照一致，因此按交易日连乘得到的
+    指数在整个区间只有一个基准。
+
+    Args:
+        long: 长表，列 ``trade_date``、``ticker``、``close``、``pct_change``（百分数）。
+            同一 (trade_date, ticker) 出现多次时保留最后一行。
+
+    Returns:
+        宽表 (trade_date × ticker)。仅在该票当日有 ``close`` 时有值，其余为 NaN，
+        与旧的 close 宽表保持相同的"无价即 NaN"语义；停牌日不贡献收益。
+
+    Raises:
+        ValueError: 有 ``close`` 但 ``pct_change`` 缺失的行（连乘会静默丢掉一天收益）。
+    """
+    if long is None or long.empty:
+        return pd.DataFrame()
+    df = long[["trade_date", "ticker", "close", "pct_change"]].copy()
+    df["trade_date"] = pd.to_datetime(df["trade_date"])
+    df = df.drop_duplicates(subset=["trade_date", "ticker"], keep="last")
+    traded = df["close"].notna()
+    missing = traded & df["pct_change"].isna()
+    if missing.any():
+        sample = df.loc[missing, ["trade_date", "ticker"]].head(5).to_dict("records")
+        raise ValueError(f"{int(missing.sum())} rows have close but no pct_change, e.g. {sample}")
+    close = df.pivot(index="trade_date", columns="ticker", values="close").sort_index()
+    pct = df.pivot(index="trade_date", columns="ticker", values="pct_change").reindex(close.index)
+    growth = (1.0 + pct / 100.0).where(close.notna(), 1.0)
+    return growth.cumprod().where(close.notna())
+
+
+def splice_return_index(
+    index_pivot: pd.DataFrame,
+    level_pivot: pd.DataFrame,
+) -> pd.DataFrame:
+    """把另一来源的价格宽表按**日收益**接到收益指数之后（只补 ``index_pivot`` 之后的日期）.
+
+    ``level_pivot`` 可以是任意复权基准的价格（如日线长表的 ``adj_close``），只要它
+    在自身内部基准一致；拼接只使用它的相邻交易日比值，不使用价格水平，因此两段的
+    基准差异不会进入标签。衔接点取每只票在 ``index_pivot`` 中的最后一个有效值。
+    """
+    if index_pivot.empty or level_pivot is None or level_pivot.empty:
+        return index_pivot
+    last_day = index_pivot.index.max()
+    cols = [c for c in index_pivot.columns if c in level_pivot.columns]
+    if not cols:
+        return index_pivot
+    lv = level_pivot[cols].sort_index()
+    tail_days = lv.index[lv.index > last_day]
+    if len(tail_days) == 0:
+        return index_pivot
+    filled = lv.ffill()
+    # 相邻有价交易日之间的比值；停牌日为 NaN，不贡献收益
+    ratio = lv.div(filled.shift(1)).loc[tail_days]
+    anchor = index_pivot[cols].ffill().iloc[-1]
+    head = filled.loc[filled.index <= last_day]
+    anchor_level = head.iloc[-1] if len(head) else pd.Series(np.nan, index=cols)
+    tail = ratio.fillna(1.0).cumprod().mul(anchor, axis=1)
+    # 衔接日之前在 level_pivot 中从未有价的票：首个比值无从计算，整段尾部置 NaN
+    tail.loc[:, anchor_level.isna()] = np.nan
+    tail = tail.where(lv.loc[tail_days].notna())
+    out = pd.concat([index_pivot, tail.reindex(columns=index_pivot.columns)], axis=0)
+    return out.sort_index()
+
+
 # ============================================================================
 # 主入口：build_panel
 # ============================================================================
@@ -337,8 +407,10 @@ __all__ = [
     "adjust_to_trading_day",
     "build_features_for_date",
     "build_panel",
+    "build_return_index_pivot",
     "compute_forward_returns",
     "fetch_forward_price_pivot",
     "month_end_dates",
     "quarter_end_dates",
+    "splice_return_index",
 ]
