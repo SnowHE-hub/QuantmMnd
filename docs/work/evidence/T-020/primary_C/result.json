@@ -1,0 +1,358 @@
+{
+ "inputs": {
+  "preds": "/home/lenovo/projects/quantmind/data/bakeoff/preds_v6_1/ridge_12d_v6_1_C.parquet",
+  "n_as_of": 224,
+  "as_of_range": [
+   "2022-02-14",
+   "2026-09-15"
+  ],
+  "prices": "alpha_prices_panel_v6_20261009.parquet",
+  "amihud": "alpha_panel_weekly_v6_1.parquet",
+  "amihud_date_coverage": 1.0
+ },
+ "variants": {
+  "B0_baseline": {
+   "params": {
+    "step": 3,
+    "exit_rank": null,
+    "drift_band": null
+   },
+   "period": {
+    "start": "2022-02-14",
+    "end": "2026-10-09",
+    "n_trading_days": 1128,
+    "n_rebalances": 75
+   },
+   "ann_net_excess": 0.0072495604411340064,
+   "ann_gross_excess": 0.056021257074640674,
+   "information_ratio": 0.11362346524637136,
+   "max_drawdown_net": -0.5024072844958096,
+   "yearly_net_excess": {
+    "2022": -0.08670880267365222,
+    "2023": 0.10311038096717162,
+    "2024": -0.0539726986424689,
+    "2025": 0.08753480688400272,
+    "2026": -0.00011074227490781574
+   },
+   "cost_drag_ann": 0.04877169663350667,
+   "turnover_annualized_twoway": 24.48674282291637,
+   "n_trades_filled": 38507,
+   "rejections_distinct": {
+    "limit_up_locked": 192,
+    "insufficient_cash": 161,
+    "limit_down_locked": 103,
+    "suspended_no_bar": 98,
+    "expired_unfilled": 65,
+    "one_line_board": 40
+   },
+   "mean_kept_outside_top300": null,
+   "gate_pass": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 53.0
+  },
+  "B1_buffer600": {
+   "params": {
+    "step": 3,
+    "exit_rank": 600,
+    "drift_band": null
+   },
+   "period": {
+    "start": "2022-02-14",
+    "end": "2026-10-09",
+    "n_trading_days": 1128,
+    "n_rebalances": 75
+   },
+   "ann_net_excess": 0.01422896756895542,
+   "ann_gross_excess": 0.052019249367616927,
+   "information_ratio": 0.1736088364429425,
+   "max_drawdown_net": -0.4808669683352582,
+   "yearly_net_excess": {
+    "2022": -0.051366856273099226,
+    "2023": 0.09077602203705815,
+    "2024": -0.04230129856497966,
+    "2025": 0.11088871357789376,
+    "2026": -0.0265325259013659
+   },
+   "cost_drag_ann": 0.03779028179866151,
+   "turnover_annualized_twoway": 17.745279076862786,
+   "n_trades_filled": 33391,
+   "rejections_distinct": {
+    "insufficient_cash": 886,
+    "expired_unfilled": 480,
+    "limit_up_locked": 193,
+    "suspended_no_bar": 96,
+    "limit_down_locked": 86,
+    "one_line_board": 38
+   },
+   "mean_kept_outside_top300": 59.53333333333333,
+   "gate_pass": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 48.0
+  },
+  "B2_band50": {
+   "params": {
+    "step": 3,
+    "exit_rank": null,
+    "drift_band": 0.5
+   },
+   "period": {
+    "start": "2022-02-14",
+    "end": "2026-10-09",
+    "n_trading_days": 1128,
+    "n_rebalances": 75
+   },
+   "ann_net_excess": 0.0059369126712724984,
+   "ann_gross_excess": 0.05425666829424036,
+   "information_ratio": 0.09781066716084179,
+   "max_drawdown_net": -0.5025533387784237,
+   "yearly_net_excess": {
+    "2022": -0.08663165433733544,
+    "2023": 0.10189688161427712,
+    "2024": -0.05599741899149391,
+    "2025": 0.08510747574519795,
+    "2026": -0.0010453111324288944
+   },
+   "cost_drag_ann": 0.048319755622967864,
+   "turnover_annualized_twoway": 24.155440648718688,
+   "n_trades_filled": 32529,
+   "rejections_distinct": {
+    "limit_up_locked": 178,
+    "insufficient_cash": 118,
+    "limit_down_locked": 88,
+    "suspended_no_bar": 86,
+    "expired_unfilled": 57,
+    "one_line_board": 37
+   },
+   "mean_kept_outside_top300": null,
+   "gate_pass": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 33.8
+  },
+  "B3_buffer600_band50": {
+   "params": {
+    "step": 3,
+    "exit_rank": 600,
+    "drift_band": 0.5
+   },
+   "period": {
+    "start": "2022-02-14",
+    "end": "2026-10-09",
+    "n_trading_days": 1128,
+    "n_rebalances": 75
+   },
+   "ann_net_excess": 0.012124863937295283,
+   "ann_gross_excess": 0.048840924621115334,
+   "information_ratio": 0.14841734729745137,
+   "max_drawdown_net": -0.481820258137579,
+   "yearly_net_excess": {
+    "2022": -0.05172286489171629,
+    "2023": 0.08712373722454414,
+    "2024": -0.047301047866980195,
+    "2025": 0.106828699450922,
+    "2026": -0.0238098443680117
+   },
+   "cost_drag_ann": 0.03671606068382005,
+   "turnover_annualized_twoway": 17.135451146594075,
+   "n_trades_filled": 23121,
+   "rejections_distinct": {
+    "limit_up_locked": 128,
+    "insufficient_cash": 109,
+    "suspended_no_bar": 77,
+    "expired_unfilled": 76,
+    "limit_down_locked": 61,
+    "one_line_board": 33
+   },
+   "mean_kept_outside_top300": 59.42666666666667,
+   "gate_pass": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 30.9
+  },
+  "B4_step6": {
+   "params": {
+    "step": 6,
+    "exit_rank": null,
+    "drift_band": null
+   },
+   "period": {
+    "start": "2022-02-14",
+    "end": "2026-10-09",
+    "n_trading_days": 1128,
+    "n_rebalances": 38
+   },
+   "ann_net_excess": 0.00232881896087056,
+   "ann_gross_excess": 0.029496415402569975,
+   "information_ratio": 0.05611621050678439,
+   "max_drawdown_net": -0.46823731952046194,
+   "yearly_net_excess": {
+    "2022": -0.038235310932400735,
+    "2023": 0.08709867763405166,
+    "2024": -0.04018422553697365,
+    "2025": -0.006114239054511472,
+    "2026": 0.017170224862204986
+   },
+   "cost_drag_ann": 0.027167596441699415,
+   "turnover_annualized_twoway": 13.100184853178806,
+   "n_trades_filled": 19897,
+   "rejections_distinct": {
+    "limit_up_locked": 104,
+    "insufficient_cash": 74,
+    "suspended_no_bar": 48,
+    "limit_down_locked": 40,
+    "expired_unfilled": 24,
+    "one_line_board": 22
+   },
+   "mean_kept_outside_top300": null,
+   "gate_pass": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 29.1
+  }
+ },
+ "paired_vs_baseline": {
+  "B1_buffer600_minus_B0_baseline": {
+   "n_days": 1127,
+   "ann_mean_diff": 0.006070091872084918,
+   "ci95": [
+    -0.01113097020561213,
+    0.031233995102720666
+   ],
+   "primary": false
+  },
+  "B2_band50_minus_B0_baseline": {
+   "n_days": 1127,
+   "ann_mean_diff": -0.0016998380244776295,
+   "ci95": [
+    -0.007961690919071496,
+    0.0029843828105779436
+   ],
+   "primary": false
+  },
+  "B3_buffer600_band50_minus_B0_baseline": {
+   "n_days": 1127,
+   "ann_mean_diff": 0.0033425402988652843,
+   "ci95": [
+    -0.01748807840034915,
+    0.030506109230087085
+   ],
+   "primary": true
+  },
+  "B4_step6_minus_B0_baseline": {
+   "n_days": 1127,
+   "ann_mean_diff": 0.011222645023437292,
+   "ci95": [
+    -0.042541060358012715,
+    0.06029624440788056
+   ],
+   "primary": false
+  }
+ },
+ "primary_verdict": {
+  "effective": false,
+  "primary_gate_pass": false,
+  "rule": "effective = 年化均值差 > 0 且 95% 区间下界 > 0；12d 是否可用只看 B3 是否通过原闸门（阈值不变）"
+ }
+}
