@@ -244,6 +244,7 @@ def run_by_date(pro, universe: set[str], sleep: float):
     todo_dates_ordered = list(reversed(todo_dates))
     success_cnt = 0
     skip_cnt = 0
+    failed_dates: list[str] = []
 
     for i, dt in enumerate(todo_dates_ordered):
         try:
@@ -255,16 +256,20 @@ def run_by_date(pro, universe: set[str], sleep: float):
             )
             time.sleep(sleep)
             if df.empty:
-                done_dates.add(dt)  # 可能非交易日，标记跳过
+                # 日期来自 trade_cal(is_open=1)，一定是交易日；_retry 在重试耗尽时吞掉异常并返回空表，
+                # 所以空表 = 请求失败。不能记入 done，否则这一天永远不会再下载
+                # （T-012：alpha_prices_panel 缺 18 个交易日的根因）。
+                failed_dates.append(dt)
                 skip_cnt += 1
-                continue
-            df_filtered = df[df["ts_code"].isin(universe)].copy()
-            df_filtered["trade_date"] = dt
-            date_parts.append(df_filtered)
-            done_dates.add(dt)
-            success_cnt += 1
+            else:
+                df_filtered = df[df["ts_code"].isin(universe)].copy()
+                df_filtered["trade_date"] = dt
+                date_parts.append(df_filtered)
+                done_dates.add(dt)
+                success_cnt += 1
         except Exception as e:
             print(f"  [跳过] {dt}: {str(e)[:80]}", flush=True)
+            failed_dates.append(dt)
             skip_cnt += 1
 
         if (i + 1) % 100 == 0 or i + 1 == len(todo_dates_ordered):
@@ -277,6 +282,10 @@ def run_by_date(pro, universe: set[str], sleep: float):
 
     if date_parts:
         _flush_date_parts(date_parts, universe, final=True)
+
+    if failed_dates:
+        print(f"  [未完成] {len(failed_dates)} 个交易日下载失败，未标记为完成，下次运行会重试："
+              f"{sorted(failed_dates)[:20]}{' …' if len(failed_dates) > 20 else ''}", flush=True)
 
     # adj_factor 必须按股票拉（无法按日期）
     print("\n[by_date] 下载复权因子（按股票，官方API更快）...", flush=True)
