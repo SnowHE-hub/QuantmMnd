@@ -13,11 +13,12 @@ v1 失败（train R²=0.034，CV R²=-0.013）：
 1. 数据源：realized_pnl × alpha_panel_v4 join
    - realized_pnl: 8季度 × 10只股票 = 80行（含 actual_return_63d, hit）
    - alpha_panel: 按 (as_of, ticker) join，提取原始因子
-   - join 后 n=100（含 2025-06-28 + 2025-06-30 双季度）
+   - 2025-06-28 与 2025-06-30 是同一批推荐：规范化日期后去重，n=70（旧版不去重时为 100，
+     其中 40 行是同 10 个持仓的重复，T-013）
 2. 特征：6个 Agent 代理分数（由 AgentMetaLearner.compute_agent_proxies 计算）
 3. 任务 A - 回归：Ridge → actual_return_63d（per-quarter z-score 去除市场因子）
-4. 任务 B - 分类：LogisticRegression → hit（是否跑赢中位数）
-5. CV：Leave-One-Quarter-Out（LOQO，最严格的时序 CV）
+4. 任务 B - 分类：LogisticRegression → hit（actual_rank <= predicted_rank，见 track_realized_pnl）
+5. CV：Leave-One-Quarter-Out（LOQO；训练集含测试季之后的季度，不是时序前向验证）
 6. 保存更好的模型（按 CV AUC / R² 判断）
 
 用法
@@ -85,6 +86,14 @@ def build_training_data(pnl_path: Path, panel_path: Path) -> pd.DataFrame:
     # ── 日期规范化（2025-06-28 → 2025-06-30，最近季末）──
     pnl["join_date"] = pd.to_datetime(pnl["as_of_date"])
     pnl.loc[pnl["join_date"].dt.strftime("%Y-%m-%d") == "2025-06-28", "join_date"] = pd.Timestamp("2025-06-30")
+
+    # ── 去重：规范化后同一 (join_date, ticker) 只保留一条 ──
+    # realized_pnl 里 2025-06-28 与 2025-06-30 是同一批推荐（代码、入场日、收益逐条相同），
+    # 不去重时后面两次 join 会让每个持仓出现 4 次，100 个样本里 40 个是 10 个持仓的重复（T-013）。
+    dup = pnl.duplicated(subset=["join_date", "ticker"], keep="first")
+    if dup.any():
+        logger.warning(f"去重：{int(dup.sum())} 行与已有 (join_date, ticker) 重复，已丢弃")
+        pnl = pnl.loc[~dup].copy()
 
     # ── panel reset_index（MultiIndex: as_of, ticker）──
     panel_r = panel.reset_index().rename(columns={"as_of": "join_date"})
@@ -175,7 +184,11 @@ def loqo_cv(
     metric_fn,
     verbose: bool = True,
 ) -> tuple[float, list[float]]:
-    """Leave-One-Quarter-Out CV，严格时序不泄露."""
+    """Leave-One-Quarter-Out CV.
+
+    注意：留一季交叉验证的训练集包含测试季**之后**的季度，不是时序前向验证；
+    报告 CV 指标时应注明这一点（T-013）。
+    """
     unique_quarters = np.unique(groups)
     scores: list[float] = []
 

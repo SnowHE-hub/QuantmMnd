@@ -13,8 +13,8 @@
   ticker            股票代码
   predicted_rank    lgbm_score 排名（1=最高分）
   predicted_score   lgbm_score 原始值
-  entry_price       推荐日收盘价
-  exit_price        63 交易日后收盘价
+  entry_price       入场日后复权收盘价（close × adj_factor，不是盘面价格）
+  exit_price        63 交易日后的后复权收盘价
   actual_return_63d 实际收益率
   actual_rank       在推荐宇宙内的实际收益排名（1=最好）
   pnl_vs_median     实际收益 - 同期宇宙中位数（超额）
@@ -65,10 +65,25 @@ HOLDING_DAYS = 63   # 交易日数
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_price_pivot(prices_path: Path) -> pd.DataFrame:
-    """加载价格面板，pivot 为 (trade_date × ts_code) 宽表."""
-    df = pd.read_parquet(prices_path, columns=["ts_code", "trade_date", "close"])
+    """加载价格面板，pivot 为 (trade_date × ts_code) 的**复权价**宽表.
+
+    收益必须用复权价：原始 close 在除权除息日跳空，分红、送转会被算成亏损（T-013）。
+    优先 close × adj_factor（后复权，基准与下载时点无关）；其次 adj_close；两者都没有时报错，
+    不再静默退回原始 close。
+    """
+    import pyarrow.parquet as pq
+
+    names = set(pq.read_schema(prices_path).names)
+    if {"close", "adj_factor"} <= names:
+        df = pd.read_parquet(prices_path, columns=["ts_code", "trade_date", "close", "adj_factor"])
+        df["price"] = df["close"] * df["adj_factor"]
+    elif "adj_close" in names:
+        df = pd.read_parquet(prices_path, columns=["ts_code", "trade_date", "adj_close"])
+        df["price"] = df["adj_close"]
+    else:
+        raise ValueError(f"{prices_path} 既没有 close+adj_factor 也没有 adj_close，不能计算复权收益")
     df["trade_date"] = pd.to_datetime(df["trade_date"])
-    wide = df.pivot_table(index="trade_date", columns="ts_code", values="close", aggfunc="last")
+    wide = df.pivot_table(index="trade_date", columns="ts_code", values="price", aggfunc="last")
     wide = wide.sort_index()
     logger.info(f"价格宽表: {wide.shape}（{wide.index[0].date()} → {wide.index[-1].date()}）")
     return wide
