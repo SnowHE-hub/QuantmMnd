@@ -353,3 +353,60 @@ class TestGroundingScore:
         assert not np.isnan(report.lgbm_rank_ic)
         assert not np.isnan(report.llm_rank_ic)
         assert not np.isnan(report.rerank_lift)
+
+
+# ============================================================================
+# test_zscore_rendering
+# ============================================================================
+
+
+class TestZScoreRendering:
+    """截面标准分如实渲染：不加百分号，保留 2 位小数。"""
+
+    def test_roe_ttm_renders_as_two_decimal_standard_score(self):
+        """roe_ttm=1.7952 渲染为 1.80，该字段不含 %，表头含「标准分」。"""
+        candidate = RerankCandidate(
+            ticker="600519.SH",
+            lgbm_score=1.0,
+            lgbm_rank=1,
+            pe_ttm=0.12,
+            pb=-0.34,
+            roe_ttm=1.7952,
+            accruals=-0.021,
+            distance_to_52w_high=-0.456,
+            momentum_6m=0.2,
+            volatility_3m=1.0,
+        )
+        prompt = LLMListwiseReranker()._build_user_prompt(
+            [candidate], top_n=1, as_of_date="2024-06-28",
+        )
+        header = next(line for line in prompt.splitlines() if "LGBM排名" in line)
+        assert "标准分" in header
+        assert "0 为截面均值，正值高于平均" in prompt
+
+        row = next(line for line in prompt.splitlines() if "600519.SH" in line)
+        cells = [cell.strip() for cell in row.split("|") if cell.strip()]
+        roe, dist, mom, vol = cells[4], cells[6], cells[7], cells[8]
+        assert roe == "1.80"
+        assert "%" not in roe
+        assert dist == "-0.46"
+        assert mom == "0.20"
+        assert vol == "1.00"
+        assert "%" not in dist
+        assert "%" not in mom
+        assert "%" not in vol
+
+    def test_system_prompt_names_alpha_1374_and_zscore_scale(self):
+        from quantmind.models.llm_reranker import _SYSTEM_PROMPT
+
+        assert "Alpha 1374" in _SYSTEM_PROMPT
+        assert "CSI300" not in _SYSTEM_PROMPT
+        assert "0 为截面均值，正值高于平均" in _SYSTEM_PROMPT
+
+    def test_dpo_docstring_warns_raw_vs_zscore_mismatch(self):
+        import quantmind.models.dpo_data_builder as dpo
+
+        doc = dpo.__doc__ or ""
+        assert "原始量纲" in doc
+        assert "截面标准分" in doc
+        assert "不一致" in doc

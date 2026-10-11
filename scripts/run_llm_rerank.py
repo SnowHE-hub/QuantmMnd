@@ -120,11 +120,9 @@ def _rank_arrow(lgbm_rank: int, llm_rank: int) -> str:
         return f'<span class="rank-same">→{diff:+d}</span>'
 
 
-def _fmt_factor(val: float, pct: bool = False, decimals: int = 2) -> str:
+def _fmt_factor(val: float, decimals: int = 2) -> str:
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return '<span style="color:#ccc">—</span>'
-    if pct:
-        return f"{val * 100:.{decimals}f}%"
     return f"{val:.{decimals}f}"
 
 
@@ -226,14 +224,17 @@ def build_html_report(
     ]
     parts.append("</div>")
 
-    # 排名对比表
+    # 排名对比表（因子值为截面标准分，不是百分比）
     shap_header = "<th>SHAP主导因子</th>" if shap_computed else ""
+    parts.append(
+        "<p><b>因子量纲：</b>表中因子值为截面标准分：0 为截面均值，正值高于平均。</p>"
+    )
     parts.append(f"""
     <table>
       <thead><tr>
         <th>LLM</th><th>代码</th><th>LGBM</th><th>变化</th>
-        <th>PE</th><th>PB</th><th>ROE%</th><th>Accruals</th>
-        <th>52W高%</th><th>动量6M%</th><th>波动3M%</th>
+        <th>PE</th><th>PB</th><th>ROE标准分</th><th>Accruals</th>
+        <th>距52W高标准分</th><th>动量6M标准分</th><th>波动3M标准分</th>
         {shap_header}<th>LLM 理由</th>
       </tr></thead><tbody>
     """)
@@ -254,11 +255,11 @@ def build_html_report(
           <td>{_rank_arrow(r.lgbm_rank, r.rank)}</td>
           <td>{_fmt_factor(c.pe_ttm if c else float("nan"))}</td>
           <td>{_fmt_factor(c.pb if c else float("nan"))}</td>
-          <td>{_fmt_factor(c.roe_ttm if c else float("nan"), pct=True)}</td>
+          <td>{_fmt_factor(c.roe_ttm if c else float("nan"))}</td>
           <td>{_fmt_factor(c.accruals if c else float("nan"), decimals=3)}</td>
-          <td>{_fmt_factor(c.distance_to_52w_high if c else float("nan"), pct=True)}</td>
-          <td>{_fmt_factor(c.momentum_6m if c else float("nan"), pct=True)}</td>
-          <td>{_fmt_factor(c.volatility_3m if c else float("nan"), pct=True)}</td>
+          <td>{_fmt_factor(c.distance_to_52w_high if c else float("nan"))}</td>
+          <td>{_fmt_factor(c.momentum_6m if c else float("nan"))}</td>
+          <td>{_fmt_factor(c.volatility_3m if c else float("nan"))}</td>
           {shap_td}
           <td>{reason_html}</td>
         </tr>""")

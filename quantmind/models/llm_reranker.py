@@ -84,8 +84,11 @@ class RerankResult:
 # ============================================================================
 
 _SYSTEM_PROMPT = """\
-你是一名专注于 A 股 CSI300 指数成分股的量化研究员。
+你是一名专注于 A 股 Alpha 1374 票池的量化研究员。
 任务：对候选股票列表进行精细排名，并提供组合级别的投资分析。
+
+因子量纲：
+表格中的因子值是截面标准分，不是原始财务比率。0 为截面均值，正值高于平均，负值低于平均。reason 中引用数字时沿用表格里的标准分。
 
 评估维度（重要性依次递减）：
 1. 盈利质量：ROE_TTM 高、应计利润率（accruals）低（低应计=高现金流质量）
@@ -113,8 +116,10 @@ _USER_PROMPT_TEMPLATE = """\
 候选股票数量：{n_candidates}
 请从以下 {n_candidates} 只股票中选出并排序前 {top_n} 名（第1名=最优）。
 
-| LGBM排名 | 代码     | PE_TTM  | PB     | ROE_TTM | Accruals | 距52W高% | 动量6M% | 波动3M% |
-|---------|---------|---------|--------|---------|----------|---------|---------|---------|
+下表因子值为截面标准分：0 为截面均值，正值高于平均。
+
+| LGBM排名 | 代码     | PE_TTM  | PB     | ROE_TTM标准分 | Accruals | 距52W高标准分 | 动量6M标准分 | 波动3M标准分 |
+|---------|---------|---------|--------|--------------|----------|--------------|-------------|-------------|
 {table_rows}
 {shap_section}
 请严格按如下格式输出 JSON（只输出 JSON，不要有任何其他文字）：
@@ -126,11 +131,9 @@ _USER_PROMPT_TEMPLATE = """\
 """
 
 
-def _fmt(val: float, pct: bool = False, decimals: int = 2) -> str:
+def _fmt(val: float, decimals: int = 2) -> str:
     if np.isnan(val):
         return "N/A"
-    if pct:
-        return f"{val * 100:.{decimals}f}%"
     return f"{val:.{decimals}f}"
 
 
@@ -292,11 +295,11 @@ class LLMListwiseReranker:
                 f"| {c.ticker:<10} "
                 f"| {_fmt(c.pe_ttm):>7} "
                 f"| {_fmt(c.pb):>6} "
-                f"| {_fmt(c.roe_ttm, pct=True):>7} "
+                f"| {_fmt(c.roe_ttm):>7} "
                 f"| {_fmt(c.accruals, decimals=3):>8} "
-                f"| {_fmt(c.distance_to_52w_high, pct=True):>7} "
-                f"| {_fmt(c.momentum_6m, pct=True):>7} "
-                f"| {_fmt(c.volatility_3m, pct=True):>7} |"
+                f"| {_fmt(c.distance_to_52w_high):>7} "
+                f"| {_fmt(c.momentum_6m):>7} "
+                f"| {_fmt(c.volatility_3m):>7} |"
             )
             rows.append(row)
 
