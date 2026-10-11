@@ -1,0 +1,4 @@
+884261fb052b20a069ab6483fea9f89c  data/raw/alpha_prices_panel.parquet
+75d0951ecf5cfa383884d1ae53123c0c  data/raw/alpha_prices_panel_v6.parquet
+d98146c263eeb9870f06ef23a2ced7c7  data/panel/alpha_panel_v4.parquet
+9c407358bbc2fec65db6b3c429f4ef92  data/panel/alpha_panel_v4_1.parquet

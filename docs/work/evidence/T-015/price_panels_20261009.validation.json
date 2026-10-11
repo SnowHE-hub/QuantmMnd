@@ -1,0 +1,62 @@
+{
+  "end": "2026-10-09",
+  "v6": {
+    "n_dates": 1882,
+    "first": "2019-01-02",
+    "last": "2026-10-09",
+    "missing_vs_trade_cal": [],
+    "extra_vs_trade_cal": [],
+    "duplicate_keys": 0,
+    "adj_factor_na": 0,
+    "pct_chg_consistent_frac": 0.9999998888472931,
+    "n_rows": 8996690,
+    "n_tickers": 5813,
+    "old_rows": 8345172,
+    "old_rows_missing_in_new": 0,
+    "overlap_value_mismatches": {
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "pre_close": 0,
+      "change": 0,
+      "pct_chg": 0,
+      "vol": 0,
+      "amount": 0,
+      "adj_factor": 0,
+      "adj_close": 0
+    },
+    "new_rows_beyond_old": 651518
+  },
+  "v5": {
+    "n_dates": 1882,
+    "first": "2019-01-02",
+    "last": "2026-10-09",
+    "missing_vs_trade_cal": [],
+    "extra_vs_trade_cal": [],
+    "duplicate_keys": 0,
+    "adj_factor_na": 0,
+    "pct_chg_consistent_frac": 1.0,
+    "n_rows": 2436872,
+    "n_tickers": 1374,
+    "old_rows": 2273529,
+    "old_rows_missing_in_new": 0,
+    "overlap_value_mismatches": {
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "pre_close": 0,
+      "change": 0,
+      "pct_chg": 0,
+      "vol": 0,
+      "amount": 0,
+      "adj_factor": 0,
+      "adj_close_daily_return": 0
+    },
+    "new_rows_beyond_old": 163343,
+    "tickers_with_bar_on_last_day": 1366
+  },
+  "v5_universe_size": 1374,
+  "v5_universe_tickers_with_rows": 1374
+}
