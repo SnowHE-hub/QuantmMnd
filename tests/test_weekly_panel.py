@@ -6,11 +6,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from quantmind.features import weekly_panel as wp
+
+_LOCAL_PRICES = Path(__file__).resolve().parents[1] / "data" / "raw" / "alpha_prices_panel.parquet"
 
 
 # ---------------------------------------------------------------------------
@@ -33,6 +37,8 @@ def test_grid_anchor_last_asof_has_full_fwd_horizon():
     assert grid == sorted(grid)
 
 
+# 交易日历来自被 gitignore 的本机数据文件：CI / 新 clone 上跳过（T-011）
+@pytest.mark.skipif(not _LOCAL_PRICES.exists(), reason="需要本机 data/raw/alpha_prices_panel.parquet")
 def test_grid_real_calendar_last_asof_2026_04_20():
     cal = wp.load_trading_calendar()
     grid = wp.build_asof_grid(cal)

@@ -13,6 +13,8 @@ from quantmind.core.config import (
     load_config,
 )
 
+_ROOT = Path(__file__).resolve().parents[1]
+
 
 class TestEnvVarResolver:
     def test_simple_substitution(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -48,6 +50,8 @@ class TestLoadConfig:
         assert s.data.pit_strict is True
         assert s.backtest.benchmark == "000300.SH"
 
+    # 期望值来自本机 .env（不进 git）：CI / 新 clone 上跳过（T-011）
+    @pytest.mark.skipif(not (_ROOT / ".env").exists(), reason="需要本机 .env（不在仓库中）")
     def test_yaml_var_resolution(self) -> None:
         s = load_config("default")
         # default.yaml 里 llm.provider = ${DEFAULT_LLM_PROVIDER}

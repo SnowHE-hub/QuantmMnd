@@ -27,6 +27,8 @@ if str(ROOT) not in sys.path:
 # ── env 读写 ────────────────────────────────────────────────────────────────
 
 class TestEnvReadWrite:
+    # .env 不进 git：本机有 .env 时照常检查，CI / 新 clone 上跳过（T-011）
+    @pytest.mark.skipif(not (ROOT / ".env").exists(), reason="需要本机 .env（不在仓库中）")
     def test_read_existing_env(self):
         from app.ops.db_health import read_env_value
         # DATA_BACKEND 已在 E1 阶段加入 .env

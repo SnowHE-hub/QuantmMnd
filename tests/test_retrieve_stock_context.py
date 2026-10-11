@@ -26,6 +26,15 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+import importlib.util  # noqa: E402
+
+# 写入快照文档需要真实嵌入模型（FlagEmbedding，首次使用要联网下载权重）：
+# 未安装时跳过，避免在 CI / 新 clone 上失败（T-011）
+_needs_embedding = pytest.mark.skipif(
+    importlib.util.find_spec("FlagEmbedding") is None,
+    reason="需要 FlagEmbedding 与本机已缓存的嵌入模型",
+)
+
 
 # ── 内联脚本中的纯函数（无 I/O 依赖）──────────────────────────────────────────
 
@@ -247,6 +256,7 @@ def test_fetch_by_metadata_empty_collection(tmp_path: Path) -> None:
     assert results == []
 
 
+@_needs_embedding
 def test_fetch_by_metadata_with_data(tmp_path: Path) -> None:
     """插入一条快照文档后，fetch_by_metadata 能精确检索。"""
     from quantmind.kb.chunker import Chunk
@@ -288,6 +298,7 @@ def test_fetch_by_metadata_with_data(tmp_path: Path) -> None:
     assert results[0].metadata["doc_type"] == "company_profile"
 
 
+@_needs_embedding
 def test_fetch_by_metadata_pit_filter(tmp_path: Path) -> None:
     """as_of 过滤：published_date 超过 as_of 的文档被排除。"""
     from quantmind.kb.chunker import Chunk

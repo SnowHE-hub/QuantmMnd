@@ -6,8 +6,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    - cron: "0 2 * * 0"  # 每周日 UTC 02:00 跑集成测试
+  # 集成测试改为手动触发（2026-10-10 决定）：仓库里的旧 TUSHARE_TOKEN 已在 2026Q2 轮换作废，
+  # 定时运行只会每周失败一次。在 Settings → Secrets 更新 TUSHARE_TOKEN 并手动跑通一次后，
+  # 可恢复：schedule: - cron: "0 2 * * 0"，并把下方 integration job 的 if 改回 schedule。
+  workflow_dispatch:
 
 jobs:
   unit-tests:
@@ -52,8 +54,8 @@ jobs:
             --timeout=120
 
   weekly-integration:
-    name: Integration Tests (weekly, requires secrets)
-    if: github.event_name == 'schedule'
+    name: Integration Tests (manual, requires secrets)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
