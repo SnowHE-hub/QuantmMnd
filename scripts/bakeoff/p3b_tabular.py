@@ -42,7 +42,10 @@ def make_monthly_cutoffs(cal, start, end):
 
 
 class RidgePredictor:
-    """诚实线性基线：数值特征标准化 + Ridge 回归 raw label。categorical 丢弃。"""
+    """诚实线性基线：数值特征标准化 + Ridge 回归 raw label。categorical 丢弃。
+
+    ±inf 视为缺失（T-026）：否则一个 inf 会让该列均值 / 标准差变成 inf / NaN，整列标准化后全被填 0，该因子实际被弃用。
+    """
     def __init__(self, alpha=10.0):
         from sklearn.linear_model import Ridge
         self.alpha = alpha; self._m = None; self._mu = None; self._sd = None; self._num = None
@@ -50,7 +53,7 @@ class RidgePredictor:
         from sklearn.linear_model import Ridge
         self._num = [f for f in feats if f not in ("exposure_industry", "exposure_area")]
         tr = panel.loc[panel.index.get_level_values("as_of").isin(set(train_dates))]
-        X = tr[self._num].astype(float); y = tr[label].astype(float)
+        X = tr[self._num].astype(float).replace([np.inf, -np.inf], np.nan); y = tr[label].astype(float)
         ok = y.notna()
         X = X[ok]; y = y[ok]
         self._mu = X.mean(); self._sd = X.std().replace(0, 1.0)
@@ -59,7 +62,8 @@ class RidgePredictor:
         return self
     def score(self, panel, date, feats):
         xs = panel.xs(pd.Timestamp(date), level="as_of")
-        Xz = ((xs[self._num].astype(float) - self._mu) / self._sd).fillna(0.0).values
+        X = xs[self._num].astype(float).replace([np.inf, -np.inf], np.nan)
+        Xz = ((X - self._mu) / self._sd).fillna(0.0).values
         return pd.Series(self._m.predict(Xz), index=xs.index, name="score")
 
 
