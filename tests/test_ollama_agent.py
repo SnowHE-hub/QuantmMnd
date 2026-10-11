@@ -456,3 +456,36 @@ def test_valuation_agent_full_mode_real_ollama():  # noqa: F811
     print(f"\n五粮液 signal={result.signal:+.2f} conf={result.confidence:.2f}")
     print(f"工具调用: {result.tools_called}")
     print(f"推理步骤: {len(result.reasoning_trace)}")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# T-021：预热
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestWarmUp:
+    def test_success_posts_empty_prompt_with_keep_alive(self):
+        from quantmind.agents.ollama_client import OllamaReActClient
+        resp = MagicMock(status_code=200, text="{}")
+        with patch("quantmind.agents.ollama_client.requests.post", return_value=resp) as post:
+            ok, secs, msg = OllamaReActClient.warm_up(model="qwen2.5:7b", timeout=123, keep_alive="30m")
+        assert ok and msg == "loaded" and secs >= 0
+        url = post.call_args.args[0]
+        body = post.call_args.kwargs["json"]
+        assert url.endswith("/api/generate")
+        assert body == {"model": "qwen2.5:7b", "prompt": "", "keep_alive": "30m", "stream": False}
+        assert post.call_args.kwargs["timeout"] == 123
+
+    def test_missing_model_reports_http_404(self):
+        from quantmind.agents.ollama_client import OllamaReActClient
+        resp = MagicMock(status_code=404, text="model not found")
+        with patch("quantmind.agents.ollama_client.requests.post", return_value=resp):
+            ok, _, msg = OllamaReActClient.warm_up(model="nope:1b")
+        assert not ok and msg.startswith("HTTP 404")
+
+    def test_timeout_does_not_raise(self):
+        import requests as _rq
+
+        from quantmind.agents.ollama_client import OllamaReActClient
+        with patch("quantmind.agents.ollama_client.requests.post", side_effect=_rq.exceptions.ReadTimeout("slow")):
+            ok, _, msg = OllamaReActClient.warm_up(timeout=1)
+        assert not ok and "ReadTimeout" in msg

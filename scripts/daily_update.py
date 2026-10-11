@@ -1202,6 +1202,21 @@ def step7a_agent_analysis(
             )
             agent_mode = "fast"
 
+    # ── 2b. 预热：冷启动加载可能超过单次调用超时（默认 60s），导致首批 Agent 调用降级 ──
+    warmup: dict = {}
+    if agent_mode == "full":
+        from quantmind.agents.ollama_client import OllamaReActClient
+        ok, secs, msg = OllamaReActClient.warm_up(
+            model=ollama_model, timeout=float(config.get("ollama_warmup_timeout", 300)))
+        warmup = {"ok": ok, "seconds": round(secs, 1), "detail": msg}
+        if ok:
+            logger.info(f"[Step7a] Ollama 预热完成：{ollama_model}（{secs:.1f}s）")
+        elif msg.startswith("HTTP 404"):
+            logger.warning(f"[Step7a] Ollama 未安装模型 {ollama_model}（{msg}），full → fast 降级")
+            agent_mode = "fast"
+        else:
+            logger.warning(f"[Step7a] Ollama 预热未完成（{msg}，{secs:.0f}s），仍按 full 运行，首批调用可能降级")
+
     date_str = as_of.isoformat()
     n = min(args.agent_top, len(top10))
     tickers = [c["ticker"] for c in top10[:n]]
@@ -1364,6 +1379,7 @@ def step7a_agent_analysis(
             "stocks_failed":         fail_count,
             "ollama_used":           agent_mode == "full",
             "ollama_model":          ollama_model if agent_mode == "full" else None,
+            "ollama_warmup":         warmup or None,
             "avg_confidence":        round(avg_conf, 4),
         }
         stats_path = out_dir / "agent_stats.json"

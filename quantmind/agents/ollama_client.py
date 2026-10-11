@@ -358,6 +358,32 @@ class OllamaReActClient:
         except Exception:
             return False
 
+    @classmethod
+    def warm_up(
+        cls,
+        model: str = "qwen2.5:7b",
+        base_url: str = "",
+        timeout: float = 300.0,
+        keep_alive: str = "30m",
+    ) -> tuple[bool, float, str]:
+        """预先把模型加载进显存（空 prompt 的 /api/generate 只加载、不生成）.
+
+        冷启动加载可能超过单次调用的超时（Agent 默认 60s），导致第一批调用降级。
+        返回 (是否成功, 耗时秒, 说明)。失败不抛异常，由调用方决定是否降级。
+        """
+        url = (base_url or cls.BASE_URL).rstrip("/")
+        t0 = time.monotonic()
+        try:
+            r = requests.post(f"{url}/api/generate",
+                              json={"model": model, "prompt": "", "keep_alive": keep_alive, "stream": False},
+                              timeout=timeout)
+            elapsed = time.monotonic() - t0
+            if r.status_code != 200:
+                return False, elapsed, f"HTTP {r.status_code}: {r.text[:120]}"
+            return True, elapsed, "loaded"
+        except Exception as e:  # noqa: BLE001
+            return False, time.monotonic() - t0, f"{type(e).__name__}: {str(e)[:120]}"
+
     # ─── Fallback ─────────────────────────────────────────────────────────────
 
     @staticmethod
