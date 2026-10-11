@@ -1,0 +1,86 @@
+{
+  "design_version": "t007-design-v2",
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "anonymized_groups": [
+    "B",
+    "D"
+  ],
+  "no_factor_groups": [
+    "C",
+    "D"
+  ],
+  "industry_in_prompt": false,
+  "date_in_prompt": true,
+  "n_cross_sections": 4,
+  "n_requests": 16,
+  "included": [
+    "2020-03-31",
+    "2020-06-30",
+    "2020-09-30",
+    "2020-12-31"
+  ],
+  "excluded": [],
+  "top": 30,
+  "top_n": 10,
+  "seed": 1,
+  "factors": [
+    "pe_ttm",
+    "pb",
+    "roe_ttm",
+    "accruals",
+    "distance_to_52w_high",
+    "momentum_6m",
+    "volatility_3m"
+  ],
+  "label": "forward_return_63d",
+  "decoding": {
+    "temperature": 0,
+    "seed": 0,
+    "max_tokens": 1500,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "knowledge_cutoff": [
+    "2025-01-01",
+    "2025-03-31"
+  ],
+  "prompt_template_sha256": {
+    "system": "020ceb7cdc7de38f95c2c14cd8a52e1423763b313b21c8532b9152b22d32f1d7",
+    "user_factor_table": "220a8f92d725183007dc6968980e7b1f475d8603d3d80da2d9758b73d4697edb",
+    "user_identity_only": "dce3a02edae4793ba98a2102341bf30c068e17bc71696b2b46ac68abb08df712"
+  },
+  "inputs_sha256": {
+    "scores": "03f924ba1abfb42e135bd2ef1a888f066e9bfa7fb8043df3bda1779a1c3f0d32",
+    "panel": "933818237cfa18a1257759b840cb74d54f44a05fb7e6544755da3215b6d3ac2f",
+    "stock_basic:stock_basic_full.parquet": "bdb31767e7a2c0eba64a6871f50e7cda1ad121522bd377ec94ba088b035a9a70",
+    "stock_basic:stock_basic_full_20261009.parquet": "0828b3825f3a417e64410f0ac2e7124837ff061e366cfb9887cf3c94decbcb3e"
+  },
+  "inputs_path": {
+    "scores": "/home/lenovo/c3_scratch/t007_pilot_scores.csv",
+    "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_2.parquet"
+  },
+  "frozen_sha256": {
+    "requests": "9683611da5744aebf9a6ab7e1b533687f5f8b7441e510a9b59b00cb0e863420a",
+    "private_mapping": "cf3bd1efc2017c5395b734594d60ba26a948a0c8a63715a82bc31920a25252a0",
+    "truth": "6c093927684e96f6aa6121c6855878438057c8b8f1f3145040c7eefc11b871c8",
+    "selection": "06270bacdf2812299ae88c0e9a201600522a12b9deb68b300c4ac9b9257ad922"
+  },
+  "anonymization_check": {
+    "groups": [
+      "B",
+      "D"
+    ],
+    "dictionary_codes": 5557,
+    "template_collisions_excluded": [
+      "标准"
+    ],
+    "dictionary_names": 17731,
+    "result": "passed"
+  }
+}

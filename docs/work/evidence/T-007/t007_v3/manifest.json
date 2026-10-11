@@ -1,0 +1,179 @@
+{
+  "design_version": "t007-design-v3",
+  "positioning": "19 期探索性估计（非确认性实验）",
+  "main_groups": [
+    "A",
+    "B",
+    "Cstar",
+    "Dstar"
+  ],
+  "exploratory_groups": [
+    "A_nodate",
+    "B_nodate"
+  ],
+  "probe_group": "PROBE",
+  "information": {
+    "A": {
+      "id": true,
+      "factors": true,
+      "date": true
+    },
+    "B": {
+      "id": false,
+      "factors": true,
+      "date": true
+    },
+    "Cstar": {
+      "id": true,
+      "factors": false,
+      "date": true
+    },
+    "Dstar": {
+      "id": false,
+      "factors": false,
+      "date": true
+    },
+    "A_nodate": {
+      "id": true,
+      "factors": true,
+      "date": false
+    },
+    "B_nodate": {
+      "id": false,
+      "factors": true,
+      "date": false
+    }
+  },
+  "anonymous_output_ids_all_groups": true,
+  "row_order": "LGBM 排名（各组相同）",
+  "schema_enum_order": "按编号排序",
+  "n_repeats": 5,
+  "industry_in_prompt": false,
+  "n_cross_sections": 19,
+  "n_requests": 437,
+  "requests_by_group": {
+    "A": 95,
+    "B": 95,
+    "Cstar": 95,
+    "Dstar": 95,
+    "A_nodate": 19,
+    "B_nodate": 19,
+    "PROBE": 19
+  },
+  "included": [
+    "2021-12-31",
+    "2022-03-31",
+    "2022-06-30",
+    "2022-09-30",
+    "2022-12-31",
+    "2023-03-31",
+    "2023-06-30",
+    "2023-09-30",
+    "2023-12-29",
+    "2024-03-29",
+    "2024-06-28",
+    "2024-09-30",
+    "2024-12-31",
+    "2025-03-31",
+    "2025-06-30",
+    "2025-09-30",
+    "2025-12-31",
+    "2026-03-31",
+    "2026-06-30"
+  ],
+  "excluded": [],
+  "top": 30,
+  "top_n": 10,
+  "seed": 20261012,
+  "factors": [
+    "pe_ttm",
+    "pb",
+    "roe_ttm",
+    "accruals",
+    "distance_to_52w_high",
+    "momentum_6m",
+    "volatility_3m"
+  ],
+  "label": "forward_return_63d",
+  "horizon_td": 63,
+  "decoding": {
+    "temperature": 0,
+    "seed": 0,
+    "max_tokens": 1500,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "knowledge_cutoff": {
+    "conservative_bounds": [
+      "2025-01-01",
+      "2026-08-14"
+    ],
+    "probe_estimate_assumption": [
+      "2025-01-01",
+      "2025-03-31"
+    ],
+    "evidence": [
+      "GGUF: Ternary-Bonsai-2-27B-PTQ1_0（PrismML，2026-09-17 发布）；模型卡列出的上游为 Qwen/Qwen3.8-27B",
+      "上游 Qwen3.8-27B 公开发布 2026-08-14（NVIDIA NIM 目录、DataLearner）；所查模型卡与资料均未声明训练数据截止日",
+      "下界 2025-01-01 来自本机 8 条知识探针（升级方案 §20），不是证明"
+    ]
+  },
+  "time_audit_counts": {
+    "conservative": {
+      "潜在完整暴露": 11,
+      "边界不确定": 8
+    },
+    "if_probe_estimate": {
+      "潜在完整暴露": 11,
+      "截止后": 5,
+      "边界不确定": 3
+    }
+  },
+  "lock": {
+    "gguf_sha256": "53107f530aa52eb00912263ab1ee29bd199261c87cd7b4ad4ca1318c1fe33ee3",
+    "gguf_file": "D:\\LocalLLM\\models\\Ternary-Bonsai-2-27B-PTQ1_0.gguf",
+    "llama_cpp_build_info": "b1-9a9394a",
+    "chat_template_sha256": "c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041",
+    "source": "run_58dadc9bf46d.json"
+  },
+  "prompt_template_sha256": {
+    "system": "939d7ee4ae2f5df7337b35cd1190ed5ea93afdbb5754945b90e08de7177cf761",
+    "user": "c151da56d0d632903073438c6d33cc19058aba4be4ccb6f02b0c505e4317f011",
+    "probe_system": "d1e63cdaa6a0911aa505400f4a1ddf0cc55b8eef32f66b4c6db10b7c822841a6",
+    "probe_user": "1afade6dd35aa2cd54bf355953b0f5e7b4657a342575248c64fe40725c4cecbd"
+  },
+  "inputs_sha256": {
+    "scores": "0e130d3b005905e13879d89527ad4f9ccb5f879d61e1e0efde109d6446565fe9",
+    "panel": "933818237cfa18a1257759b840cb74d54f44a05fb7e6544755da3215b6d3ac2f",
+    "trade_calendar": "25721278d02e9110f0cc5ede7b72f83809fc3bd5619dd9fde4feadcf219a5e6d",
+    "stock_basic:stock_basic_full.parquet": "bdb31767e7a2c0eba64a6871f50e7cda1ad121522bd377ec94ba088b035a9a70",
+    "stock_basic:stock_basic_full_20261009.parquet": "0828b3825f3a417e64410f0ac2e7124837ff061e366cfb9887cf3c94decbcb3e"
+  },
+  "inputs_path": {
+    "scores": "/home/lenovo/projects/qm-t010/docs/work/evidence/T-010/run_v4_1/oos_scores.csv",
+    "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_2.parquet"
+  },
+  "frozen_sha256": {
+    "requests": "2fc4ad844d0be995a13568a47ad7f44c3ff8a4cde0a56a6fb3534da6c4fa1531",
+    "private_mapping": "b13aeb7676d82c1fc4eee1a58945f984b0db374e227dafc4d8c75f7d103f7531",
+    "truth": "4d9893c3c6dd81019caf212eceb8432c89ed1b9cf4633097d91bca3c7ab3c531",
+    "selection": "f07b62eac6d3370f66c6cbe51ccb91cfa225508e94840254f623b51a58e5d655",
+    "time_audit": "d01f7c5f5a0abed26728e8037de7406e5b145bfcfdaad5b8530669596be35bfe"
+  },
+  "anonymization_check": {
+    "groups": [
+      "B",
+      "Dstar",
+      "B_nodate",
+      "PROBE"
+    ],
+    "dictionary_codes": 5557,
+    "template_collisions_excluded": [
+      "标准"
+    ],
+    "dictionary_names": 17731,
+    "result": "passed",
+    "scope": "只证明 payload 中没有字面标识，不证明没有身份信息"
+  }
+}

@@ -1,0 +1,36 @@
+{
+ "integrity_complete": true,
+ "n": 16,
+ "json_valid": 16,
+ "finish_stop": 16,
+ "reasoning_empty": 16,
+ "by_group": {
+  "A": {
+   "prompt_max": 2667,
+   "completion_max": 867,
+   "total_max": 3528,
+   "latency_mean": 35.4
+  },
+  "B": {
+   "prompt_max": 2493,
+   "completion_max": 649,
+   "total_max": 3142,
+   "latency_mean": 29.0
+  },
+  "C": {
+   "prompt_max": 1082,
+   "completion_max": 449,
+   "total_max": 1526,
+   "latency_mean": 17.4
+  },
+  "D": {
+   "prompt_max": 938,
+   "completion_max": 405,
+   "total_max": 1343,
+   "latency_mean": 15.4
+  }
+ },
+ "statuses": [
+  "ok"
+ ]
+}

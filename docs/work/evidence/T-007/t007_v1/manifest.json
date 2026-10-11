@@ -1,0 +1,27 @@
+{
+  "n_cross_sections": 15,
+  "n_requests": 45,
+  "skipped": [
+    "2024-09-30",
+    "2024-12-31",
+    "2026-03-31",
+    "2026-06-30"
+  ],
+  "top": 30,
+  "top_n": 10,
+  "seed": 20261010,
+  "factors": [
+    "pe_ttm",
+    "pb",
+    "roe_ttm",
+    "accruals",
+    "distance_to_52w_high",
+    "momentum_6m",
+    "volatility_3m"
+  ],
+  "label": "forward_return_63d",
+  "scores": "/home/lenovo/projects/qm-t010/docs/work/evidence/T-010/run_v4_1/oos_scores.csv",
+  "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_1.parquet",
+  "prompt_sha256": "2d454856410f660806da0b009b934316010a2005b2d0ad5f018963d03d916b2d",
+  "b_group_leak_check": "passed"
+}

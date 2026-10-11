@@ -1,0 +1,38 @@
+{
+ "A": {
+  "n": 95,
+  "exact_lgbm_top10_order": 3,
+  "same_set_as_lgbm_top10": 3,
+  "mean_overlap": 0.5421
+ },
+ "B": {
+  "n": 95,
+  "exact_lgbm_top10_order": 1,
+  "same_set_as_lgbm_top10": 1,
+  "mean_overlap": 0.5158
+ },
+ "Cstar": {
+  "n": 95,
+  "exact_lgbm_top10_order": 95,
+  "same_set_as_lgbm_top10": 95,
+  "mean_overlap": 1.0
+ },
+ "Dstar": {
+  "n": 95,
+  "exact_lgbm_top10_order": 95,
+  "same_set_as_lgbm_top10": 95,
+  "mean_overlap": 1.0
+ },
+ "A_nodate": {
+  "n": 19,
+  "exact_lgbm_top10_order": 0,
+  "same_set_as_lgbm_top10": 0,
+  "mean_overlap": 0.5421
+ },
+ "B_nodate": {
+  "n": 19,
+  "exact_lgbm_top10_order": 0,
+  "same_set_as_lgbm_top10": 0,
+  "mean_overlap": 0.4632
+ }
+}

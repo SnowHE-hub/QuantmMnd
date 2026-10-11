@@ -1,0 +1,101 @@
+{
+  "design_version": "t007-design-v2",
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "anonymized_groups": [
+    "B",
+    "D"
+  ],
+  "no_factor_groups": [
+    "C",
+    "D"
+  ],
+  "industry_in_prompt": false,
+  "date_in_prompt": true,
+  "n_cross_sections": 19,
+  "n_requests": 76,
+  "included": [
+    "2021-12-31",
+    "2022-03-31",
+    "2022-06-30",
+    "2022-09-30",
+    "2022-12-31",
+    "2023-03-31",
+    "2023-06-30",
+    "2023-09-30",
+    "2023-12-29",
+    "2024-03-29",
+    "2024-06-28",
+    "2024-09-30",
+    "2024-12-31",
+    "2025-03-31",
+    "2025-06-30",
+    "2025-09-30",
+    "2025-12-31",
+    "2026-03-31",
+    "2026-06-30"
+  ],
+  "excluded": [],
+  "top": 30,
+  "top_n": 10,
+  "seed": 20261011,
+  "factors": [
+    "pe_ttm",
+    "pb",
+    "roe_ttm",
+    "accruals",
+    "distance_to_52w_high",
+    "momentum_6m",
+    "volatility_3m"
+  ],
+  "label": "forward_return_63d",
+  "decoding": {
+    "temperature": 0,
+    "seed": 0,
+    "max_tokens": 1500,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "knowledge_cutoff": [
+    "2025-01-01",
+    "2025-03-31"
+  ],
+  "prompt_template_sha256": {
+    "system": "020ceb7cdc7de38f95c2c14cd8a52e1423763b313b21c8532b9152b22d32f1d7",
+    "user_factor_table": "220a8f92d725183007dc6968980e7b1f475d8603d3d80da2d9758b73d4697edb",
+    "user_identity_only": "dce3a02edae4793ba98a2102341bf30c068e17bc71696b2b46ac68abb08df712"
+  },
+  "inputs_sha256": {
+    "scores": "0e130d3b005905e13879d89527ad4f9ccb5f879d61e1e0efde109d6446565fe9",
+    "panel": "933818237cfa18a1257759b840cb74d54f44a05fb7e6544755da3215b6d3ac2f",
+    "stock_basic:stock_basic_full.parquet": "bdb31767e7a2c0eba64a6871f50e7cda1ad121522bd377ec94ba088b035a9a70",
+    "stock_basic:stock_basic_full_20261009.parquet": "0828b3825f3a417e64410f0ac2e7124837ff061e366cfb9887cf3c94decbcb3e"
+  },
+  "inputs_path": {
+    "scores": "/home/lenovo/projects/qm-t010/docs/work/evidence/T-010/run_v4_1/oos_scores.csv",
+    "panel": "/home/lenovo/projects/quantmind/data/panel/alpha_panel_v4_2.parquet"
+  },
+  "frozen_sha256": {
+    "requests": "6c0e230620f4726a38d35e082293a4c885b9dc26ea32fa9626245ddee2444370",
+    "private_mapping": "285fdf15cce15a07121218aba0cf37b7a6cd4fb33135bf5fd54101d9fb328dde",
+    "truth": "4e23a50a83748c8e023833c85d649513ec454bae8f7020a915d7a93563f509e4",
+    "selection": "f07b62eac6d3370f66c6cbe51ccb91cfa225508e94840254f623b51a58e5d655"
+  },
+  "anonymization_check": {
+    "groups": [
+      "B",
+      "D"
+    ],
+    "dictionary_codes": 5557,
+    "template_collisions_excluded": [
+      "标准"
+    ],
+    "dictionary_names": 17731,
+    "result": "passed"
+  }
+}
