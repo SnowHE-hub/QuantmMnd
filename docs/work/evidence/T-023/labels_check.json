@@ -1,0 +1,30 @@
+{
+ "n_rows": 1683972,
+ "n_as_of": 374,
+ "check_vs_panel": {
+  "12d": {
+   "compared": 1675393,
+   "max_abs_diff": 0.0,
+   "nan_mismatch": 0
+  },
+  "21d": {
+   "compared": 1664686,
+   "max_abs_diff": 0.0,
+   "nan_mismatch": 0
+  },
+  "63d": {
+   "compared": 1617897,
+   "max_abs_diff": 0.0,
+   "nan_mismatch": 0
+  }
+ },
+ "coverage": {
+  "12d": 0.9949,
+  "20d": 0.9886,
+  "21d": 0.9885,
+  "40d": 0.9761,
+  "63d": 0.9608
+ },
+ "consistent_with_panel": true,
+ "output": "/home/lenovo/projects/quantmind/data/panel/labels_extra_v6_1.parquet"
+}
