@@ -1,0 +1,90 @@
+{
+  "12d": {
+    "model_id": "ridge_full_12d_v6_seed",
+    "original": {
+      "ann_return_net": -0.00898549027028317,
+      "ann_return_bench": 0.013294311073177578,
+      "ann_net_excess": -0.022279801343460748,
+      "information_ratio": -0.2667603712361268,
+      "max_drawdown_net": -0.4887542220258395,
+      "period": {
+        "start": "2022-02-09",
+        "end": "2026-05-11",
+        "n_trading_days": 1018,
+        "n_rebalances": 48
+      }
+    },
+    "same_window": {
+      "ann_return_net": -0.011220682100988033,
+      "ann_return_bench": 0.012183931909871548,
+      "ann_net_excess": -0.02340461401085958,
+      "information_ratio": -0.2826108233372538,
+      "max_drawdown_net": -0.493485505908019,
+      "period": {
+        "start": "2022-02-09",
+        "end": "2026-05-11",
+        "n_trading_days": 1029,
+        "n_rebalances": 48
+      },
+      "gate_pass": false
+    },
+    "extended": {
+      "ann_return_net": -0.06348486343200366,
+      "ann_return_bench": -0.029204866416910558,
+      "ann_net_excess": -0.0342799970150931,
+      "information_ratio": -0.3710330361928472,
+      "max_drawdown_net": -0.493485505908019,
+      "period": {
+        "start": "2022-02-09",
+        "end": "2026-10-09",
+        "n_trading_days": 1131,
+        "n_rebalances": 48
+      },
+      "gate_pass": false
+    }
+  },
+  "63d": {
+    "model_id": "ridge_full_fnd_63d_v6_seed",
+    "original": {
+      "ann_return_net": 0.12359540820301085,
+      "ann_return_bench": 0.10100868126371831,
+      "ann_net_excess": 0.022586726939292534,
+      "information_ratio": 0.3310522165579339,
+      "max_drawdown_net": -0.3542850769201509,
+      "period": {
+        "start": "2022-08-04",
+        "end": "2026-05-11",
+        "n_trading_days": 898,
+        "n_rebalances": 7
+      }
+    },
+    "same_window": {
+      "ann_return_net": 0.12201203161672813,
+      "ann_return_bench": 0.09982001715908728,
+      "ann_net_excess": 0.022192014457640852,
+      "information_ratio": 0.3289956171572646,
+      "max_drawdown_net": -0.3542850769201509,
+      "period": {
+        "start": "2022-08-04",
+        "end": "2026-05-11",
+        "n_trading_days": 909,
+        "n_rebalances": 7
+      },
+      "gate_pass": false
+    },
+    "extended": {
+      "ann_return_net": 0.03505819743068628,
+      "ann_return_bench": 0.04467782374783935,
+      "ann_net_excess": -0.009619626317153074,
+      "information_ratio": 0.010116640391468304,
+      "max_drawdown_net": -0.3542850769201509,
+      "period": {
+        "start": "2022-08-04",
+        "end": "2026-10-09",
+        "n_trading_days": 1011,
+        "n_rebalances": 7
+      },
+      "gate_pass": false
+    }
+  }
+}

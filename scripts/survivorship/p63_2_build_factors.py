@@ -4,9 +4,12 @@ snapshot/as_of：daily_basic@(last_td<=as_of) + fina_indicator(ann<=as_of, lates
 复用 quantmind.features.fundamental.compute_all_fundamental_factors（内部 latest_report_per_ticker
 按 ann_date PIT）+ 自定义 fcf_yield_cf=(n_cashflow_act-c_paid_invest)/total_mv（cashflow 表，若已拉）。
 逐 as_of 截面 winsorize(1/99%)。输出 data/panel/fundamental_factors_v6.parquet（reindex 到 v6 panel）。
+
+T-017 可选参数（不给时行为不变）：--data-root（数据所在仓库根）、--panel（面板，决定 as_of × ticker 索引）、
+--out（输出；指向非默认路径时已存在即拒绝覆盖）。
 """
 from __future__ import annotations
-import sys, time
+import argparse, sys, time
 from pathlib import Path
 import numpy as np, pandas as pd
 REPO = Path(__file__).resolve().parents[2]; sys.path.insert(0, str(REPO))
@@ -15,6 +18,21 @@ from quantmind.features.fundamental import compute_all_fundamental_factors, FUND
 LAKE = REPO / "data/lake"
 V6_PANEL = REPO / "data/panel/alpha_panel_weekly_v6.parquet"
 OUT = REPO / "data/panel/fundamental_factors_v6.parquet"
+REFUSE_OVERWRITE = False
+
+
+def configure(data_root: Path | None = None, panel: Path | None = None, out: Path | None = None) -> None:
+    """T-017：改写数据路径；不传参数 = 原行为."""
+    global LAKE, V6_PANEL, OUT, REFUSE_OVERWRITE
+    root = data_root.resolve() if data_root is not None else REPO
+    LAKE = root / "data/lake"
+    V6_PANEL = root / "data/panel/alpha_panel_weekly_v6.parquet"
+    OUT = root / "data/panel/fundamental_factors_v6.parquet"
+    if panel is not None:
+        V6_PANEL = panel if panel.is_absolute() else root / panel
+    if out is not None:
+        OUT = out if out.is_absolute() else root / out
+        REFUSE_OVERWRITE = True
 
 
 def _winsor(s, lo=0.01, hi=0.99):
@@ -99,6 +117,8 @@ def main():
     out = out.set_index(["as_of", "ticker"]).reindex(panel_idx)
     keep = [c for c in out.columns if out[c].notna().sum() > 1000]   # 丢全空因子
     out = out[keep]
+    if REFUSE_OVERWRITE and OUT.exists():
+        raise RuntimeError(f"refuse to overwrite existing output: {OUT}")
     out.to_parquet(OUT)
     cov = {c: int(out[c].notna().sum()) for c in out.columns}
     print(f"[p63-2] saved {OUT} shape={out.shape} 可用因子={len(keep)} ({time.time()-t0:.0f}s)")
@@ -106,4 +126,10 @@ def main():
 
 
 if __name__ == "__main__":
+    _ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    _ap.add_argument("--data-root", type=Path, default=None)
+    _ap.add_argument("--panel", type=Path, default=None)
+    _ap.add_argument("--out", type=Path, default=None)
+    _a = _ap.parse_args()
+    configure(_a.data_root, _a.panel, _a.out)
     main()

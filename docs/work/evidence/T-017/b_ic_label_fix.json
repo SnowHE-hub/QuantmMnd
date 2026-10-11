@@ -1,0 +1,24 @@
+{
+ "ridge_full_fnd_63d_v6_seed": {
+  "n_as_of": 81,
+  "ic_old_mean": 0.10514223471503684,
+  "ic_new_mean": 0.10294618523155775,
+  "icir_old": 0.7870059266771037,
+  "icir_new": 0.7778656446582731,
+  "n_as_of_with_label_changes": 20,
+  "affected_ic_old_mean": 0.17139600164142987,
+  "affected_ic_new_mean": 0.16250200123333966,
+  "max_abs_ic_change": 0.0528032299635286
+ },
+ "ridge_full_12d_v6_seed": {
+  "n_as_of": 142,
+  "ic_old_mean": 0.06973218738755499,
+  "ic_new_mean": 0.06921785502286718,
+  "icir_old": 0.6116308689894138,
+  "icir_new": 0.6038339114022784,
+  "n_as_of_with_label_changes": 13,
+  "affected_ic_old_mean": 0.020901222564641705,
+  "affected_ic_new_mean": 0.015283130581128648,
+  "max_abs_ic_change": 0.05675815432994502
+ }
+}

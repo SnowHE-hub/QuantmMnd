@@ -1,0 +1,39 @@
+{
+ "old_index_missing_days": {
+  "000001.SH": {
+   "n": 33,
+   "first": "2019-01-02",
+   "last": "2019-02-22"
+  },
+  "000300.SH": {
+   "n": 33,
+   "first": "2019-01-02",
+   "last": "2019-02-22"
+  },
+  "000905.SH": {
+   "n": 33,
+   "first": "2019-01-02",
+   "last": "2019-02-22"
+  },
+  "399006.SZ": {
+   "n": 33,
+   "first": "2019-01-02",
+   "last": "2019-02-22"
+  }
+ },
+ "diff_share_by_touched_any_gap": {
+  "False": 0.0,
+  "True": 0.200604
+ },
+ "diff_counts_by_touched_any_gap": {
+  "False": {
+   "n": 892582,
+   "diff": 0
+  },
+  "True": {
+   "n": 1187006,
+   "diff": 238118
+  }
+ },
+ "as_of_with_diff_not_touching_any_gap": []
+}

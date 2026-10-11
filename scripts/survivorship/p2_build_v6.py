@@ -11,6 +11,15 @@
   --prices    lake daily+adj_factor → data/raw/alpha_prices_panel_v6.parquet（v5 schema）
   --panel     35 因子 + delist-aware 标签 → data/panel/alpha_panel_weekly_v6.parquet（长跑，后台）
   --sanity    v5 md5 守卫复核 + v6 自检统计（票数/退市占比/seasoning 排除/标签均值）
+
+T-017（完整交易日历重建 / 延长到最新）的可选参数——不给时行为与原来完全相同：
+  --data-root      数据所在仓库根（worktree 里运行时指向主 checkout）
+  --prices-file    价格表（默认 data/raw/alpha_prices_panel_v6.parquet）
+  --calendar-file  独立交易日历（Tushare trade_cal，列 cal_date）。给出时：面板 as_of 网格、标签 horizon、
+                   lake 窗口读取（read_lake_window）统一用它，且要求价格表日期与日历**完全一致**（缺日或非交易日即报错）。
+                   旧的 lake 日历由 alpha_prices_panel.parquet 反推，缺 18 个交易日（T-012/T-015），v6 标签因此 horizon 错位（T-017 审计）
+  --stock-basic    stock_basic 文件（默认 data/lake/stock_basic_full.parquet）
+  --panel-out / --panel-in / --sh-out   输出与 --sh 的输入；任何一个输出指向非默认路径时，已存在的文件一律拒绝覆盖
 """
 from __future__ import annotations
 
@@ -36,6 +45,86 @@ SB_FULL = REPO / "data" / "lake" / "stock_basic_full.parquet"
 GUARD_JSON = REPO / "scripts" / "survivorship" / "_v5_md5_guard.json"
 SEASONING_TD = 120
 FWD_HORIZONS = (12, 21, 63)
+
+# T-017：可由 configure() 改写；默认值与原脚本一致
+DATA_ROOT = REPO
+SH_OUT = REPO / "data" / "panel" / "short_horizon_factors_v6.parquet"
+PANEL_IN = V6_PANEL                 # --sh 读取的面板
+CALENDAR: pd.DatetimeIndex | None = None   # 给了 --calendar-file 时为校验过的完整日历
+REFUSE_OVERWRITE = False            # 输出指向非默认路径时为 True
+
+
+def _write(df: pd.DataFrame, path: Path) -> None:
+    if path.resolve() in (V5_PANEL.resolve(), V5_PRICES.resolve()):
+        raise RuntimeError("refuse to overwrite v5")
+    if REFUSE_OVERWRITE and path.exists():
+        raise RuntimeError(f"refuse to overwrite existing output: {path}")
+    df.to_parquet(path)
+
+
+def validated_calendar(calendar_file: Path, price_dates) -> pd.DatetimeIndex:
+    """独立交易日历在价格区间内的部分；价格表日期必须与之完全一致（缺日或非交易日都报错）."""
+    cal = pd.DatetimeIndex(pd.to_datetime(pd.read_parquet(calendar_file)["cal_date"])).sort_values().unique()
+    px = pd.DatetimeIndex(pd.to_datetime(pd.Series(price_dates))).normalize().sort_values().unique()
+    cal = cal[(cal >= px.min()) & (cal <= px.max())]
+    missing, extra = cal.difference(px), px.difference(cal)
+    if len(missing) or len(extra):
+        raise ValueError(f"price dates vs trade calendar: {len(missing)} trading days without prices "
+                         f"{[d.strftime('%Y%m%d') for d in missing[:5]]}, {len(extra)} non-trading days "
+                         f"{[d.strftime('%Y%m%d') for d in extra[:5]]}")
+    return cal
+
+
+def trading_calendar() -> pd.DatetimeIndex:
+    """面板与标签用的日历：给了 --calendar-file 用校验过的完整日历，否则沿用 lake 日历（旧行为）."""
+    if CALENDAR is not None:
+        return CALENDAR
+    from quantmind.data.lake import load_trading_calendar
+    return load_trading_calendar()
+
+
+def configure(*, data_root: Path | None = None, prices_file: Path | None = None, calendar_file: Path | None = None,
+              stock_basic: Path | None = None, panel_in: Path | None = None, panel_out: Path | None = None,
+              sh_out: Path | None = None) -> None:
+    """改写数据路径（T-017）。不传任何参数 = 原行为。"""
+    global DATA_ROOT, V5_PRICES, V5_PANEL, V6_PRICES, V6_PANEL, SB_FULL, SH_OUT, PANEL_IN, CALENDAR, REFUSE_OVERWRITE
+    if data_root is not None:
+        DATA_ROOT = data_root.resolve()
+        V5_PRICES = DATA_ROOT / "data" / "raw" / "alpha_prices_panel.parquet"
+        V5_PANEL = DATA_ROOT / "data" / "panel" / "alpha_panel_weekly_v5.parquet"
+        V6_PRICES = DATA_ROOT / "data" / "raw" / "alpha_prices_panel_v6.parquet"
+        V6_PANEL = DATA_ROOT / "data" / "panel" / "alpha_panel_weekly_v6.parquet"
+        SB_FULL = DATA_ROOT / "data" / "lake" / "stock_basic_full.parquet"
+        SH_OUT = DATA_ROOT / "data" / "panel" / "short_horizon_factors_v6.parquet"
+        PANEL_IN = V6_PANEL
+        import quantmind.data.lake as lake
+        lake.DATA_LAKE_DIR = DATA_ROOT / "data" / "lake"
+        lake.CHECKPOINT_DIR = lake.DATA_LAKE_DIR / "_checkpoints"
+        lake.PRICE_PANEL_PATH = V5_PRICES
+
+    def under(p: Path) -> Path:
+        return p if p.is_absolute() else DATA_ROOT / p
+
+    if prices_file is not None:
+        V6_PRICES = under(prices_file)
+    if stock_basic is not None:
+        SB_FULL = under(stock_basic)
+    if panel_out is not None:
+        V6_PANEL = under(panel_out)
+        PANEL_IN = V6_PANEL
+        REFUSE_OVERWRITE = True
+    if panel_in is not None:
+        PANEL_IN = under(panel_in)
+    if sh_out is not None:
+        SH_OUT = under(sh_out)
+        REFUSE_OVERWRITE = True
+    if prices_file is not None and panel_out is None and sh_out is None:
+        REFUSE_OVERWRITE = True          # 换了价格表却写默认 v6 路径：同样拒绝覆盖
+    if calendar_file is not None:
+        dates = pd.read_parquet(V6_PRICES, columns=["trade_date"])["trade_date"].unique()
+        CALENDAR = validated_calendar(under(calendar_file), dates)
+        import quantmind.data.lake as lake
+        lake.load_trading_calendar = lambda refresh=False: CALENDAR   # read_lake_window 的回看窗口也用完整日历
 
 
 # ============================================================================
@@ -110,8 +199,8 @@ def cmd_industry() -> int:
 
 def cmd_prices() -> int:
     t0 = time.time()
-    daily = pd.read_parquet(REPO / "data/lake/daily.parquet")
-    adj = pd.read_parquet(REPO / "data/lake/adj_factor.parquet",
+    daily = pd.read_parquet(DATA_ROOT / "data/lake/daily.parquet")
+    adj = pd.read_parquet(DATA_ROOT / "data/lake/adj_factor.parquet",
                           columns=["ts_code", "trade_date", "adj_factor"])
     print(f"[prices] daily={len(daily):,} adj={len(adj):,} ({time.time()-t0:.0f}s)")
     df = daily.merge(adj, on=["ts_code", "trade_date"], how="left")
@@ -216,13 +305,15 @@ def cmd_panel(n_workers: int = 4, limit_asof: int | None = None) -> int:
         assemble_snapshot, pit_universe, _MIN_TRADING_DAYS, _PER_TICKER_MIN_BARS,
     )
     from quantmind.features.pipeline import FeaturePipeline
-    from quantmind.data.lake import load_trading_calendar
 
     t0 = time.time()
     guard0 = record_guard()
     print(f"[guard] v5 md5 recorded: {guard0}")
 
-    cal = load_trading_calendar()          # 与 v5 同日历 → as_of 网格逐点一致（可比）
+    # 默认：lake 日历（与 v5 同日历 → as_of 网格逐点一致）；--calendar-file：校验过的完整交易日历（T-017）
+    cal = trading_calendar()
+    print(f"[panel] calendar {cal.min().date()}→{cal.max().date()} ({len(cal)} days, "
+          f"{'trade_cal file' if CALENDAR is not None else 'lake calendar'}); prices {V6_PRICES}", flush=True)
     as_of_list = build_asof_grid(cal)
     if limit_asof:
         as_of_list = as_of_list[:limit_asof]
@@ -298,9 +389,7 @@ def cmd_panel(n_workers: int = 4, limit_asof: int | None = None) -> int:
 
     panel = pd.concat(rows, ignore_index=True).set_index(["as_of", "ticker"]).sort_index()
     panel = panel[WHITELIST_35 + list(LABEL_COLS)]
-    if V6_PANEL.resolve() in (V5_PANEL.resolve(),):
-        raise RuntimeError("refuse to overwrite v5")
-    panel.to_parquet(V6_PANEL)
+    _write(panel, V6_PANEL)
     print(f"[panel] saved {V6_PANEL}: {panel.shape} "
           f"({panel.index.get_level_values('as_of').nunique()} as_of, "
           f"{panel.index.get_level_values('ticker').nunique()} tickers) "
@@ -308,7 +397,7 @@ def cmd_panel(n_workers: int = 4, limit_asof: int | None = None) -> int:
 
     # run manifest
     from scripts.bakeoff.run_manifest import write_run_manifest
-    write_run_manifest(REPO / "data/panel", kind="build", data_version="v6",
+    write_run_manifest(DATA_ROOT / "data/panel", kind="build", data_version="v6",
                        feature_set="whitelist35", label="forward_return_{12,21,63}d",
                        horizon="weekly",
                        artifacts=[V6_PANEL, V6_PRICES],
@@ -365,13 +454,13 @@ def cmd_sh() -> int:
         build_wide_frames, build_short_horizon_factors, sample_at_asof)
     from quantmind.features.weekly_panel import merge_increment
     t0 = time.time()
-    surv = json.loads((REPO / "data/loss_signals_v4/short_horizon_survivors.json").read_text())["survivors"]
+    surv = json.loads((DATA_ROOT / "data/loss_signals_v4/short_horizon_survivors.json").read_text())["survivors"]
     pl = pd.read_parquet(V6_PRICES)
     F = build_wide_frames(pl)
     tickers = list(F["adj_close"].columns)
     print(f"[sh] wide frames {F['adj_close'].shape} ({time.time()-t0:.0f}s)")
     # logcap（daily_basic circ_mv，全市场含退市）
-    db = pd.read_parquet(REPO / "data/lake/daily_basic.parquet",
+    db = pd.read_parquet(DATA_ROOT / "data/lake/daily_basic.parquet",
                          columns=["ts_code", "trade_date", "circ_mv"])
     db["trade_date"] = pd.to_datetime(db["trade_date"]).dt.normalize()
     db = db[(db.circ_mv > 0) & db.ts_code.isin(set(tickers))]
@@ -388,17 +477,20 @@ def cmd_sh() -> int:
     facs = build_short_horizon_factors(F, rt)
     facs = {k: v for k, v in facs.items() if k in surv}
     print(f"[sh] {len(facs)} survivor factors computed")
-    panel = pd.read_parquet(V6_PANEL)
+    panel = pd.read_parquet(PANEL_IN)
     as_of_list = sorted(panel.index.get_level_values("as_of").unique())
     shp = sample_at_asof(facs, as_of_list, tickers=tickers).reindex(panel.index)
-    out = REPO / "data/panel/short_horizon_factors_v6.parquet"
-    shp.to_parquet(out)
+    out = SH_OUT
+    _write(shp, out)
     merged = merge_increment(panel, shp)
-    merged.to_parquet(V6_PANEL)
+    if V6_PANEL == PANEL_IN and not REFUSE_OVERWRITE:
+        merged.to_parquet(V6_PANEL)        # 原行为：合并结果写回同一面板
+    else:
+        _write(merged, V6_PANEL)
     print(f"[sh] saved {out} {shp.shape}; merged v6 panel -> {merged.shape} "
           f"({time.time()-t0:.0f}s)")
     from scripts.bakeoff.run_manifest import write_run_manifest
-    write_run_manifest(REPO / "data/panel", kind="build", data_version="v6",
+    write_run_manifest(DATA_ROOT / "data/panel", kind="build", data_version="v6",
                        feature_set="short_horizon_16_survivors", label="-", horizon="weekly",
                        artifacts=[V6_PANEL, out],
                        extra={"missing_industry_dropped": n_dropped, "n_factors": len(facs)})
@@ -441,7 +533,16 @@ def main() -> int:
     ap.add_argument("--sanity", action="store_true")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--limit-asof", type=int, default=None)
+    ap.add_argument("--data-root", type=Path, default=None)
+    ap.add_argument("--prices-file", type=Path, default=None)
+    ap.add_argument("--calendar-file", type=Path, default=None)
+    ap.add_argument("--stock-basic", type=Path, default=None)
+    ap.add_argument("--panel-in", type=Path, default=None)
+    ap.add_argument("--panel-out", type=Path, default=None)
+    ap.add_argument("--sh-out", type=Path, default=None)
     a = ap.parse_args()
+    configure(data_root=a.data_root, prices_file=a.prices_file, calendar_file=a.calendar_file,
+              stock_basic=a.stock_basic, panel_in=a.panel_in, panel_out=a.panel_out, sh_out=a.sh_out)
     if a.industry:
         return cmd_industry()
     if a.prices:

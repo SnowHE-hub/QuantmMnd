@@ -1,0 +1,6 @@
+panel/alpha_panel_weekly_v6.parquet: OK
+panel/short_horizon_factors_v6.parquet: OK
+raw/alpha_prices_panel_v6.parquet: OK
+raw/alpha_prices_panel.parquet: OK
+panel/alpha_panel_weekly_v5.parquet: OK
+lake/stock_basic_full.parquet: OK
