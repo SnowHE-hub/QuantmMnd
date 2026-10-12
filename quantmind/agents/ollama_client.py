@@ -1,6 +1,6 @@
 """quantmind/agents/ollama_client.py — Ollama 本地 LLM ReAct 客户端.
 
-封装 Ollama qwen2.5:7b 的 ReAct（Reasoning + Acting）循环。
+封装 Ollama 本地模型（默认见 default_agent_model）的 ReAct（Reasoning + Acting）循环。
 支持 OpenAI 格式的 tool_call，最多 max_steps 轮思考-行动。
 
 设计原则
@@ -16,13 +16,47 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
+from pathlib import Path
 from typing import Any, Callable
 
 import requests
 
 log = logging.getLogger(__name__)
+
+# ── Agent 使用的模型（T-024）：唯一配置点 ──────────────────────────────────────
+_FALLBACK_MODEL = "qwen2.5:7b"
+_STRATEGY_CONFIG = Path(__file__).resolve().parents[2] / "data" / "paper_trading" / "strategy_config_v2.json"
+# 默认开启"思考"的模型族：结构化 / 工具调用场景下关闭思考（升级方案 §2.2 实测：思考吃光 token、拖慢、截断）
+_THINKING_PREFIXES = ("qwen3", "deepseek-r1", "gpt-oss", "magistral")
+
+
+def resolve_agent_model() -> tuple[str, str]:
+    """返回 (模型名, 来源)。优先级：环境变量 QM_AGENT_MODEL（"env"）> strategy_config_v2.json 的 ollama_model（"config"）
+    > qwen2.5:7b（"default"）。日更预热、Agent 客户端与统计记录都必须走这一个解析（T-024 第三轮验收）。"""
+    env = os.getenv("QM_AGENT_MODEL", "").strip()
+    if env:
+        return env, "env"
+    try:
+        cfg = json.loads(_STRATEGY_CONFIG.read_text(encoding="utf-8"))
+        m = str(cfg.get("ollama_model", "")).strip()
+        if m:
+            return m, "config"
+    except Exception:  # noqa: BLE001
+        pass
+    return _FALLBACK_MODEL, "default"
+
+
+def default_agent_model() -> str:
+    """优先级：环境变量 QM_AGENT_MODEL > strategy_config_v2.json 的 ollama_model > qwen2.5:7b。"""
+    return resolve_agent_model()[0]
+
+
+def default_think(model: str) -> bool | None:
+    """思考型模型返回 False（显式关闭）；其他模型返回 None（不发送 think 字段）。"""
+    return False if model.lower().startswith(_THINKING_PREFIXES) else None
 
 # ── 解析正则 ─────────────────────────────────────────────────────────────────
 _SIGNAL_PATTERNS = [
@@ -85,12 +119,14 @@ class OllamaReActClient:
 
     def __init__(
         self,
-        model: str = "qwen2.5:7b",
+        model: str | None = None,
         timeout: int = 60,
         max_steps: int = 5,
         base_url: str = "",
+        think: bool | None = None,
     ) -> None:
-        self.model = model
+        self.model = model or default_agent_model()
+        self.think = think if think is not None else default_think(self.model)
         self.timeout = timeout
         self.max_steps = max_steps
         self.base_url = (base_url or self.BASE_URL).rstrip("/")
@@ -269,6 +305,8 @@ class OllamaReActClient:
         }
         if tools:
             payload["tools"] = tools
+        if self.think is not None:
+            payload["think"] = self.think
 
         r = requests.post(
             f"{self.base_url}/api/chat",
@@ -345,8 +383,9 @@ class OllamaReActClient:
     # ─── 可用性检查 ───────────────────────────────────────────────────────────
 
     @classmethod
-    def is_available(cls, base_url: str = "", model: str = "qwen2.5:7b") -> bool:
+    def is_available(cls, base_url: str = "", model: str | None = None) -> bool:
         """快速检查 Ollama 服务 + 指定模型是否可用（超时 2s）."""
+        model = model or default_agent_model()
         url = (base_url or cls.BASE_URL).rstrip("/")
         try:
             r = requests.get(f"{url}/api/tags", timeout=2)
@@ -361,7 +400,7 @@ class OllamaReActClient:
     @classmethod
     def warm_up(
         cls,
-        model: str = "qwen2.5:7b",
+        model: str | None = None,
         base_url: str = "",
         timeout: float = 300.0,
         keep_alive: str = "30m",
@@ -371,6 +410,7 @@ class OllamaReActClient:
         冷启动加载可能超过单次调用的超时（Agent 默认 60s），导致第一批调用降级。
         返回 (是否成功, 耗时秒, 说明)。失败不抛异常，由调用方决定是否降级。
         """
+        model = model or default_agent_model()
         url = (base_url or cls.BASE_URL).rstrip("/")
         t0 = time.monotonic()
         try:

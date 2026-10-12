@@ -1,0 +1,49 @@
+{
+ "qwen2.5:7b": {
+  "n": 50,
+  "llm_success_rate": 1.0,
+  "errors": 0,
+  "mean_seconds": 8.08,
+  "median_seconds": 8.72,
+  "mean_tools": 2.84,
+  "by_agent_llm_success": {
+   "MomentumAgent": 1.0,
+   "QualityAgent": 1.0,
+   "RiskAgent": 1.0,
+   "SentimentAgent": 1.0,
+   "ValuationAgent": 1.0
+  }
+ },
+ "qwen3.5:9b": {
+  "n": 50,
+  "llm_success_rate": 1.0,
+  "errors": 0,
+  "mean_seconds": 15.19,
+  "median_seconds": 14.02,
+  "mean_tools": 2.52,
+  "by_agent_llm_success": {
+   "MomentumAgent": 1.0,
+   "QualityAgent": 1.0,
+   "RiskAgent": 1.0,
+   "SentimentAgent": 1.0,
+   "ValuationAgent": 1.0
+  }
+ },
+ "agreement": {
+  "n_pairs": 50,
+  "stance_agreement": 0.38,
+  "mean_abs_signal_diff": 0.445
+ },
+ "tickers": [
+  "300750.SZ",
+  "601988.SH",
+  "601288.SH",
+  "601398.SH",
+  "600519.SH",
+  "600129.SH",
+  "300026.SZ",
+  "001227.SZ",
+  "002022.SZ",
+  "601728.SH"
+ ]
+}

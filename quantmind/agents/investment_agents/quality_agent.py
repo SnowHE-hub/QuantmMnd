@@ -595,7 +595,7 @@ ROE_TTM: {roe}%  ROA_TTM: {roa}%
 
 请调用工具分析杜邦分解、商誉风险和现金流质量。"""
 
-        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        client = OllamaReActClient(timeout=60, max_steps=5)
         result = client.chat_with_tools(
             system_prompt=system_prompt,
             user_message=user_message,

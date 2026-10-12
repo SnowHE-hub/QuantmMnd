@@ -154,7 +154,7 @@ class BaseInvestmentAgent(ABC):
     # ── Ollama 可用性检查 ────────────────────────────────────────────────────
 
     @staticmethod
-    def _ollama_available(base_url: str = "", model: str = "qwen2.5:7b") -> bool:
+    def _ollama_available(base_url: str = "", model: str | None = None) -> bool:
         """快速检查 Ollama 服务是否可用（结果缓存 60s，避免频繁网络探测）."""
         now = time.monotonic()
         if _OLLAMA_CACHE["available"] is not None:

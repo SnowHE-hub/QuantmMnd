@@ -489,3 +489,54 @@ class TestWarmUp:
         with patch("quantmind.agents.ollama_client.requests.post", side_effect=_rq.exceptions.ReadTimeout("slow")):
             ok, _, msg = OllamaReActClient.warm_up(timeout=1)
         assert not ok and "ReadTimeout" in msg
+
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# T-024：Agent 模型统一配置 + 思考型模型关闭思考
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAgentModelConfig:
+    def test_env_overrides_config(self, monkeypatch, tmp_path):
+        import quantmind.agents.ollama_client as oc
+        cfg = tmp_path / "cfg.json"
+        cfg.write_text(json.dumps({"ollama_model": "from-config:1b"}), encoding="utf-8")
+        monkeypatch.setattr(oc, "_STRATEGY_CONFIG", cfg)
+        monkeypatch.setenv("QM_AGENT_MODEL", "qwen3.5:9b")
+        assert oc.default_agent_model() == "qwen3.5:9b"
+        monkeypatch.delenv("QM_AGENT_MODEL")
+        assert oc.default_agent_model() == "from-config:1b"
+
+    def test_fallback_when_no_env_and_no_config(self, monkeypatch, tmp_path):
+        import quantmind.agents.ollama_client as oc
+        monkeypatch.delenv("QM_AGENT_MODEL", raising=False)
+        monkeypatch.setattr(oc, "_STRATEGY_CONFIG", tmp_path / "missing.json")
+        assert oc.default_agent_model() == "qwen2.5:7b"
+        assert oc.OllamaReActClient().model == "qwen2.5:7b"
+
+    def _payload(self, client):
+        resp = MagicMock()
+        resp.json.return_value = {"message": {"role": "assistant", "content": "x"}}
+        with patch("quantmind.agents.ollama_client.requests.post", return_value=resp) as post:
+            client._call_ollama([{"role": "user", "content": "hi"}], [])
+        return post.call_args.kwargs["json"]
+
+    def test_thinking_models_send_think_false(self):
+        from quantmind.agents.ollama_client import OllamaReActClient
+        assert self._payload(OllamaReActClient(model="qwen3.5:9b"))["think"] is False
+        assert self._payload(OllamaReActClient(model="qwen3:8b"))["think"] is False
+
+    def test_non_thinking_models_omit_think(self):
+        from quantmind.agents.ollama_client import OllamaReActClient
+        assert "think" not in self._payload(OllamaReActClient(model="qwen2.5:7b"))
+
+    def test_explicit_think_override(self):
+        from quantmind.agents.ollama_client import OllamaReActClient
+        assert self._payload(OllamaReActClient(model="qwen3.5:9b", think=True))["think"] is True
+
+    def test_agents_no_longer_hardcode_the_model(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[1] / "quantmind/agents/investment_agents"
+        needle = 'OllamaReActClient(model="qwen2.5:7b"'
+        for f in root.glob("*_agent.py"):
+            assert needle not in f.read_text(encoding="utf-8"), f.name

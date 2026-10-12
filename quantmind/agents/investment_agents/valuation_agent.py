@@ -555,7 +555,7 @@ SUMMARY: <2-3句话的中文分析结论，包含具体数字>
 KEY_RISK: <最主要的一个风险点>"""
 
         # ── ReAct 调用 ────────────────────────────────────────────────────────
-        client = OllamaReActClient(model="qwen2.5:7b", timeout=60, max_steps=5)
+        client = OllamaReActClient(timeout=60, max_steps=5)
         result = client.chat_with_tools(
             system_prompt=system_prompt,
             user_message=user_message,
@@ -584,7 +584,7 @@ KEY_RISK: <最主要的一个风险点>"""
             summary         = result["final_answer"][:150],
             evidence        = {
                 "method":       "ollama_react",
-                "model":        "qwen2.5:7b",
+                "model":        client.model,
                 "tools_called": result["tools_called"],
             },
             warnings        = [],

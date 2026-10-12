@@ -1140,6 +1140,50 @@ def _debate_result_to_strategy(
     )
 
 
+def _probe_ollama() -> None:
+    import requests as _req
+    _req.get("http://localhost:11434/api/tags", timeout=3)
+
+
+def _resolve_agent_runtime(config: dict, *, probe=None, warm_up=None) -> dict:
+    """Step 7a 的运行时：探测 Ollama、确定实际模型、预热。
+
+    模型用 ``resolve_agent_model()``（环境变量 > strategy_config 的 ollama_model > 默认），与 Agent 客户端
+    （``OllamaReActClient(model=None)``）是同一个解析，预热、调用和 agent_stats 记录的是同一个模型（T-024 第三轮验收）。
+    ``probe`` / ``warm_up`` 可注入，便于测试。
+    """
+    from quantmind.agents.ollama_client import OllamaReActClient, resolve_agent_model
+
+    model, source = resolve_agent_model()
+    requested = config.get("agent_mode", "fast")
+    mode = requested
+    if mode in ("auto", "full"):
+        try:
+            (probe or _probe_ollama)()
+            if mode == "auto":
+                mode = "full"
+            logger.info(f"[Step7a] Ollama 可用，agent_mode={mode}")
+        except Exception:
+            logger.warning(f"[Step7a] Ollama 不可用，{requested} → fast 降级")
+            mode = "fast"
+
+    # 预热：冷启动加载可能超过单次调用超时（默认 60s），导致首批 Agent 调用降级
+    warmup: dict = {}
+    if mode == "full":
+        ok, secs, msg = (warm_up or OllamaReActClient.warm_up)(
+            model=model, timeout=float(config.get("ollama_warmup_timeout", 300)))
+        warmup = {"ok": ok, "seconds": round(secs, 1), "detail": msg, "model": model}
+        if ok:
+            logger.info(f"[Step7a] Ollama 预热完成：{model}（来源 {source}，{secs:.1f}s）")
+        elif msg.startswith("HTTP 404"):
+            logger.warning(f"[Step7a] Ollama 未安装模型 {model}（来源 {source}，{msg}），full → fast 降级")
+            mode = "fast"
+        else:
+            logger.warning(f"[Step7a] Ollama 预热未完成（{msg}，{secs:.0f}s），仍按 full 运行，首批调用可能降级")
+    return {"agent_mode_requested": requested, "agent_mode": mode, "ollama_model": model,
+            "model_source": source, "warmup": warmup}
+
+
 def step7a_agent_analysis(
     as_of: date,
     top10: list[dict],
@@ -1183,39 +1227,14 @@ def step7a_agent_analysis(
         except Exception as _e:
             logger.warning(f"[Step7a] 读取 strategy_config 失败（{_e}），使用默认值")
 
-    agent_mode_requested = config.get("agent_mode", "fast")
-    ollama_model  = config.get("ollama_model",  "qwen2.5:7b")
     ollama_timeout = int(config.get("ollama_timeout", 60))
 
-    # ── 2. auto 模式：探测 Ollama 可用性 ─────────────────────────────────────
-    agent_mode = agent_mode_requested
-    if agent_mode in ("auto", "full"):
-        try:
-            import requests as _req
-            _req.get("http://localhost:11434/api/tags", timeout=3)
-            if agent_mode == "auto":
-                agent_mode = "full"
-            logger.info(f"[Step7a] Ollama 可用，agent_mode={agent_mode}")
-        except Exception:
-            logger.warning(
-                f"[Step7a] Ollama 不可用，{agent_mode_requested} → fast 降级"
-            )
-            agent_mode = "fast"
-
-    # ── 2b. 预热：冷启动加载可能超过单次调用超时（默认 60s），导致首批 Agent 调用降级 ──
-    warmup: dict = {}
-    if agent_mode == "full":
-        from quantmind.agents.ollama_client import OllamaReActClient
-        ok, secs, msg = OllamaReActClient.warm_up(
-            model=ollama_model, timeout=float(config.get("ollama_warmup_timeout", 300)))
-        warmup = {"ok": ok, "seconds": round(secs, 1), "detail": msg}
-        if ok:
-            logger.info(f"[Step7a] Ollama 预热完成：{ollama_model}（{secs:.1f}s）")
-        elif msg.startswith("HTTP 404"):
-            logger.warning(f"[Step7a] Ollama 未安装模型 {ollama_model}（{msg}），full → fast 降级")
-            agent_mode = "fast"
-        else:
-            logger.warning(f"[Step7a] Ollama 预热未完成（{msg}，{secs:.0f}s），仍按 full 运行，首批调用可能降级")
+    # ── 2. 探测 + 预热（模型与 Agent 客户端同一解析：环境变量 > 配置 > 默认）───────
+    rt = _resolve_agent_runtime(config)
+    agent_mode_requested = rt["agent_mode_requested"]
+    agent_mode = rt["agent_mode"]
+    ollama_model = rt["ollama_model"]
+    warmup = rt["warmup"]
 
     date_str = as_of.isoformat()
     n = min(args.agent_top, len(top10))
@@ -1379,6 +1398,7 @@ def step7a_agent_analysis(
             "stocks_failed":         fail_count,
             "ollama_used":           agent_mode == "full",
             "ollama_model":          ollama_model if agent_mode == "full" else None,
+            "ollama_model_source":   rt["model_source"] if agent_mode == "full" else None,
             "ollama_warmup":         warmup or None,
             "avg_confidence":        round(avg_conf, 4),
         }

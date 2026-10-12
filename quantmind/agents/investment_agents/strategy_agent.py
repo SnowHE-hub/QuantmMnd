@@ -532,7 +532,7 @@ KEY_RISK: <最主要的综合风险>"""
 行业：{self.context.get('industry', 'N/A')}
 分析日期：{self.as_of}"""
 
-        client = OllamaReActClient(model="qwen2.5:7b", timeout=90, max_steps=6)
+        client = OllamaReActClient(timeout=90, max_steps=6)
         result = client.chat_with_tools(
             system_prompt=system_prompt,
             user_message=user_message,
