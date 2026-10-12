@@ -1,0 +1,492 @@
+{
+ "inputs": {
+  "preds": "/home/lenovo/projects/quantmind/data/bakeoff/preds_v6_1/ridge_63d_v6_1_C_infnan.parquet",
+  "seed": "63d",
+  "horizon_td": 63,
+  "rebalance_step": 13,
+  "gate_max_drawdown": 0.12,
+  "block_days": 65,
+  "n_as_of": 200,
+  "as_of_range": [
+   "2022-08-09",
+   "2026-09-15"
+  ],
+  "exposure_date_coverage": 1.0,
+  "exposure_nonnull_on_pred_dates": {
+   "sw_l1": 0.9991423233440992,
+   "log_circ_market_cap": 0.9977488486840461,
+   "beta_252d": 0.999987004899153
+  }
+ },
+ "variants": {
+  "S0_baseline": {
+   "dims": [],
+   "period": {
+    "start": "2022-08-09",
+    "end": "2026-10-09",
+    "n_trading_days": 1008,
+    "n_rebalances": 16
+   },
+   "ann_net_excess": 0.05034084981926945,
+   "information_ratio": 0.6364707490874139,
+   "max_drawdown_net": -0.2768809726213805,
+   "yearly_net_excess": {
+    "2022": 0.03270819564017735,
+    "2023": 0.08743207371004336,
+    "2024": 0.09174811980297126,
+    "2025": -0.006391834436007771,
+    "2026": -3.8969461251592286e-05
+   },
+   "cost_drag_ann": 0.012510417428664544,
+   "turnover_annualized_twoway": 6.055449714378923,
+   "risk_full": {
+    "n_days": 1008,
+    "beta": 0.968463868579708,
+    "rel_mdd": -0.1323985881596781,
+    "abs_mdd": -0.27688097262138056,
+    "ann_net": 0.05744902422732978,
+    "ann_bench": 0.00710817440806033,
+    "cum_excess": 0.21543931220603207,
+    "ir": 0.6364707490874139,
+    "vol_net": 0.26580111803865114,
+    "vol_bench": 0.2624911701397362
+   },
+   "risk_2026": {
+    "n_days": 183,
+    "beta": 1.104032899828235,
+    "rel_mdd": -0.09016894899586103,
+    "abs_mdd": -0.2542409774192851,
+    "ann_net": -0.11424312392692326,
+    "ann_bench": -0.11419558947394026,
+    "cum_excess": -3.8969461251592286e-05,
+    "ir": 0.15290170842283343,
+    "vol_net": 0.33259805010328464,
+    "vol_bench": 0.2940393778266024
+   },
+   "active_exposure": {
+    "beta": 0.1603400091326435,
+    "size": 0.03128620131488058,
+    "industry_dev": 0.20678724922580155,
+    "n_rebalances": 16
+   },
+   "mean_swapped_vs_plain_top300": 0.0,
+   "mean_na_candidates": 0.0,
+   "gate_pass_current": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": true
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 31.0
+  },
+  "S1_industry": {
+   "dims": [
+    "sw_l1"
+   ],
+   "period": {
+    "start": "2022-08-09",
+    "end": "2026-10-09",
+    "n_trading_days": 1008,
+    "n_rebalances": 16
+   },
+   "ann_net_excess": 0.03794321869238937,
+   "information_ratio": 0.6450102392118388,
+   "max_drawdown_net": -0.3172375292234485,
+   "yearly_net_excess": {
+    "2022": 0.020707096564249072,
+    "2023": 0.0909333410946136,
+    "2024": 0.04670210776623618,
+    "2025": -0.014912253672873521,
+    "2026": 0.009142133436915278
+   },
+   "cost_drag_ann": 0.0127235917114088,
+   "turnover_annualized_twoway": 6.164135757887065,
+   "risk_full": {
+    "n_days": 1008,
+    "beta": 0.9684256588069653,
+    "rel_mdd": -0.10729664559139362,
+    "abs_mdd": -0.3172375292234485,
+    "ann_net": 0.0450513931004497,
+    "ann_bench": 0.00710817440806033,
+    "cum_excess": 0.15943420887567283,
+    "ir": 0.6450102392118388,
+    "vol_net": 0.26026238819960773,
+    "vol_bench": 0.2624911701397362
+   },
+   "risk_2026": {
+    "n_days": 183,
+    "beta": 1.0127094326703432,
+    "rel_mdd": -0.05142282490300487,
+    "abs_mdd": -0.2249265645751537,
+    "ann_net": -0.10302486598876526,
+    "ann_bench": -0.11419558947394026,
+    "cum_excess": 0.009142133436915278,
+    "ir": 0.2782051959509977,
+    "vol_net": 0.30272082268982137,
+    "vol_bench": 0.2940393778266024
+   },
+   "active_exposure": {
+    "beta": 0.11398554404870762,
+    "size": 0.0092580158625154,
+    "industry_dev": 0.013247882534089164,
+    "n_rebalances": 16
+   },
+   "mean_swapped_vs_plain_top300": 61.8125,
+   "mean_na_candidates": 0.8125,
+   "gate_pass_current": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 34.5
+  },
+  "S2_size": {
+   "dims": [
+    "log_circ_market_cap"
+   ],
+   "period": {
+    "start": "2022-08-09",
+    "end": "2026-10-09",
+    "n_trading_days": 1008,
+    "n_rebalances": 16
+   },
+   "ann_net_excess": 0.024249147757284595,
+   "information_ratio": 0.3919173175615391,
+   "max_drawdown_net": -0.3348082623690447,
+   "yearly_net_excess": {
+    "2022": 0.013216721154461819,
+    "2023": 0.0883689997113799,
+    "2024": 0.05078488048856289,
+    "2025": -0.030916441464391875,
+    "2026": -0.02345236682761176
+   },
+   "cost_drag_ann": 0.013003390768498768,
+   "turnover_annualized_twoway": 6.148802007695295,
+   "risk_full": {
+    "n_days": 1008,
+    "beta": 0.987484872857998,
+    "rel_mdd": -0.1051227903662828,
+    "abs_mdd": -0.3348082623690447,
+    "ann_net": 0.031357322165344925,
+    "ann_bench": 0.00710817440806033,
+    "cum_excess": 0.09984666127847985,
+    "ir": 0.3919173175615391,
+    "vol_net": 0.2669151816325203,
+    "vol_bench": 0.2624911701397362
+   },
+   "risk_2026": {
+    "n_days": 183,
+    "beta": 1.0984697832138988,
+    "rel_mdd": -0.08892554048331869,
+    "abs_mdd": -0.2574600339774905,
+    "ann_net": -0.1426755944229292,
+    "ann_bench": -0.11419558947394026,
+    "cum_excess": -0.02345236682761176,
+    "ir": -0.27218108555759485,
+    "vol_net": 0.3310478179809015,
+    "vol_bench": 0.2940393778266024
+   },
+   "active_exposure": {
+    "beta": 0.14087208594255146,
+    "size": -0.0009466519923645444,
+    "industry_dev": 0.19629927847708917,
+    "n_rebalances": 16
+   },
+   "mean_swapped_vs_plain_top300": 41.0,
+   "mean_na_candidates": 1.375,
+   "gate_pass_current": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 41.3
+  },
+  "S3_beta": {
+   "dims": [
+    "beta_252d"
+   ],
+   "period": {
+    "start": "2022-08-09",
+    "end": "2026-10-09",
+    "n_trading_days": 1008,
+    "n_rebalances": 16
+   },
+   "ann_net_excess": 0.021311237788642856,
+   "information_ratio": 0.21718075128490533,
+   "max_drawdown_net": -0.2799108827711246,
+   "yearly_net_excess": {
+    "2022": 0.04008834203074185,
+    "2023": 0.10417545342472634,
+    "2024": 0.05822594785464874,
+    "2025": -0.016419551634054952,
+    "2026": -0.08803442753122881
+   },
+   "cost_drag_ann": 0.013892282177248694,
+   "turnover_annualized_twoway": 6.2982160313242375,
+   "risk_full": {
+    "n_days": 1008,
+    "beta": 0.8944192626534957,
+    "rel_mdd": -0.18870197670447797,
+    "abs_mdd": -0.27991088277112464,
+    "ann_net": 0.028419412196703187,
+    "ann_bench": 0.00710817440806033,
+    "cum_excess": 0.08736807656248735,
+    "ir": 0.21718075128490533,
+    "vol_net": 0.24532541305937183,
+    "vol_bench": 0.2624911701397362
+   },
+   "risk_2026": {
+    "n_days": 183,
+    "beta": 0.8616942443715192,
+    "rel_mdd": -0.13439767249485368,
+    "abs_mdd": -0.24471714087656782,
+    "ann_net": -0.2197636366970387,
+    "ann_bench": -0.11419558947394026,
+    "cum_excess": -0.08803442753122881,
+    "ir": -1.590682303331415,
+    "vol_net": 0.26426172615256177,
+    "vol_bench": 0.2940393778266024
+   },
+   "active_exposure": {
+    "beta": 0.019813311226593258,
+    "size": 0.004721399895588507,
+    "industry_dev": 0.17816045750878012,
+    "n_rebalances": 16
+   },
+   "mean_swapped_vs_plain_top300": 52.625,
+   "mean_na_candidates": 0.0,
+   "gate_pass_current": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 32.5
+  },
+  "S4_industry_size": {
+   "dims": [
+    "sw_l1",
+    "log_circ_market_cap"
+   ],
+   "period": {
+    "start": "2022-08-09",
+    "end": "2026-10-09",
+    "n_trading_days": 1008,
+    "n_rebalances": 16
+   },
+   "ann_net_excess": 0.026818868673476937,
+   "information_ratio": 0.5443047866395778,
+   "max_drawdown_net": -0.3404181530930621,
+   "yearly_net_excess": {
+    "2022": 0.01391478907151722,
+    "2023": 0.1046428129874366,
+    "2024": 0.013331845604606318,
+    "2025": -0.019605089666186126,
+    "2026": -0.003808419451214573
+   },
+   "cost_drag_ann": 0.013031351204458863,
+   "turnover_annualized_twoway": 6.216200584890671,
+   "risk_full": {
+    "n_days": 1008,
+    "beta": 0.9694912075207561,
+    "rel_mdd": -0.08677278254251886,
+    "abs_mdd": -0.3404181530930621,
+    "ann_net": 0.03392704308153727,
+    "ann_bench": 0.00710817440806033,
+    "cum_excess": 0.11084917006421069,
+    "ir": 0.5443047866395778,
+    "vol_net": 0.25856736948426196,
+    "vol_bench": 0.2624911701397362
+   },
+   "risk_2026": {
+    "n_days": 183,
+    "beta": 1.0066555705302278,
+    "rel_mdd": -0.0500575091087998,
+    "abs_mdd": -0.23090635167926765,
+    "ann_net": -0.11883774717304052,
+    "ann_bench": -0.11419558947394026,
+    "cum_excess": -0.003808419451214573,
+    "ir": -0.06271088539308706,
+    "vol_net": 0.3006261420845155,
+    "vol_bench": 0.2940393778266024
+   },
+   "active_exposure": {
+    "beta": 0.09166061983888582,
+    "size": 0.003523535912546505,
+    "industry_dev": 0.028584467033493446,
+    "n_rebalances": 16
+   },
+   "mean_swapped_vs_plain_top300": 94.25,
+   "mean_na_candidates": 2.1875,
+   "gate_pass_current": false,
+   "gate_checks": [
+    {
+     "criterion": "ann_net_excess",
+     "passed": false
+    },
+    {
+     "criterion": "max_drawdown_net",
+     "passed": false
+    },
+    {
+     "criterion": "information_ratio",
+     "passed": false
+    },
+    {
+     "criterion": "ann_twoway_turnover",
+     "passed": true
+    },
+    {
+     "criterion": "yearly_net_excess_all_positive",
+     "passed": false
+    }
+   ],
+   "seconds": 32.2
+  }
+ },
+ "paired_vs_baseline": {
+  "S1_industry_minus_S0_baseline": {
+   "n_days": 1007,
+   "ann_mean_diff": -0.013280077473466684,
+   "ci95": [
+    -0.04553920753639794,
+    0.011680740190191722
+   ],
+   "ci_bonf": [
+    -0.05391463070359319,
+    0.018472959802644635
+   ],
+   "d_beta": -3.820977274271442e-05,
+   "d_rel_mdd": 0.025101942568284463,
+   "d_ir": 0.008539490124424898,
+   "effective": false,
+   "return_improved": false,
+   "primary": false
+  },
+  "S2_size_minus_S0_baseline": {
+   "n_days": 1007,
+   "ann_mean_diff": -0.024694223548081533,
+   "ci95": [
+    -0.05143073410598963,
+    -0.004557457117665476
+   ],
+   "ci_bonf": [
+    -0.05969753866360223,
+    0.0009822723920170319
+   ],
+   "d_beta": 0.01902100427829001,
+   "d_rel_mdd": 0.027275797793395284,
+   "d_ir": -0.24455343152587478,
+   "effective": false,
+   "return_improved": false,
+   "primary": false
+  },
+  "S3_beta_minus_S0_baseline": {
+   "n_days": 1007,
+   "ann_mean_diff": -0.033101135063390144,
+   "ci95": [
+    -0.10943929307700526,
+    0.005442412760112401
+   ],
+   "ci_bonf": [
+    -0.1344727785437968,
+    0.013979604922698726
+   ],
+   "d_beta": -0.07404460592621231,
+   "d_rel_mdd": -0.05630338854479988,
+   "d_ir": -0.41928999780250853,
+   "effective": false,
+   "return_improved": false,
+   "primary": true
+  },
+  "S4_industry_size_minus_S0_baseline": {
+   "n_days": 1007,
+   "ann_mean_diff": -0.024392006324575628,
+   "ci95": [
+    -0.07364330266127819,
+    0.009429765471998204
+   ],
+   "ci_bonf": [
+    -0.08459182006308472,
+    0.019605535032015526
+   ],
+   "d_beta": 0.001027338941048117,
+   "d_rel_mdd": 0.04562580561715923,
+   "d_ir": -0.09216596244783604,
+   "effective": false,
+   "return_improved": false,
+   "primary": false
+  }
+ },
+ "rule": "effective = 事后 beta 至少降 0.10 且 相对回撤变浅 且 年化净收益差 ≥ −1% 且 IR 降幅 ≤ 0.10；return_improved = Bonferroni 98.75% 区间下界 > 0；主比较 S3_beta"
+}
