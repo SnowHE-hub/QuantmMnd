@@ -1,0 +1,141 @@
+{
+ "A_LGBM_63d": {
+  "decisions": [
+   "2025-12-31",
+   "2026-03-31",
+   "2026-06-30"
+  ],
+  "start_nav_date": "2025-12-31",
+  "final_value": 90339.58,
+  "total_return": -0.0966,
+  "max_drawdown": -0.1628,
+  "total_cost_rmb": 1015.26,
+  "n_trades": 81,
+  "rejections": {
+   "lot_too_small": 9,
+   "limit_up_locked": 1
+  },
+  "avg_positions": 16.8,
+  "avg_cash_share": 0.2834,
+  "bench_pool_ew_return": -0.1009
+ },
+ "B_12d": {
+  "decisions": [
+   "2026-01-05",
+   "2026-01-26",
+   "2026-02-24",
+   "2026-03-17",
+   "2026-04-08",
+   "2026-04-29",
+   "2026-05-25",
+   "2026-06-15",
+   "2026-07-07",
+   "2026-07-28",
+   "2026-08-18",
+   "2026-09-08"
+  ],
+  "start_nav_date": "2026-01-05",
+  "final_value": 84763.14,
+  "total_return": -0.1524,
+  "max_drawdown": -0.1924,
+  "total_cost_rmb": 1976.65,
+  "n_trades": 142,
+  "rejections": {
+   "insufficient_cash": 172,
+   "lot_too_small": 151,
+   "suspended_no_bar": 18,
+   "expired_unfilled": 11,
+   "one_line_board": 6,
+   "limit_up_locked": 6,
+   "limit_down_locked": 1
+  },
+  "avg_positions": 6.3,
+  "avg_cash_share": 0.7456,
+  "bench_pool_ew_return": -0.0747
+ },
+ "B_20d": {
+  "decisions": [
+   "2026-01-05",
+   "2026-02-02",
+   "2026-03-10",
+   "2026-04-08",
+   "2026-05-11",
+   "2026-06-08",
+   "2026-07-07",
+   "2026-08-04",
+   "2026-09-01"
+  ],
+  "start_nav_date": "2026-01-05",
+  "final_value": 94650.51,
+  "total_return": -0.0535,
+  "max_drawdown": -0.1538,
+  "total_cost_rmb": 1887.77,
+  "n_trades": 133,
+  "rejections": {
+   "insufficient_cash": 170,
+   "lot_too_small": 97,
+   "suspended_no_bar": 21,
+   "one_line_board": 10,
+   "limit_up_locked": 6,
+   "expired_unfilled": 6
+  },
+  "avg_positions": 8.2,
+  "avg_cash_share": 0.6631,
+  "bench_pool_ew_return": -0.0935
+ },
+ "B_40d": {
+  "decisions": [
+   "2026-01-05",
+   "2026-03-10",
+   "2026-05-11",
+   "2026-07-07",
+   "2026-09-01"
+  ],
+  "start_nav_date": "2026-01-05",
+  "final_value": 100399.77,
+  "total_return": 0.004,
+  "max_drawdown": -0.1065,
+  "total_cost_rmb": 1152.65,
+  "n_trades": 77,
+  "rejections": {
+   "insufficient_cash": 75,
+   "lot_too_small": 56,
+   "suspended_no_bar": 5,
+   "limit_up_locked": 1
+  },
+  "avg_positions": 8.8,
+  "avg_cash_share": 0.6397,
+  "bench_pool_ew_return": -0.0855
+ },
+ "B_63d": {
+  "decisions": [
+   "2026-01-05",
+   "2026-04-15",
+   "2026-07-21"
+  ],
+  "start_nav_date": "2026-01-05",
+  "final_value": 107575.9,
+  "total_return": 0.0758,
+  "max_drawdown": -0.2427,
+  "total_cost_rmb": 750.27,
+  "n_trades": 57,
+  "rejections": {
+   "lot_too_small": 28
+  },
+  "avg_positions": 11.1,
+  "avg_cash_share": 0.4888,
+  "bench_pool_ew_return": -0.0362
+ },
+ "沪深300": {
+  "total_return": -0.0588,
+  "max_drawdown": -0.1421
+ },
+ "中证500": {
+  "total_return": -0.0041,
+  "max_drawdown": -0.1906
+ },
+ "创业板指": {
+  "total_return": -0.0212,
+  "max_drawdown": -0.2829
+ }
+}

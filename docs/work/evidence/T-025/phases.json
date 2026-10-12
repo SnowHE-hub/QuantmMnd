@@ -1,0 +1,426 @@
+{
+ "B_12d_research": {
+  "n_phases": 3,
+  "total_min": -0.0869,
+  "total_median": -0.0809,
+  "total_max": 0.0627,
+  "excess_min": -0.0131,
+  "excess_median": 0.0059,
+  "excess_max": 0.1682,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": 0.0627,
+    "excess_vs_pool": 0.1682,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.0809,
+    "excess_vs_pool": 0.0059,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.0869,
+    "excess_vs_pool": -0.0131,
+    "second_decision": "2026-01-26"
+   }
+  ]
+ },
+ "B_12d_retail_affordable": {
+  "n_phases": 3,
+  "total_min": -0.2809,
+  "total_median": -0.2555,
+  "total_max": -0.1092,
+  "excess_min": -0.213,
+  "excess_median": -0.1954,
+  "excess_max": -0.0207,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": -0.1092,
+    "excess_vs_pool": -0.0207,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.2809,
+    "excess_vs_pool": -0.213,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.2555,
+    "excess_vs_pool": -0.1954,
+    "second_decision": "2026-01-26"
+   }
+  ]
+ },
+ "B_20d_research": {
+  "n_phases": 4,
+  "total_min": -0.0828,
+  "total_median": 0.020749999999999998,
+  "total_max": 0.1232,
+  "excess_min": 0.0119,
+  "excess_median": 0.10635,
+  "excess_max": 0.2137,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": 0.0322,
+    "excess_vs_pool": 0.1217,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": 0.0093,
+    "excess_vs_pool": 0.091,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": 0.1232,
+    "excess_vs_pool": 0.2137,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.0828,
+    "excess_vs_pool": 0.0119,
+    "second_decision": "2026-02-02"
+   }
+  ]
+ },
+ "B_20d_retail_affordable": {
+  "n_phases": 4,
+  "total_min": -0.3261,
+  "total_median": -0.0867,
+  "total_max": 0.1284,
+  "excess_min": -0.2566,
+  "excess_median": -0.010400000000000001,
+  "excess_max": 0.2197,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": -0.1104,
+    "excess_vs_pool": -0.0333,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": 0.1284,
+    "excess_vs_pool": 0.2197,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.063,
+    "excess_vs_pool": 0.0125,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.3261,
+    "excess_vs_pool": -0.2566,
+    "second_decision": "2026-02-02"
+   }
+  ]
+ },
+ "B_40d_research": {
+  "n_phases": 8,
+  "total_min": -0.1832,
+  "total_median": -0.0414,
+  "total_max": 0.038,
+  "excess_min": -0.1068,
+  "excess_median": 0.0376,
+  "excess_max": 0.145,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": -0.1193,
+    "excess_vs_pool": -0.0409,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.0403,
+    "excess_vs_pool": 0.041,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.0332,
+    "excess_vs_pool": 0.0457,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.0752,
+    "excess_vs_pool": 0.0093,
+    "second_decision": "2026-02-02"
+   },
+   {
+    "k": 5,
+    "total_return": -0.0412,
+    "excess_vs_pool": 0.0342,
+    "second_decision": "2026-02-09"
+   },
+   {
+    "k": 6,
+    "total_return": -0.0416,
+    "excess_vs_pool": 0.0496,
+    "second_decision": "2026-02-24"
+   },
+   {
+    "k": 7,
+    "total_return": 0.038,
+    "excess_vs_pool": 0.145,
+    "second_decision": "2026-03-03"
+   },
+   {
+    "k": 8,
+    "total_return": -0.1832,
+    "excess_vs_pool": -0.1068,
+    "second_decision": "2026-03-10"
+   }
+  ]
+ },
+ "B_40d_retail_affordable": {
+  "n_phases": 8,
+  "total_min": -0.2202,
+  "total_median": -0.11415,
+  "total_max": 0.222,
+  "excess_min": -0.1508,
+  "excess_median": -0.0432,
+  "excess_max": 0.348,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": -0.2202,
+    "excess_vs_pool": -0.1508,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.0815,
+    "excess_vs_pool": -0.0037,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.1323,
+    "excess_vs_pool": -0.0614,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.1471,
+    "excess_vs_pool": -0.0691,
+    "second_decision": "2026-02-02"
+   },
+   {
+    "k": 5,
+    "total_return": -0.096,
+    "excess_vs_pool": -0.025,
+    "second_decision": "2026-02-09"
+   },
+   {
+    "k": 6,
+    "total_return": 0.1006,
+    "excess_vs_pool": 0.2053,
+    "second_decision": "2026-02-24"
+   },
+   {
+    "k": 7,
+    "total_return": 0.222,
+    "excess_vs_pool": 0.348,
+    "second_decision": "2026-03-03"
+   },
+   {
+    "k": 8,
+    "total_return": -0.1448,
+    "excess_vs_pool": -0.0648,
+    "second_decision": "2026-03-10"
+   }
+  ]
+ },
+ "B_63d_research": {
+  "n_phases": 13,
+  "total_min": -0.1245,
+  "total_median": -0.0602,
+  "total_max": 0.1131,
+  "excess_min": -0.0544,
+  "excess_median": 0.0198,
+  "excess_max": 0.2544,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": 0.0139,
+    "excess_vs_pool": 0.0641,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.0724,
+    "excess_vs_pool": -0.0267,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.1056,
+    "excess_vs_pool": -0.0501,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.0912,
+    "excess_vs_pool": -0.0211,
+    "second_decision": "2026-02-02"
+   },
+   {
+    "k": 5,
+    "total_return": -0.0332,
+    "excess_vs_pool": 0.0366,
+    "second_decision": "2026-02-09"
+   },
+   {
+    "k": 6,
+    "total_return": -0.0929,
+    "excess_vs_pool": -0.0297,
+    "second_decision": "2026-02-24"
+   },
+   {
+    "k": 7,
+    "total_return": -0.1245,
+    "excess_vs_pool": -0.0544,
+    "second_decision": "2026-03-03"
+   },
+   {
+    "k": 8,
+    "total_return": -0.0779,
+    "excess_vs_pool": -0.0055,
+    "second_decision": "2026-03-10"
+   },
+   {
+    "k": 9,
+    "total_return": -0.0142,
+    "excess_vs_pool": 0.0887,
+    "second_decision": "2026-03-17"
+   },
+   {
+    "k": 10,
+    "total_return": 0.1131,
+    "excess_vs_pool": 0.2544,
+    "second_decision": "2026-03-24"
+   },
+   {
+    "k": 11,
+    "total_return": 0.0224,
+    "excess_vs_pool": 0.1478,
+    "second_decision": "2026-03-31"
+   },
+   {
+    "k": 12,
+    "total_return": -0.0602,
+    "excess_vs_pool": 0.0364,
+    "second_decision": "2026-04-08"
+   },
+   {
+    "k": 13,
+    "total_return": -0.0172,
+    "excess_vs_pool": 0.0198,
+    "second_decision": "2026-04-15"
+   }
+  ]
+ },
+ "B_63d_retail_affordable": {
+  "n_phases": 13,
+  "total_min": -0.2586,
+  "total_median": -0.0627,
+  "total_max": 0.1238,
+  "excess_min": -0.2221,
+  "excess_median": 0.0123,
+  "excess_max": 0.2392,
+  "phases": [
+   {
+    "k": 1,
+    "total_return": -0.0943,
+    "excess_vs_pool": -0.0494,
+    "second_decision": "2026-01-12"
+   },
+   {
+    "k": 2,
+    "total_return": -0.2586,
+    "excess_vs_pool": -0.2221,
+    "second_decision": "2026-01-19"
+   },
+   {
+    "k": 3,
+    "total_return": -0.1985,
+    "excess_vs_pool": -0.1487,
+    "second_decision": "2026-01-26"
+   },
+   {
+    "k": 4,
+    "total_return": -0.1677,
+    "excess_vs_pool": -0.1035,
+    "second_decision": "2026-02-02"
+   },
+   {
+    "k": 5,
+    "total_return": -0.059,
+    "excess_vs_pool": 0.009,
+    "second_decision": "2026-02-09"
+   },
+   {
+    "k": 6,
+    "total_return": -0.1472,
+    "excess_vs_pool": -0.0878,
+    "second_decision": "2026-02-24"
+   },
+   {
+    "k": 7,
+    "total_return": -0.0627,
+    "excess_vs_pool": 0.0123,
+    "second_decision": "2026-03-03"
+   },
+   {
+    "k": 8,
+    "total_return": 0.0254,
+    "excess_vs_pool": 0.1059,
+    "second_decision": "2026-03-10"
+   },
+   {
+    "k": 9,
+    "total_return": 0.0743,
+    "excess_vs_pool": 0.1864,
+    "second_decision": "2026-03-17"
+   },
+   {
+    "k": 10,
+    "total_return": 0.0619,
+    "excess_vs_pool": 0.1967,
+    "second_decision": "2026-03-24"
+   },
+   {
+    "k": 11,
+    "total_return": -0.0954,
+    "excess_vs_pool": 0.0155,
+    "second_decision": "2026-03-31"
+   },
+   {
+    "k": 12,
+    "total_return": 0.1238,
+    "excess_vs_pool": 0.2392,
+    "second_decision": "2026-04-08"
+   },
+   {
+    "k": 13,
+    "total_return": -0.0004,
+    "excess_vs_pool": 0.0372,
+    "second_decision": "2026-04-15"
+   }
+  ]
+ }
+}
