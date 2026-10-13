@@ -1,0 +1,42 @@
+{
+ "a158": {
+  "wall": "30:36.19",
+  "maxrss_gb": 3.27,
+  "exit": 0
+ },
+ "base_fast": {
+  "wall": "4:08:11",
+  "maxrss_gb": 3.87,
+  "exit": 0
+ },
+ "events": {
+  "wall": "16:55.79",
+  "maxrss_gb": 7.91,
+  "exit": 0
+ },
+ "fnd": {
+  "wall": "3:23:18",
+  "maxrss_gb": 3.1,
+  "exit": 0
+ },
+ "p0_chain": {
+  "wall": "2:00.67",
+  "maxrss_gb": 3.05,
+  "exit": 1
+ },
+ "sector": {
+  "wall": "0:42.55",
+  "maxrss_gb": 0.26,
+  "exit": 0
+ },
+ "seq": {
+  "wall": "21:07.40",
+  "maxrss_gb": 2.39,
+  "exit": 0
+ },
+ "sh": {
+  "wall": "55:46.30",
+  "maxrss_gb": 7.34,
+  "exit": 0
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "20d": {
+  "n_folds": 19,
+  "n_test_asof": 224,
+  "matches_baseline_dirs_json": "/home/lenovo/projects/quantmind/data/bakeoff/preds_v6_1_t028/ridge_20d_v6_1_BASE.dirs.json"
+ },
+ "63d": {
+  "n_folds": 9,
+  "n_test_asof": 200,
+  "matches_baseline_dirs_json": "/home/lenovo/projects/quantmind/data/bakeoff/preds_v6_1/ridge_63d_v6_1_C_infnan.dirs.json"
+ }
+}

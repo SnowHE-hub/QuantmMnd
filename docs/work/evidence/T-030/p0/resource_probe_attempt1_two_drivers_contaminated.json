@@ -1,0 +1,61 @@
+{
+ "load": {
+  "fold": 18,
+  "cutoff": "2026-07-01",
+  "n_train_days": 736,
+  "rows": 3721506,
+  "stock_features": 250,
+  "market_features": 26,
+  "X_float16_mb": 1775,
+  "load_s": 50.0,
+  "label_rank_s": 1.7,
+  "label_nonnull": 3706603,
+  "rows_per_day": 5056,
+  "ok": true,
+  "seconds": 52.6,
+  "rss_peak_mb": 4292,
+  "returncode": 0
+ },
+ "xgb": {
+  "ok": false,
+  "error": "subprocess died",
+  "returncode": -15
+ },
+ "cat_rmse": {
+  "rows": 3706603,
+  "cols": 276,
+  "dense_float32_mb": 3903,
+  "dense_s": 74.3,
+  "rounds": 100,
+  "fit_s": 105.0,
+  "s_per_round": 1.05,
+  "predict_200k_s": 3.43,
+  "vram_base_mb": 270,
+  "vram_peak_mb": 7123,
+  "ok": true,
+  "seconds": 280.5,
+  "rss_peak_mb": 9304,
+  "returncode": 0
+ },
+ "cat_yetirank": {
+  "ok": false,
+  "error": "CatBoostError('catboost/cuda/targets/querywise_targets_impl.h:319: Error: max query size supported on GPU is 1023, got 5035')",
+  "trace": "Traceback (most recent call last):\n  File \"/home/lenovo/projects/qm-t030/docs/work/evidence/T-030/p0_resource_probe.py\", line 154, in main\n    r = FNS[name](root)\n        ^^^^^^^^^^^^^^^\n  File \"/home/lenovo/projects/qm-t030/docs/work/evidence/T-030/p0_resource_probe.py\", line 142, in <lambda>\n    \"cat_yetirank\": lambda r: tree_unit(r, \"cat\", {\"objective\": \"yetirank\", **CAT_P}, 50),\n                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/projects/qm-t030/docs/work/evidence/T-030/p0_resource_probe.py\", line 92, in tree_unit\n    model = fam.fit(params, X, y, day, rounds, seed=0)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/projects/qm-t030/quantmind/research/gpu/trees.py\", line 81, in fit\n    if s >= len(src):\n    ^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/catboost/core.py\", line 2895, in fit\n    return self._fit(X, y, cat_features, text_features, embedding_features, pairs, graph, sample_weight, group_id, group_weight, subgroup_id,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/catboost/core.py\", line 2716, in _fit\n    self._train(\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/catboost/core.py\", line 1824, in _train\n    self._object._train(train_pool, test_pool, params, allow_clear_pool, init_model._object if init_model else None)\n  File \"_catboost.pyx\", line 5430, in _catboost._CatBoost._train\n  File \"_catboost.pyx\", line 5479, in _catboost._CatBoost._train\n_catboost.CatBoostError: catboost/cuda/targets/querywise_targets_impl.h:319: Error: max query size supported on GPU is 1023, got 5035\n",
+  "seconds": 241.8,
+  "rss_peak_mb": 9584,
+  "returncode": 0
+ },
+ "lgbm": {
+  "ok": false,
+  "error": "AttributeError(\"'numpy.ndarray' object has no attribute 'chunk'\")",
+  "trace": "^^^^^^^^^^\n  File \"/home/lenovo/projects/qm-t030/docs/work/evidence/T-030/p0_resource_probe.py\", line 92, in tree_unit\n    t2 = time.time()\n                ^^^^^\n  File \"/home/lenovo/projects/qm-t030/quantmind/research/gpu/trees.py\", line 177, in fit\n    return lgb.train({**base, **p}, ds, num_boost_round=rounds)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/engine.py\", line 297, in train\n    booster = Booster(params=params, train_set=train_set)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 3656, in __init__\n    train_set.construct()\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 2590, in construct\n    self._lazy_init(\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 2198, in _lazy_init\n    self.__init_from_seqs([data], ref_dataset)\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 2294, in __init_from_seqs\n    sample_data, col_indices = self.__sample(seqs, total_nrow)\n                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 2256, in __sample\n    sampled = np.array(list(self._yield_row_from_seqlist(seqs, indices)))\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/lightgbm/basic.py\", line 2241, in _yield_row_from_seqlist\n    row = seq[id_in_seq]\n          ~~~^^^^^^^^^^^\n  File \"/home/lenovo/projects/qm-t030/quantmind/research/gpu/trees.py\", line 165, in __getitem__\n    return src.chunk(i, i + 1)[0].astype(np.float64)   # \u5206\u7bb1\u62bd\u6837\u8981\u6c42 double\n           ^^^^^^^^^\nAttributeError: 'numpy.ndarray' object has no attribute 'chunk'\n",
+  "seconds": 360.8,
+  "rss_peak_mb": 8165,
+  "returncode": 0
+ },
+ "tabm": {
+  "ok": false,
+  "error": "subprocess died",
+  "returncode": 75
+ }
+}

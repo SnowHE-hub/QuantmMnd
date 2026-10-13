@@ -1,0 +1,177 @@
+{
+ "torch_env": {
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "available": true,
+  "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "capability": [
+   12,
+   0
+  ],
+  "bf16": true,
+  "mem_total_mb": 8151,
+  "ok": true,
+  "seconds": 5.77,
+  "returncode": 0
+ },
+ "xgb_reg": {
+  "xgb": "3.2.0",
+  "device_in_model": "cuda:0",
+  "pred_finite": true,
+  "corr": 0.8875912272953924,
+  "ok": true,
+  "seconds": 5.09,
+  "returncode": 0,
+  "note": "device string is cuda:0; aggregator initially required exactly cuda"
+ },
+ "xgb_rank": {
+  "xgb": "3.2.0",
+  "device_in_model": "cuda:0",
+  "pred_finite": true,
+  "corr": 0.8861774023106531,
+  "ok": true,
+  "seconds": 2.95,
+  "returncode": 0
+ },
+ "cat_reg": {
+  "catboost": "1.2.10",
+  "task_type": "GPU",
+  "pred_finite": true,
+  "corr": 0.9629247406877801,
+  "ok": true,
+  "seconds": 6.01,
+  "returncode": 0
+ },
+ "cat_rank": {
+  "catboost": "1.2.10",
+  "task_type": "GPU",
+  "pred_finite": true,
+  "corr": 0.9069662115617121,
+  "ok": true,
+  "seconds": 9.84,
+  "returncode": 0,
+  "note": "YetiRank NDCG metric falls back to CPU; training task_type stays GPU"
+ },
+ "mlp": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   -0.0479,
+   -0.1627,
+   -0.1986
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640
+  ],
+  "peak_vram_mb": 20.0,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 8.0,
+  "returncode": 0
+ },
+ "tabm": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   0.0069,
+   -0.008,
+   -0.0343
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640,
+   32
+  ],
+  "peak_vram_mb": 93.5,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 9.13,
+  "returncode": 0
+ },
+ "seqfusion": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   0.0125,
+   -0.1007,
+   -0.1564
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640
+  ],
+  "peak_vram_mb": 59.1,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 7.33,
+  "returncode": 0
+ },
+ "gru": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   -0.037,
+   -0.0904,
+   -0.1239
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640
+  ],
+  "peak_vram_mb": 127.6,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 7.22,
+  "returncode": 0
+ },
+ "alstm": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   0.0065,
+   -0.0914,
+   -0.1261
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640
+  ],
+  "peak_vram_mb": 143.1,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 7.84,
+  "returncode": 0
+ },
+ "master": {
+  "devices": [
+   "cuda"
+  ],
+  "grads_cuda": true,
+  "losses": [
+   -0.0474,
+   -0.1221,
+   -0.1644
+  ],
+  "loss_finite": true,
+  "pred_shape": [
+   640
+  ],
+  "peak_vram_mb": 100.2,
+  "bf16_autocast": true,
+  "ok": true,
+  "seconds": 6.94,
+  "returncode": 0
+ },
+ "all_ok": true
+}

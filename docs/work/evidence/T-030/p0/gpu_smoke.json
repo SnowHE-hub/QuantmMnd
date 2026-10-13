@@ -1,0 +1,42 @@
+{
+ "torch": {
+  "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "capability": [
+   12,
+   0
+  ],
+  "final_loss": 2.025163173675537,
+  "reload_max_abs_diff": 0.0,
+  "corr_pred_y": 0.9360812038336014,
+  "peak_mem_mb": 49.7,
+  "ok": true,
+  "seconds": 13.11
+ },
+ "tabm": {
+  "k": 32,
+  "reload_max_abs_diff": 0.0,
+  "corr_pred_y": 0.9669247975689029,
+  "ok": true,
+  "seconds": 182.25
+ },
+ "xgboost": {
+  "version": "3.2.0",
+  "reg_reload_max_abs_diff": 9.5367431640625e-07,
+  "reg_corr": 0.9783227091112484,
+  "rank_corr": 0.6356680361883994,
+  "extmem_ok": false,
+  "extmem_error": "XGBoostError('[01:04:18] /__w/xgboost/xgboost/src/data/extmem_quantile_dmatrix.cu:131: Check failed: ptr: The `ExtMemQuantileDMatrix` is initialized using CPU data, cannot be used for GPU.\\nStack trace:\\n  [bt] (0) /home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/site-packages/xgboost/lib/libxgboost.so(+0x2c1a8c) [0x7dbe72ac1a8c]\\n  [bt] (1) /home/lenovo/miniforge3/envs/qm-gpu/lib/python3.11/sit",
+  "ok": true,
+  "seconds": 11.3
+ },
+ "catboost": {
+  "version": "1.2.10",
+  "reg_reload_max_abs_diff": 0.0,
+  "reg_corr": 0.9744663533496015,
+  "yetirank_corr": 0.9032022116163015,
+  "queryrmse_corr": 0.9634604224701381,
+  "ok": true,
+  "seconds": 12.04
+ },
+ "note": "\u6bcf\u4e2a\u5e93\u5728\u5355\u72ec\u7684\u5b50\u8fdb\u7a0b\u91cc\u6d4b\u8bd5"
+}

@@ -1,0 +1,33 @@
+# T-030 GPU 队列（预登记 §4.1 的执行顺序）。R = 数据根目录；每行一个任务，可断点续跑。
+# ── ENS 成员 ──
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 20d
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind cat 63d
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind cat 20d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind tabm 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind tabm 20d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind seqfusion 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind seqfusion 20d
+# ── 负对照 ──
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d --shuffle-labels
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 20d --shuffle-labels
+$PY docs/work/evidence/T-030/p6_controls.py /home/lenovo/projects/quantmind 63d docs/work/evidence/T-030/p6/controls_63d.json
+$PY docs/work/evidence/T-030/p6_controls.py /home/lenovo/projects/quantmind 20d docs/work/evidence/T-030/p6/controls_20d.json
+# ── 其余族 ──
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind mlp 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind mlp 20d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind gru 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind gru 20d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind alstm 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind alstm 20d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind master 63d
+$PY docs/work/evidence/T-030/run_dl.py /home/lenovo/projects/quantmind master 20d
+# ── 消融 ──
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d --weekly-train
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 20d --weekly-train
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d --groups F1
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d --groups F1,F2
+$PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63d --groups F1,F2,F3
+# ── 通道 B ──
+$PY docs/work/evidence/T-030/run_quantile.py /home/lenovo/projects/quantmind 63d docs/work/evidence/T-030/p6/quantile_63d.json
+$PY docs/work/evidence/T-030/run_quantile.py /home/lenovo/projects/quantmind 20d docs/work/evidence/T-030/p6/quantile_20d.json
