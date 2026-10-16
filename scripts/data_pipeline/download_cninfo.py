@@ -4,10 +4,14 @@
 实测（2026-10-17）：
   - 每页最多 30 条（pageSize 再大也只回 30）；单个查询最多翻 100 页 = 3,000 条，第 101 页起**静默返回第 1 页**；
   - 不带板块时返回深沪京全部；plate = szmb / szcy / shmb / shkcp / bj 的合计等于全部（2019-04-26：3979 + 5470 + 4318 = 13767）；
-  - category=… 可在板块内再拆，类别之间有少量重叠（同日深市各类别合计 9482 > 板块总数 9449）；
+  - category=… 可在板块内再拆，类别之间有少量重叠，且有个别公告不属于任何类别（同日沪主板按类别合并只有 4317 / 4318）；
+  - sortName=code 的 asc / desc 有效，但代码有并列，分页边界会漏行（单独用正倒序两遍：13719 / 13767）；
+    与类别拆分的结果合并后恰好 13767 / 13767；
   - announcementTime 是带分钟的毫秒时间戳；另存北京时间 publish_ts_bj。
-拆分树：日 → 总数 ≤ 3000 直接翻页；否则按板块 → 板块内仍 > 3000 按类别。每个节点用去重后的 announcementId 数
-       与该节点的 totalAnnouncement 对账：对不上（或叶子超过 3000、出现回绕页）记 truncated，数据照存，续跑重试。
+拆分树：节点总数 ≤ 3000 → 直接翻页（默认顺序分页稳定）；更大 → 日按板块拆、板块按类别拆；
+       板块按类别合并后仍少于总数 → 再按代码正倒序两遍补漏；类别叶子 > 3000（少见）→ 正倒序两遍兜底。
+       每个节点用去重后的 announcementId 数与该节点的 totalAnnouncement 对账。对不上记 truncated，数据照存，下次运行重试；
+       连续两次 truncated 且总数、行数都不变 → 记 partial（终态，缺口写进检查点，不再重试）。
 产物：<root>/data/lake/text/cninfo/_parts/<YYYYMMDD>.parquet；_checkpoints/cninfo_meta.json（每日终态、总数、行数、请求数）。
 限速：请求间隔 --interval 秒（默认 1.5）；HTTP / JSON 错误指数退避，最多 5 次；--max-seconds 到时在两天之间退出（定时任务续跑）。
 用法：python download_cninfo.py --data-root <root> [--start 2019-01-01] [--end 2026-10-16] [--max-seconds 3300]
@@ -41,8 +45,9 @@ CATEGORIES = (
 KEEP = ("announcementId", "secCode", "secName", "orgId", "announcementTitle", "announcementTime", "adjunctUrl",
         "adjunctSize", "adjunctType", "announcementType", "columnId", "pageColumn", "important", "storageTime")
 BJ = timezone(timedelta(hours=8))
-DONE, EMPTY, FAILED, TRUNCATED = "done", "empty", "failed", "truncated"
-TERMINAL_OK = {DONE, EMPTY}
+DONE, EMPTY, FAILED, TRUNCATED, PARTIAL = "done", "empty", "failed", "truncated", "partial"
+TERMINAL_OK = {DONE, EMPTY, PARTIAL}
+NO_SORT = ("", "")
 
 
 class Client:
@@ -53,10 +58,10 @@ class Client:
         self.interval, self.sleep, self.retries = interval, sleep, retries
         self.requests = 0
 
-    def page(self, day: str, page: int, plate: str = "", category: str = "") -> dict:
+    def page(self, day: str, page: int, plate: str = "", category: str = "", sort: tuple = NO_SORT) -> dict:
         data = {"pageNum": page, "pageSize": PAGE_SIZE, "column": "szse", "tabName": "fulltext", "plate": plate,
                 "stock": "", "searchkey": "", "secid": "", "category": category, "trade": "",
-                "seDate": f"{day}~{day}", "sortName": "", "sortType": "", "isHHTime": "true"}
+                "seDate": f"{day}~{day}", "sortName": sort[0], "sortType": sort[1], "isHHTime": "true"}
         for attempt in range(self.retries):
             try:
                 self.requests += 1
@@ -84,40 +89,53 @@ def _requests_post():
     return post
 
 
-def fetch_leaf(client: Client, day: str, plate: str, category: str, first: dict) -> tuple[dict, bool]:
-    """翻完一个查询的全部页（≤ 100 页）。返回 ({announcementId: 行}, 是否与总数对上)。"""
-    total = int(first.get("totalAnnouncement") or 0)
-    rows: dict[str, dict] = {}
-    pages = min(MAX_PAGES, math.ceil(total / PAGE_SIZE))
-    for p in range(1, pages + 1):
-        anns = (first if p == 1 else client.page(day, p, plate, category)).get("announcements") or []
-        new = [a for a in anns if str(a["announcementId"]) not in rows]
-        if anns and not new:                        # 回绕页（第 101 页起返回第 1 页）或重复页：停止
-            break
-        for a in new:
-            rows[str(a["announcementId"])] = {**{k: a.get(k) for k in KEEP}, "plate": plate, "category": category}
+def _pages(client: Client, day: str, plate: str, category: str, sort: tuple, total: int, rows: dict,
+           first: dict | None = None) -> None:
+    """按一种排序翻页（≤ 100 页），新行并入 rows；凑满 total、短页、或整页都是**本遍**已见过的（回绕 / 重复）就停。
+    回绕只和本遍比较：补漏时 rows 里已有其他拆分取到的行，整页"不新"是正常的。"""
+    seen: set[str] = set()
+    for p in range(1, min(MAX_PAGES, math.ceil(total / PAGE_SIZE)) + 1):
+        if len(rows) >= total:
+            return
+        anns = ((first if (p == 1 and first is not None) else client.page(day, p, plate, category, sort))
+                .get("announcements") or [])
+        ids = [str(a["announcementId"]) for a in anns]
+        if ids and seen.issuperset(ids):
+            return
+        seen.update(ids)
+        for i, a in zip(ids, anns, strict=True):
+            if i not in rows:
+                rows[i] = {**{k: a.get(k) for k in KEEP}, "plate": plate, "category": category}
         if len(anns) < PAGE_SIZE:
-            break
-    return rows, (len(rows) == total and total <= LEAF_CAP)
+            return
 
 
 def fetch_node(client: Client, day: str, plate: str = "", category: str = "") -> tuple[dict, bool, int]:
     """拆分树的一个节点。返回 (行, 是否对账通过, 本节点 totalAnnouncement)。"""
     first = client.page(day, 1, plate, category)
     total = int(first.get("totalAnnouncement") or 0)
+    rows: dict[str, dict] = {}
     if total == 0:
-        return {}, True, 0
-    if total <= LEAF_CAP or category:
-        rows, ok = fetch_leaf(client, day, plate, category, first)
-        return rows, ok, total
-    children = PLATES if not plate else CATEGORIES
-    rows, ok = {}, True
-    for c in children:
-        sub, sub_ok, _ = fetch_node(client, day, c, "") if not plate else fetch_node(client, day, plate, c)
-        for k, v in sub.items():
-            rows.setdefault(k, v)
-        ok &= sub_ok
-    return rows, ok and len(rows) == total, total
+        return rows, True, 0
+    if total <= LEAF_CAP:
+        _pages(client, day, plate, category, NO_SORT, total, rows, first)
+    elif category:                                       # 类别叶子 > 3000（少见）：只能正倒序各取前 3000
+        _two_way(client, day, plate, category, total, rows)
+    else:
+        for c in (PLATES if not plate else CATEGORIES):
+            sub, _, _ = fetch_node(client, day, c, "") if not plate else fetch_node(client, day, plate, c)
+            for k, v in sub.items():
+                rows.setdefault(k, v)
+        if plate and len(rows) < total:                  # 有公告不属于任何类别：用正倒序两遍补漏
+            _two_way(client, day, plate, "", total, rows)
+    return rows, len(rows) == total, total
+
+
+def _two_way(client: Client, day: str, plate: str, category: str, total: int, rows: dict) -> None:
+    """按代码正序、倒序各翻 ≤ 100 页，新行并入 rows。代码有并列（同一公司一天多条），分页边界可能漏行，
+    所以只用作补漏或兜底，结果仍以与总数对账为准（2019-04-26 实测：单独用会漏 48 条，与类别拆分合并后恰好对上）。"""
+    _pages(client, day, plate, category, ("code", "asc"), total, rows)
+    _pages(client, day, plate, category, ("code", "desc"), total, rows)
 
 
 def to_frame(rows: dict, fetched_at: str) -> pd.DataFrame:
@@ -153,8 +171,7 @@ def run(out_dir: Path, days: list[str], client: Client, max_seconds: float = 0, 
         if max_seconds and clock() - t0 > max_seconds:
             log(f"[cninfo] time budget reached before {day}")
             break
-        r0 = client.requests
-        rec: dict = {}
+        r0, prev = client.requests, ck["days"].get(day, {})
         try:
             rows, ok, total = fetch_node(client, day)
             df = to_frame(rows, datetime.now(BJ).isoformat())
@@ -164,12 +181,15 @@ def run(out_dir: Path, days: list[str], client: Client, max_seconds: float = 0, 
                 os.replace(tmp, parts / f"{day.replace('-', '')}.parquet")
             state = EMPTY if total == 0 else (DONE if ok else TRUNCATED)
             rec = {"state": state, "total": total, "rows": int(len(df))}
+            if state == TRUNCATED and prev.get("state") == TRUNCATED and \
+                    (prev.get("total"), prev.get("rows")) == (total, rec["rows"]):
+                rec.update(state=PARTIAL, gap=total - rec["rows"])     # 重试结果不变：缺口是接口本身的，不再重试
         except Exception as e:  # noqa: BLE001
             rec = {"state": FAILED, "error": f"{type(e).__name__}: {str(e)[:160]}"}
         rec["requests"] = client.requests - r0
         ck["days"][day] = rec
         save_ckpt(ck_path, ck)
-        if i % 20 == 0 or rec["state"] not in TERMINAL_OK:
+        if i % 20 == 0 or rec["state"] not in (DONE, EMPTY):
             log(f"[cninfo] {i}/{len(todo)} {day} {rec} ({clock() - t0:.0f}s)")
     states = pd.Series([v["state"] for v in ck["days"].values()]).value_counts().to_dict() if ck["days"] else {}
     log(f"[cninfo] states={states} requests_this_run={client.requests}")
