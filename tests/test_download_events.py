@@ -197,6 +197,58 @@ def test_rate_limit_message_waits(tmp_path):
     assert 3700 in waits
 
 
+def test_daily_quota_stops_run_and_leaves_chunk_pending(tmp_path):
+    # 第 3 次调用报"次/天"：整个运行停止；前两块 done，第 3 块不记 failed、不写文件；次日续跑只取剩下的
+    n, quota = {"i": 0}, {"on": True}
+
+    def call(api, trade_date):
+        n["i"] += 1
+        if quota["on"] and n["i"] == 3:
+            raise RuntimeError("抱歉，您访问接口(report_rc)频率超限(10次/天)")
+        return _rows(1, day=trade_date)
+    spec = de.Spec("trade_day", "trade_date")
+    chunks = [(d, {"trade_date": d}) for d in ("20260102", "20260105", "20260106", "20260107")]
+    waits = []
+    with pytest.raises(de.QuotaExhaustedError):
+        de.run_api("x", spec, chunks, tmp_path, call, sleep=waits.append, retries=3, log=lambda *a: None)
+    ck = json.loads((tmp_path / "_checkpoints/x.json").read_text(encoding="utf-8"))["chunks"]
+    assert set(ck) == {"20260102", "20260105"} and n["i"] == 3 and not waits       # 没有重试、没有等待
+    assert not (tmp_path / "_parts/x/20260106.parquet").exists()
+    quota["on"], n["i"] = False, 0
+    states = de.run_api("x", spec, chunks, tmp_path, call, sleep=NOSLEEP, retries=3, log=lambda *a: None)
+    assert n["i"] == 2 and states == {de.DONE: 4}
+
+
+def test_call_budget_stops_before_extra_request_and_drops_partial_split(tmp_path):
+    # 预算 2 次：第 1 块用 1 次；第 2 块被截断要拆分（需要 3 次），预算在拆分中途用完 → 半截数据丢弃、不记状态
+    days = {f"202601{d:02d}": _rows(60, start=d * 100, day=f"202601{d:02d}") for d in range(1, 5)}
+    sent = []
+
+    def raw(api, start_date, end_date, offset=0):
+        sent.append((start_date, end_date))
+        frames = [v for k, v in days.items() if start_date <= k <= end_date]
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        return df.iloc[:100].reset_index(drop=True)
+    spec = de.Spec("window", "ann_date", window_days=2)
+    chunks = [("small", {"start_date": "20260101", "end_date": "20260101"}),
+              ("big", {"start_date": "20260102", "end_date": "20260104"})]
+    with pytest.raises(de.QuotaExhaustedError):
+        de.run_api("x", spec, chunks, tmp_path, de.budgeted(raw, 2), sleep=NOSLEEP, log=lambda *a: None)
+    assert len(sent) == 2                                    # 第 3 次请求没有发出
+    ck = json.loads((tmp_path / "_checkpoints/x.json").read_text(encoding="utf-8"))["chunks"]
+    assert set(ck) == {"small"} and not (tmp_path / "_parts/x/big.parquet").exists()
+    states = de.run_api("x", spec, chunks, tmp_path, raw, sleep=NOSLEEP, log=lambda *a: None)
+    assert states == {de.DONE: 2}
+    big = pd.read_parquet(tmp_path / "_parts/x/big.parquet")
+    assert len(big) == 180 and big["ts_code"].is_unique
+    assert de.budgeted(raw, 0) is raw
+
+
+def test_report_rc_spec_respects_known_limits():
+    s = de.SPECS["report_rc"]
+    assert s.mode == "window" and s.window_days <= 20 and s.min_interval >= 61
+
+
 def test_compact_coerces_and_refuses_overwrite(tmp_path):
     parts = tmp_path / "_parts/x"
     parts.mkdir(parents=True)
