@@ -11,16 +11,19 @@
       再跑一遍 63d N1（XGBoost 网格 c0、500 轮、模型种子 0），只改标签打乱种子。
       预测写到 data/gpu_v1/preds/xgb_63d_N1sXX，不碰 xgb_63d_N1shuffle。
   n1-summary <data_root> <out.json>
-      汇总种子 0（已有预测）和 N1s01–N1s15。各种子的 IC、块长 13 区间、9 折 t 区间，以及种子之间的分布。
+      N1-R：种子 1–15 的日期等权均值，双侧 90% t 区间（df=14）是否落在 (-0.005, +0.005)。
+      终端不打印 IC、区间或通过状态。
+  freeze-dates <data_root> <out.json>
+      按标签成熟条件冻结 63d 可评估日期。不读预测。
 
 用法都在仓库根目录、PYTHONPATH=. 下。
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 import numpy as np
@@ -115,39 +118,199 @@ def cmd_n1_foldci(root: Path, out: Path) -> None:
     _write(out, st)
 
 
-def cmd_n1_summary(root: Path, out: Path) -> None:
-    per = []
-    missing = []
-    for seed in SEEDS:
-        d = _pred_dir(root, seed)
-        if len(list(d.glob("fold_*.parquet"))) != 9:
-            missing.append(seed)
-            continue
-        st = _seed_stats(_fold_daily_ics(root, seed))
-        st["shuffle_seed"] = seed
-        per.append(st)
-    means = np.array([s["ic_mean"] for s in per])
-    summary = {
-        "seeds_expected": SEEDS,
-        "seeds_present": [s["shuffle_seed"] for s in per],
-        "seeds_missing": missing,
-        "per_seed": per,
+FROZEN_DATES = Path(__file__).resolve().parent / "p6" / "frozen_dates_63d.json"
+DELTA_N1 = 0.005
+MIN_NAMES = 30
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _finish(path: Path, rows: int) -> None:
+    """终端只留完成标记、行数和文件哈希。IC、区间和通过状态只写进文件。"""
+    print(f"完成 rows={rows} sha256={_file_sha256(path)}", flush=True)
+
+
+def _evaluable_dates(root: Path, horizon: str) -> tuple[list, pd.DataFrame]:
+    """有成熟标签、且 1500 池里至少 30 只股票标签有限的测试日。不读预测，也不删计划折。"""
+    ycol = "y63" if horizon == "63d" else "y20"
+    cal, grid = calendar_and_grid(root)
+    folds = make_folds(cal, grid, horizon)
+    rows = []
+    for f in folds:
+        meta = _meta(root, f.test_asof, ["as_of", "ticker", ycol, "top1500"])
+        ok = np.isfinite(meta[ycol].to_numpy(dtype=np.float64)) & meta["top1500"].to_numpy()
+        counts = meta.loc[ok].groupby("as_of", sort=True).size()
+        for day, n in counts.items():
+            if int(n) >= MIN_NAMES:
+                rows.append({"as_of": pd.Timestamp(day).strftime("%Y-%m-%d"), "fold": int(f.k),
+                             "n_names": int(n)})
+    return folds, pd.DataFrame(rows)
+
+
+def cmd_freeze_dates(root: Path, out: Path) -> None:
+    folds, table = _evaluable_dates(root, "63d")
+    by_fold = [{"fold": int(f.k), "n_dates": int((table["fold"] == f.k).sum())} for f in folds]
+    obj = {
+        "horizon": "63d",
+        "rule": "标签成熟且 top1500 内至少 30 个有限标签的测试日。没有成熟标签的折日期数为 0，不填零。",
+        "n_planned_folds": len(folds),
+        "n_evaluable_folds": int(sum(1 for r in by_fold if r["n_dates"] > 0)),
+        "n_dates": int(len(table)),
+        "folds": by_fold,
+        "dates": table.to_dict(orient="records"),
     }
-    if len(means):
-        summary["across_seeds"] = {
-            "n": int(len(means)),
-            "mean": float(means.mean()),
-            "std": float(means.std(ddof=1)) if len(means) > 1 else None,
-            "min": float(means.min()),
-            "p25": float(np.percentile(means, 25)),
-            "median": float(np.median(means)),
-            "p75": float(np.percentile(means, 75)),
-            "max": float(means.max()),
-            "t_interval_of_seed_means": _t_interval(means) if len(means) > 1 else None,
-            "n_block13_excludes_0": int(sum(not s["block13_contains_0"] for s in per)),
-            "n_fold_excludes_0": int(sum(not s["fold_contains_0"] for s in per)),
+    _write(out, obj, echo=False)
+    _finish(out, obj["n_dates"])
+
+
+def _seed_daily(root: Path, seed: int, frozen: pd.DataFrame) -> pd.Series:
+    """每个冻结日期单独算 1500 池截面 RankIC，再按这个顺序排好。不把不同日期的股票合在一起。"""
+    from scipy.stats import rankdata
+
+    cal, grid = calendar_and_grid(root)
+    folds = make_folds(cal, grid, "63d")
+    want = set(frozen["as_of"].tolist())
+    out: dict[str, float] = {}
+    pred_dir = _pred_dir(root, seed)
+    for k, f in enumerate(folds):
+        use = [d for d in f.test_asof if pd.Timestamp(d).strftime("%Y-%m-%d") in want]
+        if not use:
+            continue
+        path = pred_dir / f"fold_{k}.parquet"
+        if not path.exists():
+            continue
+        meta = _meta(root, use, ["as_of", "ticker", "y63", "top1500"])
+        pred = pd.read_parquet(path, columns=["as_of", "ticker", "score"])
+        pred["as_of"] = pd.to_datetime(pred["as_of"])
+        meta = meta.merge(pred, on=["as_of", "ticker"], how="left")
+        score = meta["score"].to_numpy(dtype=np.float64)
+        y = meta["y63"].to_numpy(dtype=np.float64)
+        mask = meta["top1500"].to_numpy()
+        bounds = day_bounds(meta["day"].to_numpy())
+        for s, e in zip(bounds[:-1], bounds[1:], strict=True):
+            day = meta["as_of"].iloc[s].strftime("%Y-%m-%d")
+            ok = np.isfinite(score[s:e]) & np.isfinite(y[s:e]) & mask[s:e]
+            if int(ok.sum()) < MIN_NAMES:
+                out[day] = float("nan")
+            else:
+                out[day] = float(np.corrcoef(rankdata(score[s:e][ok]), rankdata(y[s:e][ok]))[0, 1])
+    return pd.Series(out, dtype=np.float64).reindex(frozen["as_of"].tolist())
+
+
+def _t90(values: np.ndarray) -> dict:
+    n = int(values.size)
+    mean = float(values.mean())
+    sd = float(values.std(ddof=1))
+    tcrit = float(stats.t.ppf(0.95, n - 1))
+    half = tcrit * sd / np.sqrt(n)
+    return {"n": n, "df": n - 1, "mean": mean, "sd": sd, "t_crit_95": tcrit,
+            "ci90": [mean - half, mean + half]}
+
+
+def _classify(ci: list[float]) -> str:
+    lo, hi = ci
+    if lo > DELTA_N1 or hi < -DELTA_N1:
+        return "检测到超容忍偏差"
+    if lo > -DELTA_N1 and hi < DELTA_N1:
+        return "通过"
+    return "未能确认等价"
+
+
+def _block_ci(values: np.ndarray, block: int) -> list[float] | None:
+    if len(values) < block or not np.isfinite(values).all():
+        return None
+    lo, hi = two_sided_ci(moving_block_bootstrap(values, block, 10000, 0), 0.95)
+    return [float(lo), float(hi)]
+
+
+def cmd_n1_summary(root: Path, out: Path) -> None:
+    """N1-R。主统计量是种子 1–15 的日期等权均值。缺种子、日期变了或 IC 无定义时记工程异常，不删、不补零、不替换。"""
+    if not FROZEN_DATES.exists():
+        raise SystemExit(f"missing frozen date list: {FROZEN_DATES}")
+    frozen_raw = json.loads(FROZEN_DATES.read_text(encoding="utf-8"))
+    frozen = pd.DataFrame(frozen_raw["dates"])
+    folds, recomputed = _evaluable_dates(root, "63d")
+    problems: list[str] = []
+    if recomputed["as_of"].tolist() != frozen["as_of"].tolist():
+        problems.append("冻结日期与按标签成熟条件重算的日期不一致")
+    if [int((recomputed["fold"] == f.k).sum()) for f in folds] != [r["n_dates"] for r in frozen_raw["folds"]]:
+        problems.append("冻结清单的分折日期数与重算结果不一致")
+    if int(frozen_raw["n_planned_folds"]) != len(folds) or int(frozen_raw["n_dates"]) != len(frozen):
+        problems.append("冻结清单的折数或日期数与清单内容不一致")
+    per_seed = []
+    daily: dict[int, np.ndarray] = {}
+    for seed in SEEDS:
+        pred = _pred_dir(root, seed)
+        missing_folds = [k for k in range(len(folds)) if not (pred / f"fold_{k}.parquet").exists()]
+        if missing_folds:
+            problems.append(f"seed {seed} missing folds {missing_folds}")
+            per_seed.append({"shuffle_seed": seed, "defined": False, "missing_folds": missing_folds})
+            continue
+        series = _seed_daily(root, seed, frozen)
+        values = series.to_numpy(dtype=np.float64)
+        defined = bool(np.isfinite(values).all()) and len(values) == len(frozen)
+        if not defined:
+            problems.append(f"seed {seed} has undefined IC or a changed date set")
+        fold_desc = []
+        fold_ids = frozen["fold"].to_numpy()
+        for k in range(len(folds)):
+            part = values[fold_ids == k]
+            finite = part[np.isfinite(part)]
+            fold_desc.append({
+                "fold": k,
+                "n_dates": int(len(part)),
+                "mean_ic": None if len(finite) == 0 else float(finite.mean()),
+                "note": "折内日期等权，只作描述。T_s 是全部冻结日期等权，不是折等权。",
+            })
+        per_seed.append({
+            "shuffle_seed": seed,
+            "role": "已揭示诊断" if seed == 0 else "未揭示复核",
+            "defined": defined,
+            "T": None if not defined else float(values.mean()),
+            "n_dates": int(np.isfinite(values).sum()),
+            "ci95_block13": None if not defined else _block_ci(values, 13),
+            "fold_desc": fold_desc,
+        })
+        if defined:
+            daily[seed] = values
+    primary = None
+    combined16 = None
+    time_structure = None
+    verdict = "工程异常"
+    if not problems and len(daily) == 16:
+        primary_values = np.array([daily[s].mean() for s in range(1, 16)], dtype=np.float64)
+        primary = _t90(primary_values)
+        primary["seeds"] = "1-15"
+        primary["delta"] = DELTA_N1
+        primary["delta_note"] = "G1 裁定的审计容忍度，不是由这批种子估计出来的常数"
+        verdict = _classify(primary["ci90"])
+        combined16 = _t90(np.array([daily[s].mean() for s in SEEDS], dtype=np.float64))
+        combined16["seeds"] = "0-15"
+        combined16["role"] = "完整报告，不承担放行"
+        mean_unseen = np.mean(np.vstack([daily[s] for s in range(1, 16)]), axis=0)
+        mean_all = np.mean(np.vstack([daily[s] for s in SEEDS]), axis=0)
+        time_structure = {
+            "role": "只展示时间结构，不作为放行标准",
+            "seeds_1_15": {"ci95_block13": _block_ci(mean_unseen, 13), "ci95_block26": _block_ci(mean_unseen, 26)},
+            "seeds_0_15": {"ci95_block13": _block_ci(mean_all, 13), "ci95_block26": _block_ci(mean_all, 26)},
         }
-    _write(out, summary)
+    _write(out, {
+        "rule": "N1-R。主判据是种子 1–15 的日期等权 T_s 的双侧 90% t 区间（df=14）是否落在 (-0.005, +0.005)。",
+        "frozen_dates_sha256": _file_sha256(FROZEN_DATES),
+        "n_planned_folds": frozen_raw["n_planned_folds"],
+        "n_evaluable_folds": frozen_raw["n_evaluable_folds"],
+        "n_dates": frozen_raw["n_dates"],
+        "problems": problems,
+        "verdict": verdict,
+        "passed": verdict == "通过" and not problems,
+        "primary": primary,
+        "per_seed": per_seed,
+        "combined_16_report_only": combined16,
+        "time_structure_report_only": time_structure,
+    }, echo=False)
+    _finish(out, len(per_seed))
 
 
 def cmd_n2_assoc(root: Path, out: Path) -> None:
@@ -286,11 +449,11 @@ def cmd_n1_seed(root: Path, seed: int) -> None:
     check_folds(folds, cal)
     md = ModelData(root)
     params = TREE_GRIDS["xgb"][0]
-    t0 = time.time()
-    log = lambda m: print(f"[{tag}] {m} ({time.time() - t0:.0f}s)", flush=True)  # noqa: E731
+    log = lambda m: print(m, flush=True)  # noqa: E731
     for k, f in enumerate(folds):
-        if (pred_dir / f"fold_{k}.parquet").exists():
-            log(f"fold {k} exists, skip")
+        path = pred_dir / f"fold_{k}.parquet"
+        if path.exists():
+            _finish(path, len(pd.read_parquet(path, columns=["ticker"])))
             continue
         wait_for_vram(4000, log=log)
         full = md.load(f.train_days)
@@ -300,7 +463,6 @@ def cmd_n1_seed(root: Path, seed: int) -> None:
         X = TreeInput(md, full, rows)
         del full
         gc.collect()
-        t1 = time.time()
         model = XGB().fit(params, X, y, day, 500, seed=0)
         pb = md.load(f.pred_days)
         pred = XGB().predict(model, TreeInput(md, pb), 500)
@@ -309,17 +471,18 @@ def cmd_n1_seed(root: Path, seed: int) -> None:
                               "score": score, "top1500": pb.meta["top1500"]})
         tmp = pred_dir / f"fold_{k}.tmp"
         frame.to_parquet(tmp, index=False)
-        os.replace(tmp, pred_dir / f"fold_{k}.parquet")
-        log(f"fold {k} written {frame.shape} {time.time() - t1:.0f}s")
+        os.replace(tmp, path)
+        n_rows = len(frame)
         del model, X, pb, frame
         gc.collect()
-    log("done")
+        _finish(path, n_rows)
 
 
-def _write(path: Path, obj: dict) -> None:
+def _write(path: Path, obj: dict, echo: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(json.dumps(obj, ensure_ascii=False, indent=1))
+    if echo:
+        print(json.dumps(obj, ensure_ascii=False, indent=1))
 
 
 def main() -> None:
@@ -328,6 +491,8 @@ def main() -> None:
         cmd_n1_foldci(root, Path(sys.argv[3]))
     elif cmd == "n1-summary":
         cmd_n1_summary(root, Path(sys.argv[3]))
+    elif cmd == "freeze-dates":
+        cmd_freeze_dates(root, Path(sys.argv[3]))
     elif cmd == "n2-assoc":
         cmd_n2_assoc(root, Path(sys.argv[3]))
     elif cmd == "n2-gain":
