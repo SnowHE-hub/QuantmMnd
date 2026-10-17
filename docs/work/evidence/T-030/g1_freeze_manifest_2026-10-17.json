@@ -1,0 +1,19 @@
+{
+  "purpose": "G1 裁定第 8 节：在读取种子 1–15 的任何结果之前，登记裁定原文、配置和分析脚本的 sha256。",
+  "hash_utc": "2026-10-17 12:02:38 UTC",
+  "seed_1_to_15_prediction_dirs_present": false,
+  "queue_gpu_pid": 3823,
+  "queue_gpu_fd_pos": 1867,
+  "queue_gpu_file_bytes": 4425,
+  "queue_status": "START 19_run_dl_py_quantmind_master_63d 2026-10-17 22:35:48",
+  "already_seen": "种子 0 的 N1、原 N2 排名、N3 的 XGBoost 外层对齐 IC 在裁定前已经看过。种子 1–15 的 IC、区间和通过状态没有看过。",
+  "files": {
+    "docs/work/reviews/T-030-G1-ruling-2026-10-17.md": "02cabee7a9aeb9e0f2b48d1c1a146cf67e2ce7728f5cd45e0cc701e2076df992",
+    "quantmind/research/gpu/configs.py": "beb5c860ee6d89c664610515ceba8de3e259b6e30cf7b557c684f2cb90723ba2",
+    "docs/work/evidence/T-030/controls_diag.py": "3605b953239343dee30f3ef7d3fc19f8b2b7b5bd1197891665dda7ef7b2c1458",
+    "docs/work/evidence/T-030/eval_primary.py": "9cda56ac2c4b8fd7ce47ef11a49c5b96989428dcd4e5711fde33cfbea4c98a7d",
+    "quantmind/research/gpu/metrics.py": "595b44f2a1a3346c26d765f8235d20dba6dc426af87dc9e8f09b27c8d9d69baf",
+    "docs/work/evidence/T-030/run_trees.py": "c7739eac8aab28b2c7bd2afe6044a47d3613559b43ef2a8a7a9f4b05716767af"
+  },
+  "unchanged_for_this_ruling": ["quantmind/research/gpu/configs.py", "quantmind/research/gpu/metrics.py", "docs/work/evidence/T-030/eval_primary.py", "docs/work/evidence/T-030/run_trees.py"]
+}
