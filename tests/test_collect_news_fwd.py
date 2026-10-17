@@ -44,7 +44,33 @@ def test_one_source_failing_or_hanging_does_not_block_other(tmp_path):
     def hang():
         time.sleep(5)
         return _items(1)
+    waits = []
     rep = cn.collect(tmp_path, {"bad": boom, "slow": hang, "ok": lambda: _items(2)},
-                     now=datetime(2026, 10, 17, tzinfo=cn.BJ), timeout=1, log=lambda *a: None)
+                     now=datetime(2026, 10, 17, tzinfo=cn.BJ), timeout=1, log=lambda *a: None, sleep=waits.append)
     assert rep["bad"].startswith("error ConnectionError") and rep["slow"].startswith("error _TimeoutError")
-    assert rep["ok"] == "fetched 2 new 2"
+    assert rep["ok"] == "fetched 2 new 2" and waits == [15, 15]          # 每个失败来源重试一次
+
+
+def test_transient_error_is_retried(tmp_path):
+    n = {"i": 0}
+
+    def flaky():
+        n["i"] += 1
+        if n["i"] == 1:
+            raise ConnectionError("Remote end closed connection without response")
+        return _items(3)
+    rep = cn.collect(tmp_path, {"a": flaky}, now=datetime(2026, 10, 17, tzinfo=cn.BJ), log=lambda *a: None,
+                     sleep=lambda s: None)
+    assert rep == {"a": "fetched 3 new 3"} and n["i"] == 2
+
+
+def test_beijing_local_time_for_library_fromtimestamp(monkeypatch):
+    # 同花顺接口内部用 datetime.fromtimestamp() 按本机时区转换；强制 TZ 后应得到北京时间
+    monkeypatch.setenv("TZ", "Australia/Sydney")
+    time.tzset()
+    try:
+        cn.use_beijing_local_time()
+        assert datetime.fromtimestamp(0).strftime("%Y-%m-%d %H:%M") == "1970-01-01 08:00"
+    finally:
+        monkeypatch.undo()
+        time.tzset()

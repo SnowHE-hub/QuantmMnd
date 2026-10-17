@@ -7,7 +7,10 @@
       title, content, url, first_seen_ts_bj（本次采集时间）。
 产物：<root>/data/lake/text/news_fwd/<source>/<YYYYMMDD>.parquet（按首次看到的北京日期分文件，只追加新 item_id）；
       <root>/data/lake/text/news_fwd/_seen/<source>.json（最近 20,000 个 item_id，跨天去重）。
-每个来源单独 45 秒超时，一个来源失败不影响另一个。用法：python collect_news_fwd.py --data-root <root>
+每个来源单独 45 秒超时、失败后隔 15 秒重试一次；一个来源失败不影响另一个。用法：python collect_news_fwd.py --data-root <root>
+
+时区：AKShare 的同花顺接口用 datetime.fromtimestamp() 按**本机时区**转换时间（本机是悉尼时间，比北京快 3 小时；
+2026-10-17 的 61 条曾因此全部显示为"首次看到后 1.5–3 小时才发布"，已按 −3 小时更正）。所以进程启动时强制 TZ=Asia/Shanghai。
 """
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ import json
 import os
 import signal
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -25,6 +29,12 @@ import pandas as pd
 BJ = timezone(timedelta(hours=8))
 SEEN_KEEP = 20_000
 COLS = ("source", "item_id", "publish_time_bj", "title", "content", "url", "first_seen_ts_bj")
+
+
+def use_beijing_local_time() -> None:
+    """让本进程里所有"按本机时区"的时间转换都得到北京时间（第三方库内部的 fromtimestamp 也包括在内）。"""
+    os.environ["TZ"] = "Asia/Shanghai"
+    time.tzset()
 
 
 def _ak_sina():
@@ -63,16 +73,24 @@ def _with_timeout(fn, seconds: int):
         signal.signal(signal.SIGALRM, old)
 
 
-def collect(out_dir: Path, sources: dict, now: datetime | None = None, timeout: int = 45, log=print) -> dict:
+def collect(out_dir: Path, sources: dict, now: datetime | None = None, timeout: int = 45, log=print,
+            retries: int = 2, sleep=time.sleep) -> dict:
     now = now or datetime.now(BJ)
     seen_dir = out_dir / "_seen"
     seen_dir.mkdir(parents=True, exist_ok=True)
     report = {}
     for name, fetch in sources.items():
-        try:
-            items = _with_timeout(fetch, timeout)
-        except Exception as e:  # noqa: BLE001
-            report[name] = f"error {type(e).__name__}: {str(e)[:100]}"
+        items, err = None, None
+        for attempt in range(retries):
+            try:
+                items = _with_timeout(fetch, timeout)
+                break
+            except Exception as e:  # noqa: BLE001
+                err = f"error {type(e).__name__}: {str(e)[:100]}"
+                if attempt < retries - 1:
+                    sleep(15)
+        if items is None:
+            report[name] = err
             log(f"[news] {name} {report[name]}")
             continue
         seen_path = seen_dir / f"{name}.json"
@@ -108,6 +126,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--data-root", required=True)
     a = ap.parse_args(argv)
+    use_beijing_local_time()
     rep = collect(Path(a.data_root) / "data/lake/text/news_fwd", SOURCES, log=lambda m: print(m, flush=True))
     return 0 if any(v.startswith("fetched") for v in rep.values()) else 2
 
