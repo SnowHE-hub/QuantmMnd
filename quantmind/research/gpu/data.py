@@ -15,6 +15,14 @@ import pandas as pd
 from quantmind.research.gpu.transforms import gauss_rank_by_day
 
 LABEL_COL = {"20d": "y20", "63d": "y63"}
+_LOOKAHEAD_MARKERS = ("canary", "lookahead", "fwd", "forward_return")
+
+
+def assert_official_feature_names(names: list[str]) -> None:
+    """正式特征名不得带未授权的前视列。诊断金丝雀只能存在于独立副本，不能进这个清单。"""
+    bad = [n for n in names if any(m in n.lower() for m in _LOOKAHEAD_MARKERS)]
+    if bad:
+        raise ValueError(f"unauthorized lookahead column: {bad}")
 
 
 @dataclass
@@ -41,6 +49,7 @@ class ModelData:
         self.features = json.loads((self.dir / "features.json").read_text())
         self.stock_features: list[str] = self.features["stock_features"]
         self.market_features: list[str] = self.features["market_features"]
+        assert_official_feature_names(self.stock_features + self.market_features)
         self.market = pd.read_parquet(self.dir / "market.parquet")[self.market_features]
         self.months = sorted(p.name[:7] for p in self.dir.glob("*.meta.parquet"))
 

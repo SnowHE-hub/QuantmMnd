@@ -6,7 +6,9 @@
   n2-assoc <data_root> <out.json>
       折 0 内层训练日上，金丝雀（t+1 的 r_cc）与 63d 标签的截面相关，以及 1 日对数收益在 63 日对数收益方差中的占比。不训练模型。
   n2-gain <data_root> <out.json>
-      重跑一次 N2 的那一个模型，把 gain 全表写出来。排队用，不覆盖 controls_63d.json。
+      重跑一次原 N2（次日收益金丝雀），把 gain 全表写出来。排队用，不覆盖 controls_63d.json。只作报告。
+  n2-target-canary <data_root> <out.json>
+      N2-R：63d 折 0 的诊断副本里加入训练目标本身。不覆盖正式模型。终端不打印 gain 或通过状态。
   n1-seed <data_root> <shuffle_seed>
       再跑一遍 63d N1（XGBoost 网格 c0、500 轮、模型种子 0），只改标签打乱种子。
       预测写到 data/gpu_v1/preds/xgb_63d_N1sXX，不碰 xgb_63d_N1shuffle。
@@ -412,7 +414,94 @@ def cmd_n2_gain(root: Path, out: Path) -> None:
         "top1_feature": table[0]["feature"],
         "top1_gain": table[0]["gain"],
         "top10": table[:10],
-    })
+        "note": "原 1 日金丝雀，只作报告。63d 的放行金丝雀是 n2-target-canary，不使用本次排名。",
+    }, echo=False)
+    _finish(out, len(table))
+
+
+CANARY_COLUMN = "CANARY_y63_train"
+
+
+def cmd_n2_target_canary(root: Path, out: Path) -> None:
+    """63d 折 0 的独立诊断副本。金丝雀列等于真正送进 XGBoost 的 gauss-rank 训练标签。"""
+    from quantmind.research.gpu.configs import TREE_GRIDS
+    from quantmind.research.gpu.data import ModelData, assert_official_feature_names
+    from quantmind.research.gpu.runtime import start_ram_guard, wait_for_vram
+    from quantmind.research.gpu.trees import XGB, TreeInput, train_target
+
+    start_ram_guard()
+    wait_for_vram(4000)
+    cal, grid = calendar_and_grid(root)
+    fold0 = make_folds(cal, grid, "63d")[0]
+    md = ModelData(root)
+    official = md.stock_features + md.market_features
+    assert_official_feature_names(official)
+    feature_file = root / "data/gpu_v1/model/v1/features.json"
+    on_disk = json.loads(feature_file.read_text(encoding="utf-8"))
+    disk_names = on_disk["stock_features"] + on_disk["market_features"]
+    tr = md.load(fold0.inner_train_days)
+    rows, y = train_target(tr, "63d", "regression")
+    extra = np.full((len(tr.meta), 1), np.nan, dtype=np.float64)
+    extra[rows, 0] = y
+    keys = tr.meta.iloc[rows][["as_of", "ticker"]]
+    sent = extra[rows, 0].astype(np.float32)
+    construct_ok = bool(
+        np.array_equal(extra[rows, 0], y)
+        and np.array_equal(sent, np.asarray(y, dtype=np.float32))
+        and len(keys.drop_duplicates()) == len(rows)
+    )
+    params = TREE_GRIDS["xgb"][0]
+    model = XGB().fit(params, TreeInput(md, tr, rows, extra=extra), y,
+                      tr.meta["day"].to_numpy()[rows], 500, seed=0)
+    diag_dir = root / "data/gpu_v1/diag/n2_target_canary_63d"
+    diag_dir.mkdir(parents=True, exist_ok=True)
+    model_path = diag_dir / "fold0_c0_seed0.ubj"
+    model.save_model(str(model_path))
+    names = official + [CANARY_COLUMN]
+    gain = model.get_score(importance_type="gain")
+    total_gain = model.get_score(importance_type="total_gain")
+    table = []
+    for i, name in enumerate(names):
+        key = f"f{i}"
+        g = gain.get(key)
+        tg = total_gain.get(key)
+        table.append({
+            "feature": name,
+            "gain": None if g is None else float(g),
+            "total_gain": None if tg is None else float(tg),
+            "used": g is not None,
+        })
+    canary = next(r for r in table if r["feature"] == CANARY_COLUMN)
+    other = [r["gain"] for r in table if r["feature"] != CANARY_COLUMN and r["gain"] is not None]
+    canary_gain = canary["gain"]
+    finite = canary_gain is not None and bool(np.isfinite(canary_gain))
+    unique_first = bool(finite and other and canary_gain > max(other))
+    model_rel = model_path.relative_to(root).as_posix()
+    isolated = (
+        CANARY_COLUMN not in disk_names
+        and model_rel.startswith("data/gpu_v1/diag/")
+        and not model_rel.startswith("data/gpu_v1/runs/")
+        and not model_rel.startswith("data/gpu_v1/preds/")
+    )
+    _write(out, {
+        "rule": "N2-R。gain 必须严格高于其他每一列。total_gain 只作辅助。",
+        "horizon": "63d",
+        "fold": 0,
+        "config": "xgb c0",
+        "rounds": 500,
+        "model_seed": 0,
+        "canary_column": CANARY_COLUMN,
+        "n_train_rows": int(len(rows)),
+        "construct_ok": construct_ok,
+        "unique_first": unique_first,
+        "isolated": isolated,
+        "diagnostic_model": model_rel,
+        "diagnostic_model_sha256": _file_sha256(model_path),
+        "passed": bool(construct_ok and unique_first and isolated),
+        "params": params,
+        "importance": table,
+    }, echo=False)
+    _finish(out, len(table))
 
 
 def _shuffle_within_day(y: np.ndarray, day: np.ndarray, seed: int) -> np.ndarray:
@@ -497,6 +586,8 @@ def main() -> None:
         cmd_n2_assoc(root, Path(sys.argv[3]))
     elif cmd == "n2-gain":
         cmd_n2_gain(root, Path(sys.argv[3]))
+    elif cmd == "n2-target-canary":
+        cmd_n2_target_canary(root, Path(sys.argv[3]))
     elif cmd == "n1-seed":
         cmd_n1_seed(root, int(sys.argv[3]))
     else:

@@ -377,6 +377,16 @@ def test_dl_tab_inputs_chunked_equal_full_concat(monkeypatch):
     assert inp.tab[:20, 7 + 2].eq(1).all()                    # F3 全缺 → 标志 = 1
 
 
+def test_official_input_rejects_unauthorized_lookahead_column():
+    from quantmind.research.gpu.data import assert_official_feature_names
+
+    assert_official_feature_names(["sh_resid_rev_10", "mkt_ret"])
+    with pytest.raises(ValueError, match="unauthorized lookahead column"):
+        assert_official_feature_names(["CANARY_y63_train"])
+    with pytest.raises(ValueError, match="unauthorized lookahead column"):
+        assert_official_feature_names(["ret_1d", "fwd_return"])
+
+
 def test_incremental_raw_segments_sum_to_full_prediction():
     pytest.importorskip("lightgbm")
     import quantmind.research.gpu.trees as trees
