@@ -116,6 +116,14 @@ def test_run_resume_budget_and_frame(tmp_path):
     assert df["announcementId"].is_unique and df["publish_ts_bj"].iloc[0] == "2019-04-26T08:00:00+08:00"
 
 
+def test_cron_entry_scripts_are_executable():
+    # cron 直接执行这些脚本；可执行位丢了就会静默失败（2026-10-17 17:00–20:45 巨潮下载因此停了 3.5 小时）
+    import os
+    d = Path(__file__).resolve().parents[1] / "scripts/data_pipeline"
+    for name in ("run_cninfo_meta.sh", "run_news_fwd.sh", "run_report_rc_daily.sh"):
+        assert os.access(d / name, os.X_OK), name
+
+
 def test_failed_request_retries_then_records_failed(tmp_path):
     def bad(data):
         raise ConnectionError("reset")
