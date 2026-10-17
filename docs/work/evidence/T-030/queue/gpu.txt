@@ -31,3 +31,21 @@ $PY docs/work/evidence/T-030/run_trees.py /home/lenovo/projects/quantmind xgb 63
 # ── 通道 B ──
 $PY docs/work/evidence/T-030/run_quantile.py /home/lenovo/projects/quantmind 63d docs/work/evidence/T-030/p6/quantile_63d.json
 $PY docs/work/evidence/T-030/run_quantile.py /home/lenovo/projects/quantmind 20d docs/work/evidence/T-030/p6/quantile_20d.json
+# ── 63d 负对照诊断（2026-10-17 追加；不覆盖已有 N1，不跑主比较）──
+$PY docs/work/evidence/T-030/controls_diag.py n2-gain /home/lenovo/projects/quantmind docs/work/evidence/T-030/p6/n2_gain_63d.json
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 1
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 2
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 3
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 4
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 5
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 6
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 7
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 8
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 9
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 10
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 11
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 12
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 13
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 14
+$PY docs/work/evidence/T-030/controls_diag.py n1-seed /home/lenovo/projects/quantmind 15
+$PY docs/work/evidence/T-030/controls_diag.py n1-summary /home/lenovo/projects/quantmind docs/work/evidence/T-030/p6/n1_seeds_63d.json

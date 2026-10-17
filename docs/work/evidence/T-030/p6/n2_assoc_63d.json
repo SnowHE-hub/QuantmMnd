@@ -1,0 +1,16 @@
+{
+ "sample": "63d fold 0 inner_train_days",
+ "n_rows_meta": 1380032,
+ "n_rows_finite_y_and_r1": 1365677,
+ "n_rows_with_63_future_log_returns": 1319380,
+ "n_days_spearman": 378,
+ "n_rows_clamped_to_last_seq_day": 0,
+ "mean_daily_spearman_r1_vs_y63": 0.12749355203701007,
+ "var_r1": 0.000847097007039791,
+ "var_sum63_log": 0.040636197076044274,
+ "var_share_r1_in_sum63": 0.020845873088335055,
+ "iid_benchmark_1_over_63": 0.015873015873015872,
+ "r2_sum63_on_r1": 0.016055546142137243,
+ "corr_sum63_vs_log1p_y63": 0.9999999999999953,
+ "note": "y63 是 63 个交易日的简单收益。sum63 是随后 63 个交易日 r_cc 的和。两者若是同一复权收盘价，sum63 应等于 log(1+y63)。"
+}

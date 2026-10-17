@@ -1,0 +1,29 @@
+{
+ "horizon": "63d",
+ "N1": {
+  "ic_mean": 0.023834630660487525,
+  "ci95_block13": [
+   0.00989411818347565,
+   0.03457051655700681
+  ],
+  "n_dates": 189,
+  "pass": false
+ },
+ "N2": {
+  "top5_gain": [
+   "sh_resid_rev_10",
+   "sh_resid_vol_10",
+   "CANARY_next_day_return",
+   "sh_rskew_21",
+   "limit_up_cnt_20d"
+  ],
+  "pass": false
+ },
+ "N3": {
+  "ic_aligned": 0.15296716045365405,
+  "ic_stale_t_minus_1": 0.1484707393065117,
+  "diff": -0.004496421147142354,
+  "pass": true
+ },
+ "all_pass": false
+}
