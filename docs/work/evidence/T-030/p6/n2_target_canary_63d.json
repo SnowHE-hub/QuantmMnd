@@ -1,0 +1,1689 @@
+{
+ "rule": "N2-R。gain 必须严格高于其他每一列。total_gain 只作辅助。",
+ "horizon": "63d",
+ "fold": 0,
+ "config": "xgb c0",
+ "rounds": 500,
+ "model_seed": 0,
+ "canary_column": "CANARY_y63_train",
+ "n_train_rows": 1366615,
+ "construct_ok": true,
+ "unique_first": true,
+ "isolated": true,
+ "diagnostic_model": "data/gpu_v1/diag/n2_target_canary_63d/fold0_c0_seed0.ubj",
+ "diagnostic_model_sha256": "05166fc334da63ac014099f03475abad8cd3f098c5f2846c2e858aa357fb1251",
+ "passed": true,
+ "params": {
+  "objective": "regression",
+  "max_depth": 6,
+  "colsample_bytree": 0.5,
+  "eta": 0.05,
+  "subsample": 0.8,
+  "min_child_weight": 200.0,
+  "reg_lambda": 10.0
+ },
+ "importance": [
+  {
+   "feature": "momentum_1m",
+   "gain": 6.398456573486328,
+   "total_gain": 121.57067108154297,
+   "used": true
+  },
+  {
+   "feature": "momentum_3m",
+   "gain": 3.1097750663757324,
+   "total_gain": 139.93988037109375,
+   "used": true
+  },
+  {
+   "feature": "momentum_6m",
+   "gain": 3.5443201065063477,
+   "total_gain": 637.9776000976562,
+   "used": true
+  },
+  {
+   "feature": "momentum_12m_skip_1m",
+   "gain": 2.9819984436035156,
+   "total_gain": 453.2637634277344,
+   "used": true
+  },
+  {
+   "feature": "reversal_1w",
+   "gain": 1.3344231843948364,
+   "total_gain": 8.006539344787598,
+   "used": true
+  },
+  {
+   "feature": "volatility_3m",
+   "gain": 26.984464645385742,
+   "total_gain": 18079.591796875,
+   "used": true
+  },
+  {
+   "feature": "volatility_1y",
+   "gain": 30.90009117126465,
+   "total_gain": 18354.654296875,
+   "used": true
+  },
+  {
+   "feature": "downside_volatility_3m",
+   "gain": 10.809489250183105,
+   "total_gain": 2572.658447265625,
+   "used": true
+  },
+  {
+   "feature": "max_drawdown_3m",
+   "gain": 17.30680274963379,
+   "total_gain": 3478.66748046875,
+   "used": true
+  },
+  {
+   "feature": "amihud_illiquidity",
+   "gain": 10.302757263183594,
+   "total_gain": 4759.8740234375,
+   "used": true
+  },
+  {
+   "feature": "volume_spike_5_30",
+   "gain": 0.5121436715126038,
+   "total_gain": 9.730730056762695,
+   "used": true
+  },
+  {
+   "feature": "rsi_14",
+   "gain": 0.6851560473442078,
+   "total_gain": 8.221872329711914,
+   "used": true
+  },
+  {
+   "feature": "bollinger_position",
+   "gain": 0.08873862773180008,
+   "total_gain": 0.26621589064598083,
+   "used": true
+  },
+  {
+   "feature": "distance_to_52w_high",
+   "gain": 6.487004280090332,
+   "total_gain": 804.3885498046875,
+   "used": true
+  },
+  {
+   "feature": "price_to_52w_low",
+   "gain": 9.762020111083984,
+   "total_gain": 2733.36572265625,
+   "used": true
+  },
+  {
+   "feature": "amplitude_quantile",
+   "gain": 0.8623193502426147,
+   "total_gain": 40.52901077270508,
+   "used": true
+  },
+  {
+   "feature": "volume_price_corr_20d",
+   "gain": 2.5364158153533936,
+   "total_gain": 53.264732360839844,
+   "used": true
+  },
+  {
+   "feature": "list_age_years",
+   "gain": 18.649066925048828,
+   "total_gain": 14341.1328125,
+   "used": true
+  },
+  {
+   "feature": "is_recent_ipo",
+   "gain": 10.888848304748535,
+   "total_gain": 4017.985107421875,
+   "used": true
+  },
+  {
+   "feature": "beta_252d",
+   "gain": 9.414063453674316,
+   "total_gain": 2786.562744140625,
+   "used": true
+  },
+  {
+   "feature": "beta_60d",
+   "gain": 8.507601737976074,
+   "total_gain": 2467.20458984375,
+   "used": true
+  },
+  {
+   "feature": "relative_strength_vs_csi300_60d",
+   "gain": 0.7158994078636169,
+   "total_gain": 30.783674240112305,
+   "used": true
+  },
+  {
+   "feature": "relative_strength_vs_csi300_120d",
+   "gain": 8.001055717468262,
+   "total_gain": 1488.1962890625,
+   "used": true
+  },
+  {
+   "feature": "relative_strength_vs_csi500_60d",
+   "gain": 5.820981025695801,
+   "total_gain": 250.30218505859375,
+   "used": true
+  },
+  {
+   "feature": "margin_balance",
+   "gain": 9.22853946685791,
+   "total_gain": 1411.966552734375,
+   "used": true
+  },
+  {
+   "feature": "margin_balance_change_20d",
+   "gain": 8.016109466552734,
+   "total_gain": 889.7881469726562,
+   "used": true
+  },
+  {
+   "feature": "margin_buy_amount_20d",
+   "gain": 4.743072986602783,
+   "total_gain": 635.57177734375,
+   "used": true
+  },
+  {
+   "feature": "short_balance_change_20d",
+   "gain": 8.833244323730469,
+   "total_gain": 503.4949035644531,
+   "used": true
+  },
+  {
+   "feature": "margin_short_ratio",
+   "gain": 17.459299087524414,
+   "total_gain": 2531.598388671875,
+   "used": true
+  },
+  {
+   "feature": "sh_wq13_cov_close_vol",
+   "gain": 1.7744301557540894,
+   "total_gain": 31.939743041992188,
+   "used": true
+  },
+  {
+   "feature": "sh_wq44_corr_high_rkvol_5",
+   "gain": 3.9972972869873047,
+   "total_gain": 39.97297286987305,
+   "used": true
+  },
+  {
+   "feature": "sh_wq3_rkopen_rkvol_10",
+   "gain": 0.07876567542552948,
+   "total_gain": 0.3150627017021179,
+   "used": true
+  },
+  {
+   "feature": "sh_rskew_21",
+   "gain": 5.596250534057617,
+   "total_gain": 766.6863403320312,
+   "used": true
+  },
+  {
+   "feature": "sh_wq15_corr_high_vol",
+   "gain": 0.12241506576538086,
+   "total_gain": 0.12241506576538086,
+   "used": true
+  },
+  {
+   "feature": "sh_resid_vol_10",
+   "gain": 67.8572006225586,
+   "total_gain": 83735.78125,
+   "used": true
+  },
+  {
+   "feature": "sh_wq6_corr_open_vol_10",
+   "gain": 1.3919097185134888,
+   "total_gain": 13.919096946716309,
+   "used": true
+  },
+  {
+   "feature": "sh_wq12_volsign_rev",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "sh_resid_rev_10",
+   "gain": 41.4300651550293,
+   "total_gain": 17193.4765625,
+   "used": true
+  },
+  {
+   "feature": "sh_wq5_vwap_open_close",
+   "gain": 4.692765712738037,
+   "total_gain": 173.63232421875,
+   "used": true
+  },
+  {
+   "feature": "sh_gtja40_updown_volratio",
+   "gain": 1.9447338581085205,
+   "total_gain": 60.28675079345703,
+   "used": true
+  },
+  {
+   "feature": "sh_wq101",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "sh_wq11_vwap_close_vol",
+   "gain": 6.394149303436279,
+   "total_gain": 19.18244743347168,
+   "used": true
+  },
+  {
+   "feature": "sh_wq42_vwap_close",
+   "gain": 8.26558780670166,
+   "total_gain": 1215.0413818359375,
+   "used": true
+  },
+  {
+   "feature": "sh_wq2_corr_dvol_intra",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "sh_rkurt_21",
+   "gain": 7.709923267364502,
+   "total_gain": 1225.8778076171875,
+   "used": true
+  },
+  {
+   "feature": "pe_ttm",
+   "gain": 9.707855224609375,
+   "total_gain": 2533.750244140625,
+   "used": true
+  },
+  {
+   "feature": "pb",
+   "gain": 14.24914264678955,
+   "total_gain": 5642.66064453125,
+   "used": true
+  },
+  {
+   "feature": "ps_ttm",
+   "gain": 5.164045333862305,
+   "total_gain": 1068.9573974609375,
+   "used": true
+  },
+  {
+   "feature": "book_to_market",
+   "gain": 12.315264701843262,
+   "total_gain": 4889.16015625,
+   "used": true
+  },
+  {
+   "feature": "earnings_yield",
+   "gain": 8.996132850646973,
+   "total_gain": 2195.056396484375,
+   "used": true
+  },
+  {
+   "feature": "dividend_yield_ttm",
+   "gain": 11.743131637573242,
+   "total_gain": 3945.692138671875,
+   "used": true
+  },
+  {
+   "feature": "log_market_cap",
+   "gain": 19.032350540161133,
+   "total_gain": 13094.2568359375,
+   "used": true
+  },
+  {
+   "feature": "log_circ_market_cap",
+   "gain": 15.38057804107666,
+   "total_gain": 8490.0791015625,
+   "used": true
+  },
+  {
+   "feature": "roe_ttm",
+   "gain": 9.790570259094238,
+   "total_gain": 4464.5,
+   "used": true
+  },
+  {
+   "feature": "roa_ttm",
+   "gain": 27.880353927612305,
+   "total_gain": 19516.248046875,
+   "used": true
+  },
+  {
+   "feature": "gross_margin",
+   "gain": 14.700583457946777,
+   "total_gain": 7982.4169921875,
+   "used": true
+  },
+  {
+   "feature": "net_margin",
+   "gain": 6.667937755584717,
+   "total_gain": 2587.159912109375,
+   "used": true
+  },
+  {
+   "feature": "debt_to_assets",
+   "gain": 4.514213562011719,
+   "total_gain": 1178.209716796875,
+   "used": true
+  },
+  {
+   "feature": "current_ratio",
+   "gain": 9.27756404876709,
+   "total_gain": 3107.98388671875,
+   "used": true
+  },
+  {
+   "feature": "asset_turnover",
+   "gain": 11.015341758728027,
+   "total_gain": 4934.873046875,
+   "used": true
+  },
+  {
+   "feature": "equity_multiplier",
+   "gain": 8.794203758239746,
+   "total_gain": 2242.52197265625,
+   "used": true
+  },
+  {
+   "feature": "revenue_yoy",
+   "gain": 23.66475486755371,
+   "total_gain": 12731.6376953125,
+   "used": true
+  },
+  {
+   "feature": "operating_profit_yoy",
+   "gain": 7.303500652313232,
+   "total_gain": 1548.3421630859375,
+   "used": true
+  },
+  {
+   "feature": "net_profit_yoy",
+   "gain": 10.235952377319336,
+   "total_gain": 2712.52734375,
+   "used": true
+  },
+  {
+   "feature": "quarterly_revenue_yoy",
+   "gain": 15.339991569519043,
+   "total_gain": 8191.5556640625,
+   "used": true
+  },
+  {
+   "feature": "accruals",
+   "gain": 7.389669895172119,
+   "total_gain": 2357.3046875,
+   "used": true
+  },
+  {
+   "feature": "ocf_to_revenue_ttm",
+   "gain": 20.922903060913086,
+   "total_gain": 7009.17236328125,
+   "used": true
+  },
+  {
+   "feature": "size_rank",
+   "gain": 13.68966293334961,
+   "total_gain": 3326.588134765625,
+   "used": true
+  },
+  {
+   "feature": "fcf_yield",
+   "gain": 5.353034973144531,
+   "total_gain": 819.0143432617188,
+   "used": true
+  },
+  {
+   "feature": "earnings_accel_q",
+   "gain": 7.244740009307861,
+   "total_gain": 1275.07421875,
+   "used": true
+  },
+  {
+   "feature": "revenue_accel_q",
+   "gain": 16.04097557067871,
+   "total_gain": 4876.45654296875,
+   "used": true
+  },
+  {
+   "feature": "fcf_yield_cf",
+   "gain": 7.751162528991699,
+   "total_gain": 945.641845703125,
+   "used": true
+  },
+  {
+   "feature": "a158_KMID",
+   "gain": 0.2212391197681427,
+   "total_gain": 0.2212391197681427,
+   "used": true
+  },
+  {
+   "feature": "a158_KLEN",
+   "gain": 17.59878921508789,
+   "total_gain": 2974.1953125,
+   "used": true
+  },
+  {
+   "feature": "a158_KMID2",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_KUP",
+   "gain": 0.1758577972650528,
+   "total_gain": 0.7034311890602112,
+   "used": true
+  },
+  {
+   "feature": "a158_KUP2",
+   "gain": 0.15072470903396606,
+   "total_gain": 0.15072470903396606,
+   "used": true
+  },
+  {
+   "feature": "a158_KLOW",
+   "gain": 0.05289088934659958,
+   "total_gain": 0.10578177869319916,
+   "used": true
+  },
+  {
+   "feature": "a158_KLOW2",
+   "gain": 0.9504730701446533,
+   "total_gain": 1.9009461402893066,
+   "used": true
+  },
+  {
+   "feature": "a158_KSFT",
+   "gain": 0.6057161092758179,
+   "total_gain": 2.4228644371032715,
+   "used": true
+  },
+  {
+   "feature": "a158_KSFT2",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_OPEN0",
+   "gain": 2.3619840145111084,
+   "total_gain": 2.3619840145111084,
+   "used": true
+  },
+  {
+   "feature": "a158_HIGH0",
+   "gain": 0.17020824551582336,
+   "total_gain": 0.17020824551582336,
+   "used": true
+  },
+  {
+   "feature": "a158_LOW0",
+   "gain": 9.931044578552246,
+   "total_gain": 238.34507751464844,
+   "used": true
+  },
+  {
+   "feature": "a158_VWAP0",
+   "gain": 4.558931827545166,
+   "total_gain": 59.26611328125,
+   "used": true
+  },
+  {
+   "feature": "a158_ROC5",
+   "gain": 0.6169357895851135,
+   "total_gain": 1.8508073091506958,
+   "used": true
+  },
+  {
+   "feature": "a158_ROC10",
+   "gain": 2.4309518337249756,
+   "total_gain": 58.34284210205078,
+   "used": true
+  },
+  {
+   "feature": "a158_ROC20",
+   "gain": 0.770936131477356,
+   "total_gain": 17.731531143188477,
+   "used": true
+  },
+  {
+   "feature": "a158_ROC30",
+   "gain": 3.209038496017456,
+   "total_gain": 93.06211853027344,
+   "used": true
+  },
+  {
+   "feature": "a158_ROC60",
+   "gain": 1.9723179340362549,
+   "total_gain": 69.0311279296875,
+   "used": true
+  },
+  {
+   "feature": "a158_MA5",
+   "gain": 1.6852494478225708,
+   "total_gain": 10.111496925354004,
+   "used": true
+  },
+  {
+   "feature": "a158_MA10",
+   "gain": 4.612656593322754,
+   "total_gain": 50.73922348022461,
+   "used": true
+  },
+  {
+   "feature": "a158_MA20",
+   "gain": 1.2677911520004272,
+   "total_gain": 12.677911758422852,
+   "used": true
+  },
+  {
+   "feature": "a158_MA30",
+   "gain": 2.9245052337646484,
+   "total_gain": 61.414608001708984,
+   "used": true
+  },
+  {
+   "feature": "a158_MA60",
+   "gain": 6.010787487030029,
+   "total_gain": 390.701171875,
+   "used": true
+  },
+  {
+   "feature": "a158_STD5",
+   "gain": 1.287085771560669,
+   "total_gain": 30.890058517456055,
+   "used": true
+  },
+  {
+   "feature": "a158_STD10",
+   "gain": 10.775835990905762,
+   "total_gain": 657.3259887695312,
+   "used": true
+  },
+  {
+   "feature": "a158_STD20",
+   "gain": 2.9913058280944824,
+   "total_gain": 110.67831420898438,
+   "used": true
+  },
+  {
+   "feature": "a158_STD30",
+   "gain": 4.502556324005127,
+   "total_gain": 184.6048126220703,
+   "used": true
+  },
+  {
+   "feature": "a158_STD60",
+   "gain": 7.562819957733154,
+   "total_gain": 1036.1063232421875,
+   "used": true
+  },
+  {
+   "feature": "a158_BETA5",
+   "gain": 2.0657827854156494,
+   "total_gain": 6.197348117828369,
+   "used": true
+  },
+  {
+   "feature": "a158_BETA10",
+   "gain": 0.09219083189964294,
+   "total_gain": 0.1843816637992859,
+   "used": true
+  },
+  {
+   "feature": "a158_BETA20",
+   "gain": 0.8985139727592468,
+   "total_gain": 17.071765899658203,
+   "used": true
+  },
+  {
+   "feature": "a158_BETA30",
+   "gain": 38.5290412902832,
+   "total_gain": 770.580810546875,
+   "used": true
+  },
+  {
+   "feature": "a158_BETA60",
+   "gain": 2.692016839981079,
+   "total_gain": 121.14076232910156,
+   "used": true
+  },
+  {
+   "feature": "a158_RSQR5",
+   "gain": 13.250476837158203,
+   "total_gain": 238.5085906982422,
+   "used": true
+  },
+  {
+   "feature": "a158_RSQR10",
+   "gain": 0.2800818979740143,
+   "total_gain": 1.680491328239441,
+   "used": true
+  },
+  {
+   "feature": "a158_RSQR20",
+   "gain": 0.34348586201667786,
+   "total_gain": 5.495773792266846,
+   "used": true
+  },
+  {
+   "feature": "a158_RSQR30",
+   "gain": 24.24292755126953,
+   "total_gain": 266.6722106933594,
+   "used": true
+  },
+  {
+   "feature": "a158_RSQR60",
+   "gain": 1.9133741855621338,
+   "total_gain": 70.79484558105469,
+   "used": true
+  },
+  {
+   "feature": "a158_RESI5",
+   "gain": 1.6801061630249023,
+   "total_gain": 1.6801061630249023,
+   "used": true
+  },
+  {
+   "feature": "a158_RESI10",
+   "gain": 0.1861504763364792,
+   "total_gain": 0.9307523965835571,
+   "used": true
+  },
+  {
+   "feature": "a158_RESI20",
+   "gain": 0.04290808364748955,
+   "total_gain": 0.1716323345899582,
+   "used": true
+  },
+  {
+   "feature": "a158_RESI30",
+   "gain": 0.19778813421726227,
+   "total_gain": 2.5712456703186035,
+   "used": true
+  },
+  {
+   "feature": "a158_RESI60",
+   "gain": 12.990070343017578,
+   "total_gain": 675.483642578125,
+   "used": true
+  },
+  {
+   "feature": "a158_MAX5",
+   "gain": 13.33751392364502,
+   "total_gain": 66.68756866455078,
+   "used": true
+  },
+  {
+   "feature": "a158_MAX10",
+   "gain": 0.13757455348968506,
+   "total_gain": 0.9630218744277954,
+   "used": true
+  },
+  {
+   "feature": "a158_MAX20",
+   "gain": 2.519892692565918,
+   "total_gain": 20.159141540527344,
+   "used": true
+  },
+  {
+   "feature": "a158_MAX30",
+   "gain": 10.29633617401123,
+   "total_gain": 247.112060546875,
+   "used": true
+  },
+  {
+   "feature": "a158_MAX60",
+   "gain": 7.600002288818359,
+   "total_gain": 661.2001953125,
+   "used": true
+  },
+  {
+   "feature": "a158_MIN5",
+   "gain": 24.737239837646484,
+   "total_gain": 1014.2268676757812,
+   "used": true
+  },
+  {
+   "feature": "a158_MIN10",
+   "gain": 5.7374114990234375,
+   "total_gain": 218.02163696289062,
+   "used": true
+  },
+  {
+   "feature": "a158_MIN20",
+   "gain": 11.30453109741211,
+   "total_gain": 497.3993835449219,
+   "used": true
+  },
+  {
+   "feature": "a158_MIN30",
+   "gain": 9.227888107299805,
+   "total_gain": 867.4215087890625,
+   "used": true
+  },
+  {
+   "feature": "a158_MIN60",
+   "gain": 9.598540306091309,
+   "total_gain": 1171.02197265625,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLU5",
+   "gain": 67.01998138427734,
+   "total_gain": 268.0799255371094,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLU10",
+   "gain": 0.3884676992893219,
+   "total_gain": 0.7769353985786438,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLU20",
+   "gain": 2.2690961360931396,
+   "total_gain": 11.345480918884277,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLU30",
+   "gain": 4.1764044761657715,
+   "total_gain": 62.64606857299805,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLU60",
+   "gain": 2.175647020339966,
+   "total_gain": 54.391178131103516,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLD5",
+   "gain": 0.7074358463287354,
+   "total_gain": 4.244615077972412,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLD10",
+   "gain": 0.8039831519126892,
+   "total_gain": 9.647797584533691,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLD20",
+   "gain": 0.40528735518455505,
+   "total_gain": 6.889884948730469,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLD30",
+   "gain": 2.070768117904663,
+   "total_gain": 91.11380004882812,
+   "used": true
+  },
+  {
+   "feature": "a158_QTLD60",
+   "gain": 7.469007968902588,
+   "total_gain": 530.299560546875,
+   "used": true
+  },
+  {
+   "feature": "a158_RANK5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_RANK10",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_RANK20",
+   "gain": 4.788950443267822,
+   "total_gain": 9.577900886535645,
+   "used": true
+  },
+  {
+   "feature": "a158_RANK30",
+   "gain": 0.31061890721321106,
+   "total_gain": 1.2424756288528442,
+   "used": true
+  },
+  {
+   "feature": "a158_RANK60",
+   "gain": 12.81537914276123,
+   "total_gain": 76.89227294921875,
+   "used": true
+  },
+  {
+   "feature": "a158_RSV5",
+   "gain": 0.07236918807029724,
+   "total_gain": 0.07236918807029724,
+   "used": true
+  },
+  {
+   "feature": "a158_RSV10",
+   "gain": 13.868892669677734,
+   "total_gain": 41.6066780090332,
+   "used": true
+  },
+  {
+   "feature": "a158_RSV20",
+   "gain": 13.265119552612305,
+   "total_gain": 66.32559967041016,
+   "used": true
+  },
+  {
+   "feature": "a158_RSV30",
+   "gain": 0.22497797012329102,
+   "total_gain": 1.574845790863037,
+   "used": true
+  },
+  {
+   "feature": "a158_RSV60",
+   "gain": 8.326395034790039,
+   "total_gain": 524.5628662109375,
+   "used": true
+  },
+  {
+   "feature": "a158_IMAX5",
+   "gain": 0.04549679160118103,
+   "total_gain": 0.04549679160118103,
+   "used": true
+  },
+  {
+   "feature": "a158_IMAX10",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_IMAX20",
+   "gain": 4.6893744468688965,
+   "total_gain": 14.068122863769531,
+   "used": true
+  },
+  {
+   "feature": "a158_IMAX30",
+   "gain": 0.5704816579818726,
+   "total_gain": 6.275298118591309,
+   "used": true
+  },
+  {
+   "feature": "a158_IMAX60",
+   "gain": 1.7013665437698364,
+   "total_gain": 23.81913185119629,
+   "used": true
+  },
+  {
+   "feature": "a158_IMIN5",
+   "gain": 0.4501260221004486,
+   "total_gain": 1.8005040884017944,
+   "used": true
+  },
+  {
+   "feature": "a158_IMIN10",
+   "gain": 0.10599902272224426,
+   "total_gain": 0.10599902272224426,
+   "used": true
+  },
+  {
+   "feature": "a158_IMIN20",
+   "gain": 1.0899816751480103,
+   "total_gain": 7.629871845245361,
+   "used": true
+  },
+  {
+   "feature": "a158_IMIN30",
+   "gain": 0.1241515725851059,
+   "total_gain": 0.6207578778266907,
+   "used": true
+  },
+  {
+   "feature": "a158_IMIN60",
+   "gain": 6.8964643478393555,
+   "total_gain": 117.2398910522461,
+   "used": true
+  },
+  {
+   "feature": "a158_IMXD5",
+   "gain": 0.18579480051994324,
+   "total_gain": 0.3715896010398865,
+   "used": true
+  },
+  {
+   "feature": "a158_IMXD10",
+   "gain": 0.005232410505414009,
+   "total_gain": 0.005232410505414009,
+   "used": true
+  },
+  {
+   "feature": "a158_IMXD20",
+   "gain": 0.36271652579307556,
+   "total_gain": 1.8135826587677002,
+   "used": true
+  },
+  {
+   "feature": "a158_IMXD30",
+   "gain": 8.336881637573242,
+   "total_gain": 41.684410095214844,
+   "used": true
+  },
+  {
+   "feature": "a158_IMXD60",
+   "gain": 2.5136373043060303,
+   "total_gain": 30.163646697998047,
+   "used": true
+  },
+  {
+   "feature": "a158_CORR5",
+   "gain": 0.17497365176677704,
+   "total_gain": 0.5249209403991699,
+   "used": true
+  },
+  {
+   "feature": "a158_CORR10",
+   "gain": 9.74416446685791,
+   "total_gain": 467.7198791503906,
+   "used": true
+  },
+  {
+   "feature": "a158_CORR20",
+   "gain": 12.07145881652832,
+   "total_gain": 1146.78857421875,
+   "used": true
+  },
+  {
+   "feature": "a158_CORR30",
+   "gain": 17.952245712280273,
+   "total_gain": 2226.078369140625,
+   "used": true
+  },
+  {
+   "feature": "a158_CORR60",
+   "gain": 18.69452667236328,
+   "total_gain": 4972.744140625,
+   "used": true
+  },
+  {
+   "feature": "a158_CORD5",
+   "gain": 0.1730276644229889,
+   "total_gain": 0.3460553288459778,
+   "used": true
+  },
+  {
+   "feature": "a158_CORD10",
+   "gain": 0.5479166507720947,
+   "total_gain": 2.7395832538604736,
+   "used": true
+  },
+  {
+   "feature": "a158_CORD20",
+   "gain": 0.570999026298523,
+   "total_gain": 15.416973114013672,
+   "used": true
+  },
+  {
+   "feature": "a158_CORD30",
+   "gain": 12.090859413146973,
+   "total_gain": 350.6349182128906,
+   "used": true
+  },
+  {
+   "feature": "a158_CORD60",
+   "gain": 6.757400035858154,
+   "total_gain": 459.5032043457031,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTP5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_CNTP10",
+   "gain": 0.6333474516868591,
+   "total_gain": 4.433432102203369,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTP20",
+   "gain": 0.036469001322984695,
+   "total_gain": 0.07293800264596939,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTP30",
+   "gain": 11.576520919799805,
+   "total_gain": 162.0712890625,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTP60",
+   "gain": 3.9326202869415283,
+   "total_gain": 169.10267639160156,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTN5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_CNTN10",
+   "gain": 1.6989208459854126,
+   "total_gain": 8.494604110717773,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTN20",
+   "gain": 0.48897865414619446,
+   "total_gain": 0.9779573082923889,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTN30",
+   "gain": 1.6626561880111694,
+   "total_gain": 21.614530563354492,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTN60",
+   "gain": 3.6988322734832764,
+   "total_gain": 73.97664642333984,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTD5",
+   "gain": 1.0597925186157227,
+   "total_gain": 1.0597925186157227,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTD10",
+   "gain": 0.2361539602279663,
+   "total_gain": 0.7084618806838989,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTD20",
+   "gain": 0.4376451075077057,
+   "total_gain": 3.0635156631469727,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTD30",
+   "gain": 0.14855121076107025,
+   "total_gain": 0.8913072943687439,
+   "used": true
+  },
+  {
+   "feature": "a158_CNTD60",
+   "gain": 3.07808518409729,
+   "total_gain": 92.3425521850586,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMP5",
+   "gain": 0.10791853070259094,
+   "total_gain": 0.3237555921077728,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMP10",
+   "gain": 0.18719051778316498,
+   "total_gain": 0.9359526038169861,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMP20",
+   "gain": 0.2163044512271881,
+   "total_gain": 1.5141311883926392,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMP30",
+   "gain": 7.061540126800537,
+   "total_gain": 70.61540222167969,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMP60",
+   "gain": 1.1239655017852783,
+   "total_gain": 29.223102569580078,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMN5",
+   "gain": 0.1457623392343521,
+   "total_gain": 0.1457623392343521,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMN10",
+   "gain": 2.2004494667053223,
+   "total_gain": 4.4008989334106445,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMN20",
+   "gain": 2.6366350650787354,
+   "total_gain": 13.183175086975098,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMN30",
+   "gain": 1.080525279045105,
+   "total_gain": 11.885777473449707,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMN60",
+   "gain": 8.480671882629395,
+   "total_gain": 135.6907501220703,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMD5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_SUMD10",
+   "gain": 0.09677112847566605,
+   "total_gain": 0.09677112847566605,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMD20",
+   "gain": 0.4356216490268707,
+   "total_gain": 0.8712432980537415,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMD30",
+   "gain": 1.4538673162460327,
+   "total_gain": 2.9077346324920654,
+   "used": true
+  },
+  {
+   "feature": "a158_SUMD60",
+   "gain": 1.5114024877548218,
+   "total_gain": 22.671037673950195,
+   "used": true
+  },
+  {
+   "feature": "a158_VMA5",
+   "gain": 0.07827162742614746,
+   "total_gain": 0.07827162742614746,
+   "used": true
+  },
+  {
+   "feature": "a158_VMA10",
+   "gain": 0.15363547205924988,
+   "total_gain": 0.6145418882369995,
+   "used": true
+  },
+  {
+   "feature": "a158_VMA20",
+   "gain": 1.3361021280288696,
+   "total_gain": 10.688817024230957,
+   "used": true
+  },
+  {
+   "feature": "a158_VMA30",
+   "gain": 1.4086945056915283,
+   "total_gain": 9.860861778259277,
+   "used": true
+  },
+  {
+   "feature": "a158_VMA60",
+   "gain": 8.49032974243164,
+   "total_gain": 483.9488220214844,
+   "used": true
+  },
+  {
+   "feature": "a158_VSTD5",
+   "gain": 0.15981003642082214,
+   "total_gain": 0.6392401456832886,
+   "used": true
+  },
+  {
+   "feature": "a158_VSTD10",
+   "gain": 0.05530356988310814,
+   "total_gain": 0.11060713976621628,
+   "used": true
+  },
+  {
+   "feature": "a158_VSTD20",
+   "gain": 1.2210067510604858,
+   "total_gain": 8.54704761505127,
+   "used": true
+  },
+  {
+   "feature": "a158_VSTD30",
+   "gain": 42.314151763916016,
+   "total_gain": 126.94245910644531,
+   "used": true
+  },
+  {
+   "feature": "a158_VSTD60",
+   "gain": 0.17775507271289825,
+   "total_gain": 1.955305814743042,
+   "used": true
+  },
+  {
+   "feature": "a158_WVMA5",
+   "gain": 1.0243884325027466,
+   "total_gain": 1.0243884325027466,
+   "used": true
+  },
+  {
+   "feature": "a158_WVMA10",
+   "gain": 0.4572705924510956,
+   "total_gain": 0.9145411849021912,
+   "used": true
+  },
+  {
+   "feature": "a158_WVMA20",
+   "gain": 11.160858154296875,
+   "total_gain": 323.6648864746094,
+   "used": true
+  },
+  {
+   "feature": "a158_WVMA30",
+   "gain": 3.1339852809906006,
+   "total_gain": 90.88557434082031,
+   "used": true
+  },
+  {
+   "feature": "a158_WVMA60",
+   "gain": 1.2568238973617554,
+   "total_gain": 60.32754898071289,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMP5",
+   "gain": 0.1363113671541214,
+   "total_gain": 0.1363113671541214,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMP10",
+   "gain": 0.05965462327003479,
+   "total_gain": 0.05965462327003479,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMP20",
+   "gain": 0.5566016435623169,
+   "total_gain": 1.1132032871246338,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMP30",
+   "gain": 11.114786148071289,
+   "total_gain": 244.52529907226562,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMP60",
+   "gain": 9.008947372436523,
+   "total_gain": 477.4742126464844,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMN5",
+   "gain": 0.8328092098236084,
+   "total_gain": 0.8328092098236084,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMN10",
+   "gain": 0.302107036113739,
+   "total_gain": 0.302107036113739,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMN20",
+   "gain": 2.2849507331848145,
+   "total_gain": 11.424753189086914,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMN30",
+   "gain": 10.507773399353027,
+   "total_gain": 189.13992309570312,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMN60",
+   "gain": 13.398998260498047,
+   "total_gain": 509.16192626953125,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMD5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "a158_VSUMD10",
+   "gain": 0.4716947078704834,
+   "total_gain": 0.4716947078704834,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMD20",
+   "gain": 0.25212785601615906,
+   "total_gain": 0.5042557120323181,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMD30",
+   "gain": 0.370400071144104,
+   "total_gain": 5.926401138305664,
+   "used": true
+  },
+  {
+   "feature": "a158_VSUMD60",
+   "gain": 23.325267791748047,
+   "total_gain": 676.4327392578125,
+   "used": true
+  },
+  {
+   "feature": "ind_mom_1m",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_mom_3m",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_mom_6m",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "rel_mom_3m",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "rel_mom_6m",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_dm_roe_ttm",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_dm_pb",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_dm_pe_ttm",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "ind_dm_operating_profit_yoy",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "fc_pchg_mid",
+   "gain": 17.99538230895996,
+   "total_gain": 8205.89453125,
+   "used": true
+  },
+  {
+   "feature": "fc_type_score",
+   "gain": 17.23579216003418,
+   "total_gain": 11789.2822265625,
+   "used": true
+  },
+  {
+   "feature": "express_np_growth",
+   "gain": 5.3841094970703125,
+   "total_gain": 533.02685546875,
+   "used": true
+  },
+  {
+   "feature": "holder_num_chg",
+   "gain": 18.724624633789062,
+   "total_gain": 6628.51708984375,
+   "used": true
+  },
+  {
+   "feature": "insider_net_ratio_90d",
+   "gain": 4.605046272277832,
+   "total_gain": 492.7399597167969,
+   "used": true
+  },
+  {
+   "feature": "repurchase_flag_90d",
+   "gain": 10.578164100646973,
+   "total_gain": 3448.4814453125,
+   "used": true
+  },
+  {
+   "feature": "unlock_ratio_next60",
+   "gain": 3.5276012420654297,
+   "total_gain": 229.29408264160156,
+   "used": true
+  },
+  {
+   "feature": "inst_net_buy_20d",
+   "gain": 6.017933368682861,
+   "total_gain": 788.3492431640625,
+   "used": true
+  },
+  {
+   "feature": "block_discount_20d",
+   "gain": 1.556969165802002,
+   "total_gain": 14.01272201538086,
+   "used": true
+  },
+  {
+   "feature": "mf_lg_net_20d",
+   "gain": 6.908847808837891,
+   "total_gain": 1050.1448974609375,
+   "used": true
+  },
+  {
+   "feature": "limit_up_cnt_20d",
+   "gain": 35.977561950683594,
+   "total_gain": 20543.1875,
+   "used": true
+  },
+  {
+   "feature": "market_momentum_60d",
+   "gain": 13.049489974975586,
+   "total_gain": 3157.9765625,
+   "used": true
+  },
+  {
+   "feature": "market_volatility_60d",
+   "gain": 9.430376052856445,
+   "total_gain": 3536.39111328125,
+   "used": true
+  },
+  {
+   "feature": "market_drawdown_60d",
+   "gain": 9.322650909423828,
+   "total_gain": 960.2330322265625,
+   "used": true
+  },
+  {
+   "feature": "north_bound_30d_net_inflow",
+   "gain": 7.7534708976745605,
+   "total_gain": 659.0450439453125,
+   "used": true
+  },
+  {
+   "feature": "csi300_ret_1",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "csi300_ret_5",
+   "gain": 0.04443334415555,
+   "total_gain": 0.1333000361919403,
+   "used": true
+  },
+  {
+   "feature": "csi300_ret_20",
+   "gain": 0.5808735489845276,
+   "total_gain": 11.03659725189209,
+   "used": true
+  },
+  {
+   "feature": "csi300_ret_60",
+   "gain": 5.024710655212402,
+   "total_gain": 477.3475341796875,
+   "used": true
+  },
+  {
+   "feature": "csi500_ret_1",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "csi500_ret_5",
+   "gain": 3.804807424545288,
+   "total_gain": 3.804807424545288,
+   "used": true
+  },
+  {
+   "feature": "csi500_ret_20",
+   "gain": 9.810128211975098,
+   "total_gain": 274.68359375,
+   "used": true
+  },
+  {
+   "feature": "csi500_ret_60",
+   "gain": 14.627443313598633,
+   "total_gain": 3071.76318359375,
+   "used": true
+  },
+  {
+   "feature": "chinext_ret_1",
+   "gain": 0.9821875691413879,
+   "total_gain": 0.9821875691413879,
+   "used": true
+  },
+  {
+   "feature": "chinext_ret_5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "chinext_ret_20",
+   "gain": 4.633572578430176,
+   "total_gain": 208.51075744628906,
+   "used": true
+  },
+  {
+   "feature": "chinext_ret_60",
+   "gain": 11.762805938720703,
+   "total_gain": 2646.63134765625,
+   "used": true
+  },
+  {
+   "feature": "csi300_vol_20",
+   "gain": 9.588485717773438,
+   "total_gain": 1083.4989013671875,
+   "used": true
+  },
+  {
+   "feature": "csi300_dd_252",
+   "gain": 8.99335765838623,
+   "total_gain": 503.6280212402344,
+   "used": true
+  },
+  {
+   "feature": "csi500_vol_20",
+   "gain": 7.677569389343262,
+   "total_gain": 890.5980224609375,
+   "used": true
+  },
+  {
+   "feature": "csi500_dd_252",
+   "gain": 10.694572448730469,
+   "total_gain": 1208.4866943359375,
+   "used": true
+  },
+  {
+   "feature": "breadth_1",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "breadth_5",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "disp_1",
+   "gain": null,
+   "total_gain": null,
+   "used": false
+  },
+  {
+   "feature": "disp_20",
+   "gain": 10.2829008102417,
+   "total_gain": 925.4610595703125,
+   "used": true
+  },
+  {
+   "feature": "amt_rel_20",
+   "gain": 5.806010723114014,
+   "total_gain": 17.418031692504883,
+   "used": true
+  },
+  {
+   "feature": "margin_chg_20",
+   "gain": 17.764514923095703,
+   "total_gain": 1758.6868896484375,
+   "used": true
+  },
+  {
+   "feature": "CANARY_y63_train",
+   "gain": 3664.15234375,
+   "total_gain": 10779936.0,
+   "used": true
+  }
+ ]
+}
