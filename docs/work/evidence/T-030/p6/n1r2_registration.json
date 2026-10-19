@@ -1,0 +1,16 @@
+{
+ "what": "N1-R2 登记：文件哈希与种子 16–55 未揭示核对",
+ "utc": "2026-10-19T10:06:46.275047+00:00",
+ "seed_dirs_16_55_present": 0,
+ "sha256": {
+  "docs/work/reviews/T-030-G1-ruling-2026-10-19c.md": "b3db4aec73470077b024dc2fdccd8278e66376be9fb46776095c46f9648e7316",
+  "docs/work/tasks/T-030-prereg.md": "f00f94f51fd163776fad4b078e153dc8f38ff3cc07dfb26aff01fba62ce173a8",
+  "docs/work/evidence/T-030/controls_diag.py": "3605b953239343dee30f3ef7d3fc19f8b2b7b5bd1197891665dda7ef7b2c1458",
+  "docs/work/evidence/T-030/n1r2_summary.py": "9de182b6c22a1a76953c556144664f703be177becf0fb3e95ccd76ee711a9c4d",
+  "docs/work/evidence/T-030/queue/gpu_n1r2.txt": "2f74418476db23a4b18a7e7c7b6ed6d517a68f8998e627c3612ebcefea35c7f5",
+  "docs/work/evidence/T-030/run_trees.py": "c7739eac8aab28b2c7bd2afe6044a47d3613559b43ef2a8a7a9f4b05716767af",
+  "quantmind/research/gpu/configs.py": "beb5c860ee6d89c664610515ceba8de3e259b6e30cf7b557c684f2cb90723ba2",
+  "quantmind/research/gpu/metrics.py": "595b44f2a1a3346c26d765f8235d20dba6dc426af87dc9e8f09b27c8d9d69baf",
+  "docs/work/evidence/T-030/p6/frozen_dates_63d.json": "0f0033396bee5e298b667303a3c54a250af96cd9a18ad7599dc64d7545b87ba5"
+ }
+}
