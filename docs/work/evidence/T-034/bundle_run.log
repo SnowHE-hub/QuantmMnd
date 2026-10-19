@@ -1,0 +1,19 @@
+{"xgb": true}
+{"tabm": true}
+{"seqfusion": true}
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+{"cat_seed": 0, "pearson": 1.0}
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+{"cat_seed": 2, "pearson": 1.0}
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+{"cat_seed": 4, "pearson": 1.0}
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+{"cat_seed": 1, "pearson": 1.0}
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+Metric NDCG:type=Base is not implemented on GPU. Will use CPU for metric computation, this could significantly affect learning time
+{"cat_seed": 3, "pearson": 1.0}
+{"ens": {"n": 237950, "pearson": 0.9999999999999999, "spearman": 1.0, "max_abs_diff": 0.0}, "checks": {"xgb": true, "tabm": true, "seqfusion": true, "cat": null}, "cat_low_corr": false}

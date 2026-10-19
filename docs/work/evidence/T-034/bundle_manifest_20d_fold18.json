@@ -1,0 +1,286 @@
+{
+ "what": "T-034 A：20d 第 18 折（最后一折，切点 2026-07-01）的 ENS 四族模型包：重建、核对、存盘（设计见 docs/work/tasks/T-034.md）.",
+ "fold": 18,
+ "horizon": "20d",
+ "cutoff": "2026-07-01 00:00:00",
+ "pred_days": [
+  "2026-07-30",
+  "2026-10-09"
+ ],
+ "n_pred_rows": 237950,
+ "utc_start": "2026-10-19T10:29:40.086202+00:00",
+ "env": {
+  "xgboost": "3.2.0",
+  "torch": "2.11.0+cu128",
+  "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 595.79"
+ },
+ "families": {
+  "xgb": {
+   "selected": {
+    "config": 4,
+    "rounds": 850,
+    "inner_ic": 0.009294868250575827,
+    "params": {
+     "objective": "rank",
+     "max_depth": 6,
+     "colsample_bytree": 0.5,
+     "eta": 0.05,
+     "subsample": 0.8,
+     "min_child_weight": 200.0,
+     "reg_lambda": 10.0
+    }
+   },
+   "seeds": {
+    "0": {
+     "file": "k18_s0.ubj",
+     "sha256": "cf076db6324565b26fd3edb46dff7fff91588a948995969a3f4a2576520f8e43",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "1": {
+     "file": "k18_s1.ubj",
+     "sha256": "da07700a61668ef9d9b784c965b00ea015cd99a1b3235216e837fe9cf5f964e9",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "2": {
+     "file": "k18_s2.ubj",
+     "sha256": "6f5fb7c38719bb6b194b1799a95d0b279b8a6e1006f3710c403f130773c75f3a",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "3": {
+     "file": "k18_s3.ubj",
+     "sha256": "760f327a01ed490eaf84a5b1246c9d1a63c3dc39935f0426ffee6841996ae795",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "4": {
+     "file": "k18_s4.ubj",
+     "sha256": "cf036ae26a98e3e2c1f3f2f4eb6d51230628dbd6ad7047c1770c865a224881cb",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    }
+   },
+   "check_pass": true
+  },
+  "tabm": {
+   "selected": {
+    "config": 1,
+    "epochs": 3,
+    "inner_ic": 0.05831908528196985,
+    "params": {
+     "k": 32,
+     "d": 512,
+     "n_blocks": 3,
+     "dropout": 0.25,
+     "lr": 0.0005,
+     "max_epochs": 12,
+     "days_per_batch": 1,
+     "weight_decay": 0.0001,
+     "aux_mse": 0.1,
+     "patience": 3,
+     "day_stride": 2
+    }
+   },
+   "norm_file": "norm.npz",
+   "norm_sha256": "d749fddfb264bd76a5add5f39c2e430342744c4d8c9f20dfc7eee8c7ea346666",
+   "seeds": {
+    "0": {
+     "file": "k18_s0_state.pt",
+     "sha256": "3ade5271286806bb08345c709024531ab34b696f6792e727b9fc160f9f254ef2",
+     "ckpt_epoch": 3,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "1": {
+     "file": "k18_s1_state.pt",
+     "sha256": "2e5b00c67b1036bfa4395ad1c15d71b8387682b1b0d934aa98d3bb194af1be56",
+     "ckpt_epoch": 3,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 0.9999999999999998,
+     "exact_share_f32": 1.0
+    },
+    "2": {
+     "file": "k18_s2_state.pt",
+     "sha256": "a33ca292136d77f3c4c6f5ed36c8230f171dff668fe438659396eb0333b4f567",
+     "ckpt_epoch": 3,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "3": {
+     "file": "k18_s3_state.pt",
+     "sha256": "d7d235fb38b88922c4a2826e8f1fbeec7c7c4f0ea598142629c93542e35990f7",
+     "ckpt_epoch": 3,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "4": {
+     "file": "k18_s4_state.pt",
+     "sha256": "2ca91582770d7acffaf52afbd38ef481504a875dec77e3bea3c9f2db0cb8aae4",
+     "ckpt_epoch": 3,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 0.9999999999999999,
+     "exact_share_f32": 1.0
+    }
+   },
+   "check_pass": true
+  },
+  "seqfusion": {
+   "selected": {
+    "config": 2,
+    "epochs": 10,
+    "inner_ic": 0.09488152555756713,
+    "params": {
+     "L": 64,
+     "d": 128,
+     "n_layers": 6,
+     "d_snap": 128,
+     "dropout": 0.2,
+     "lr": 0.0005,
+     "max_epochs": 10,
+     "days_per_batch": 2,
+     "weight_decay": 0.0001,
+     "aux_mse": 0.1,
+     "patience": 3,
+     "day_stride": 2
+    }
+   },
+   "norm_file": "norm.npz",
+   "norm_sha256": "94219dfa7d614a1925392d957a4bed783b0573b586cf5d001eba3e45cf8fc62e",
+   "seeds": {
+    "0": {
+     "file": "k18_s0_state.pt",
+     "sha256": "050a84b696f085cb1a1f047fa65d4a0007f12494e1680eb9526726270c9ea0fe",
+     "ckpt_epoch": 10,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "1": {
+     "file": "k18_s1_state.pt",
+     "sha256": "d06b8cef832a90bb803af70ddf201f151e297c62592c68eb2952b0831e1aa27b",
+     "ckpt_epoch": 10,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "2": {
+     "file": "k18_s2_state.pt",
+     "sha256": "081b48f6e45cd1976bcaf824c26d70f824c94503f9d9a98422ae747edab5d8fb",
+     "ckpt_epoch": 10,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "3": {
+     "file": "k18_s3_state.pt",
+     "sha256": "3e75ca55719ed09f434ff4ccddc1d70e82b2e3cbb99a397e7215137fbe59dd7a",
+     "ckpt_epoch": 10,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "4": {
+     "file": "k18_s4_state.pt",
+     "sha256": "9e8b6f59a37347012a84345bc244025c2d83c65e79a07b5a6fa05a35782a3dad",
+     "ckpt_epoch": 10,
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 0.9999999999999999,
+     "exact_share_f32": 1.0
+    }
+   },
+   "check_pass": true
+  },
+  "cat": {
+   "selected": {
+    "config": 3,
+    "rounds": 1400,
+    "inner_ic": 0.006621877077153546,
+    "params": {
+     "objective": "yetirank",
+     "depth": 8,
+     "learning_rate": 0.08,
+     "l2_leaf_reg": 3.0,
+     "bootstrap_type": "Bernoulli",
+     "subsample": 0.8
+    }
+   },
+   "seeds": {
+    "0": {
+     "file": "k18_s0.cbm",
+     "sha256": "bf546664da897e335fb722e889c132905b42ca50922edebb50a7b6636b5e2cad",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "2": {
+     "file": "k18_s2.cbm",
+     "sha256": "8d5335a0594a544c7fef487a04b42e2567f7fd7ebc466366eb4682370ec99c86",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "4": {
+     "file": "k18_s4.cbm",
+     "sha256": "bc6e1007a10de6178659bb0e714267d44c5c89ce38868af0aea5afd412d74bee",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "1": {
+     "file": "k18_s1.cbm",
+     "sha256": "64d504717ba3dedc768641b97fa6c8e4b908093b1d43f8ef7a2e1f82df9778e7",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    },
+    "3": {
+     "file": "k18_s3.cbm",
+     "sha256": "60c29114c054796f5ea1570ab0308f6efe290400edfd0338b0704f65a5cf2118",
+     "n": 237950,
+     "max_abs_diff": 0.0,
+     "pearson": 1.0,
+     "exact_share_f32": 1.0
+    }
+   },
+   "note": "CatBoost GPU 不保证逐位确定；与原折预测比较相关与最大差",
+   "flag_low_corr": false
+  }
+ },
+ "ens_rebuilt_vs_stored": {
+  "n": 237950,
+  "pearson": 0.9999999999999999,
+  "spearman": 1.0,
+  "max_abs_diff": 0.0
+ },
+ "features_json_sha256": "2e28e62c8710937adc38391286efd1e55e36e21f6b9a8d4284d4af2543b83486",
+ "utc_end": "2026-10-19T10:38:28.423651+00:00"
+}
