@@ -1,0 +1,63 @@
+{
+ "horizon": "63d",
+ "fold": 0,
+ "n_features": 277,
+ "canary_rank": 3,
+ "canary_gain": 1136.85400390625,
+ "canary_gain_share": 0.0437112111274796,
+ "top1_feature": "sh_resid_rev_10",
+ "top1_gain": 1207.8370361328125,
+ "top10": [
+  {
+   "rank": 1,
+   "feature": "sh_resid_rev_10",
+   "gain": 1207.8370361328125
+  },
+  {
+   "rank": 2,
+   "feature": "sh_resid_vol_10",
+   "gain": 1146.1993408203125
+  },
+  {
+   "rank": 3,
+   "feature": "CANARY_next_day_return",
+   "gain": 1136.85400390625
+  },
+  {
+   "rank": 4,
+   "feature": "sh_rskew_21",
+   "gain": 524.7122802734375
+  },
+  {
+   "rank": 5,
+   "feature": "limit_up_cnt_20d",
+   "gain": 438.47149658203125
+  },
+  {
+   "rank": 6,
+   "feature": "a158_CORR20",
+   "gain": 291.1285095214844
+  },
+  {
+   "rank": 7,
+   "feature": "a158_KLEN",
+   "gain": 285.6097717285156
+  },
+  {
+   "rank": 8,
+   "feature": "a158_VSUMD30",
+   "gain": 284.71307373046875
+  },
+  {
+   "rank": 9,
+   "feature": "a158_VSUMN60",
+   "gain": 278.0548095703125
+  },
+  {
+   "rank": 10,
+   "feature": "a158_CORR10",
+   "gain": 268.2066650390625
+  }
+ ],
+ "note": "原 1 日金丝雀，只作报告。63d 的放行金丝雀是 n2-target-canary，不使用本次排名。"
+}
