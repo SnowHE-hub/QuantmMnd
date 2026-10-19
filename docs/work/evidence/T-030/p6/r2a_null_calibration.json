@@ -1,0 +1,12 @@
+{
+ "what": "T-030 根因清单 R2a 追查：评估链路的零分布校准（事先写定，本文件提交早于运行）.",
+ "n_null": 500,
+ "n_dates": 189,
+ "t_obs_from_r2": 0.0034544032333769896,
+ "t_recomputed_with_original_eval_noise": 0.0034544032333769896,
+ "null_mean": 4.832838882608533e-05,
+ "null_sd": 0.0019304768403312646,
+ "theory_sd_approx": 0.001904362857108889,
+ "empirical_p_two_sided": 0.08,
+ "reading": "评估链路符合理论零分布，R2a 的 T 属于抽样波动"
+}
