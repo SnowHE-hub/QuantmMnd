@@ -46,15 +46,43 @@ def main() -> None:
     params = TREE_GRIDS["xgb"][0]
     report = {"what": __doc__.split("\n")[0], "seed": SEED, "utc_start": datetime.now(UTC).isoformat(),
               "frozen_dates_sha256_file": "p6/frozen_dates_63d.json", "variants": {}}
+    resumed: list[str] = []
 
     def noise(shape, *key) -> np.ndarray:
         return np.random.default_rng([SEED, *key]).standard_normal(shape)
+
+    def noise_matrix(shape, dtype, *key) -> np.ndarray:
+        """大矩阵分块按 float32 生成（2026-10-19 第一次运行时整块 float64 噪声触发内存守卫，R2b 未开始即退出）。"""
+        rng = np.random.default_rng([SEED, *key])
+        out = np.empty(shape, dtype=dtype)
+        for s in range(0, shape[0], 200_000):
+            e = min(shape[0], s + 200_000)
+            out[s:e] = rng.standard_normal((e - s, *shape[1:]), dtype=np.float32)
+        return out
 
     for variant, tag in (("R2a_synlabel", "xgb_63d_R2a_synlabel"), ("R2b_synfeat", "xgb_63d_R2b_synfeat")):
         pred_dir = root / "data/gpu_v1/preds" / tag
         pred_dir.mkdir(parents=True, exist_ok=True)
         daily = []
         for k, f in enumerate(folds):
+            fold_file = pred_dir / f"fold_{k}.parquet"
+            if fold_file.exists():                              # 进程被杀后续跑：已写出的折只重算 IC，不重训
+                pb = md.load(f.pred_days)
+                saved = pd.read_parquet(fold_file)
+                if len(saved) != len(pb.meta) or not (saved["ticker"].to_numpy() == pb.meta["ticker"].to_numpy()).all():
+                    raise RuntimeError(f"{tag} fold {k}: saved rows do not match the prediction block")
+                score, dpb = saved["score"].to_numpy(dtype=np.float64), pb.meta["day"].to_numpy()
+                y_eval = pb.meta["y63"].to_numpy(dtype=np.float64)
+                if variant == "R2a_synlabel":
+                    y_eval = np.where(np.isfinite(y_eval), noise(len(y_eval), 5, k), np.nan)
+                test = pd.DatetimeIndex(pd.to_datetime(list(f.test_asof)))
+                mask = (pb.meta["top1500"].to_numpy(dtype=bool)
+                        & pd.to_datetime(pb.meta["as_of"]).isin(test).to_numpy())
+                daily.append(daily_rank_ic(score, y_eval, dpb, mask))
+                resumed.append(f"{variant}:{k}")
+                del pb, saved
+                gc.collect()
+                continue
             wait_for_vram(4000, log=lambda m: print(m, flush=True))
             full = md.load(f.train_days)
             y_real = full.meta["y63"].to_numpy(dtype=np.float64)
@@ -65,8 +93,10 @@ def main() -> None:
             day = full.meta["day"].to_numpy()[rows]
             X = TreeInput(md, full, rows)
             if variant == "R2b_synfeat":                        # 合成特征：股票级与市场级全部换成噪声
-                X.X = noise(full.X.shape, 1, k).astype(np.float16)
-                X.mk = noise(X.mk.shape, 2, k).astype(np.float32)
+                X.X = None
+                gc.collect()
+                X.X = noise_matrix(full.X.shape, np.float16, 1, k)
+                X.mk = noise_matrix(X.mk.shape, np.float32, 2, k)
             del full
             gc.collect()
             model = XGB().fit(params, X, y, day, 500, seed=0)
@@ -75,8 +105,8 @@ def main() -> None:
             pb = md.load(f.pred_days)
             Xp = TreeInput(md, pb)
             if variant == "R2b_synfeat":
-                Xp.X = noise(pb.X.shape, 3, k).astype(np.float16)
-                Xp.mk = noise(Xp.mk.shape, 4, k).astype(np.float32)
+                Xp.X = noise_matrix(pb.X.shape, np.float16, 3, k)
+                Xp.mk = noise_matrix(Xp.mk.shape, np.float32, 4, k)
             pred = XGB().predict(model, Xp, 500)
             dpb = pb.meta["day"].to_numpy()
             score = rank_average([pred], dpb)
@@ -102,6 +132,7 @@ def main() -> None:
             "fold_means": [float(a.mean()) if len(a) else None for a in daily],
             "reading": "链路未见异常" if (abs(T) < 0.005 and ci[0] <= 0 <= ci[1]) else "链路异常，需排查",
         }
+    report["resumed_folds_ic_recomputed_from_saved_preds"] = resumed
     report["n_frozen_dates_expected"] = int(frozen.get("n_dates", 189)) if isinstance(frozen, dict) else 189
     report["utc_end"] = datetime.now(UTC).isoformat()
     (HERE / "p6/r2_synthetic_null.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
