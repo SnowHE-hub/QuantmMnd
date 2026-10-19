@@ -1,358 +1,168 @@
-# QuantMind — AI 增强量化投资系统
+# QuantMind — A 股截面选股研究系统
 
-> 基于 LightGBM v6 因子模型 + 三系统选股流水线 + 6-Agent 投资研究的 A 股量化平台。  
-> **全A股 5535 只 · 三系统每日筛选 → 15只→10只 · 季度/30日模拟持仓验证 · Kelly/HRP 仓位优化 · 端到端自动化管道 · Barra 风险归因**
+> 一个把"如何不骗自己"当作核心问题的 A 股量化研究项目：时点正确（PIT）的数据湖、Purged Walk-Forward、可执行净值回测、预登记评估、负对照与跨家族验收。
+>
+> **研究用途，不构成任何投资建议。截至 2026-10-20，没有模型通过上线闸门，也没有模型用于真实资金。**
 
+[![CI](https://github.com/SnowHE-hub/QuantmMnd/actions/workflows/ci.yml/badge.svg)](https://github.com/SnowHE-hub/QuantmMnd/actions/workflows/ci.yml)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
-[![LightGBM](https://img.shields.io/badge/LightGBM-v6_38features-orange)](https://lightgbm.readthedocs.io)
-[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-red)](https://streamlit.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
 
-## ⚡ 项目状态速览（2026-07-10 事实校正）
+## 现状一览（2026-10-20）
 
-> 本节为事实性状态标注，权威来源：`docs/plans/phase1_closure.md`（Phase 1 闭幕，main `67bb891`）。
+| 问题 | 答案 | 证据 |
+|---|---|---|
+| 有模型上线吗 | **没有**。模型注册表里两条研究种子都是 `research_candidate_pending_nav` | `data/registry/model_registry.json`（本地数据，不在 git） |
+| 主线 A（每日运行的链路）在真实成交口径下 | 2021-12 → 2026-10 年化净超额 **−5.0%**，IR −0.48，不过闸门 | [`docs/work/reports/T-010-line-a-oos.md`](docs/work/reports/T-010-line-a-oos.md) |
+| 主线 B 最好的 Ridge 种子 | 63d 连续样本外 **+5.03%/年**，IR 0.64，16 次再平衡，不过闸门 | [`T-018`](docs/work/reports/T-018-line-b-v6-1.md)、[`T-026`](docs/work/tasks/T-026.md) |
+| GPU 模型族（研究分支） | 20d：四族等权集成对 Ridge 的日均 RankIC **+0.053**，预登记主比较**检测到增益**；但净值配对差未检测到，相对回撤翻倍，不过闸门 | 分支 `t/030-gpu-models`：`docs/work/reports/T-030-gpu-models.md` |
+| LLM 重排有用吗 | 19 期、437 次请求的消融：**无可检测增益**，不如一条固定的简单因子规则；生产中关闭 | [`T-007`](docs/work/reports/T-007-anonymization-v3.md) |
+| 下一份干净的证据 | 2026-10-09 冻结之后的前瞻预测。前瞻模型包已与历史预测逐位一致，前瞻数据在刷新 | 分支 `t/033-attribution-forward`：`docs/work/tasks/T-034.md` |
 
-- **两条并行主线**：
-  - **演示/既有运行链路**：本 README 下文描述的 LGBM v6 + 三系统 + sim30d 模拟盘 + `scripts/daily_update.py` 日更管道，是当前可运行的既有链路（绩效数字来自 v4 面板/sim30d 演示口径）。
-  - **研究主线（Phase 1 已合 main）**：v6 全市场 PIT 面板 + Ridge bake-off。两条种子 `ridge_full_12d_v6_seed` / `ridge_full_fnd_63d_v6_seed` 状态均为 **`research_candidate_pending_nav`，未接生产**（须先过 executable NAV 回测，见 `docs/plans/executable_nav_design.md`）。
-- **主 UI**：`app/main.py` + `app/pages/`（14 页 Streamlit），启动方式 `bash start_all.sh`。`quantmind/ui/` 为 **legacy，已弃用**（保留不删）。
-- **默认存储后端**：`DATA_BACKEND=parquet`、`WRITE_MODE=parquet_only`。PostgreSQL/MongoDB 为实验性，多数表未填充，勿在未迁移数据时切换。
-
----
-
-## 📊 核心绩效
-
-### 日频真实 NAV 回测（Alpha 1374 宇宙，2019-03 → 2026-05，E3 含交易成本）
-
-| 模型/权重 | 毛年化 | 净年化（含成本） | 成本拖累 | 净Sharpe | 净MaxDD |
-|----------|-------|----------------|---------|---------|---------|
-| **v6 HRP** | +25.72% | **+24.46%** | −1.26% | **+0.996** | **−22.6%** |
-| **v6 equal** | +22.45% | **+21.27%** | −1.18% | **+0.880** | −23.6% |
-| v6 blend | +22.41% | +21.19% | −1.22% | +0.863 | −23.1% |
-| v6 Kelly | +18.90% | +17.67% | −1.23% | +0.668 | −25.4% |
-| Regime-aware CNN | bull IC=0.103, bear IC=0.107 | — | — | — |
-| CSI300 基准 | — | −0.15% | — | −0.181 | −45.6% |
-
-> 单边成本 13 bps（0.10% 印花税 + 0.03% 佣金），季度调仓 30 次，平均换手率 87-93%，累计成本侵蚀约 -6.5~-7%。  
-> 全部 4 种权重净年化均超 +17%，大幅跑赢 CSI300。HRP 净 Sharpe 接近 1.0。
-
-### 30日全A股三系统模拟盘（2025-10-09 → 2025-11-19，5535只）
-
-| 持仓期 | 均值 | 期胜率 | IR | 结论 |
-|--------|------|--------|-----|------|
-| 1 周 | −1.88% | 23.3% | −0.56 | 短线不适用 |
-| 2 周 | −2.02% | 30.0% | −0.44 | 短线不适用 |
-| 21 日 | −1.95% | 30.0% | −0.28 | 短线不适用 |
-| **3 个月** | **+20.22%** | **96.7%** | **+1.87** | ✅ **最优，推荐** |
-
-> 2025Q4–2026Q1 A股 bull market：基本面筛选股短期波动大，3m 完整捕获超额。  
-> 行业归因：装修装饰(+252%)、建筑工程(+119%)、机械基件(+58%) 为主要贡献来源。
+> **关于旧版首页的"净 Sharpe 0.996、净年化 +24.46%"**：那组数字用的是扁平 13bp 成本，没有可成交性检查，而且大部分落在训练期内。
+> 同一模型样本外 265 个交易日的 Sharpe 是 0.247；放进真实成交约束（T+1、涨跌停、停牌、分层滑点）后，年化净超额是 −5.0%。
+> 所以从 2026-10-20 起，首页不再展示那组数字（[`T-010`](docs/work/reports/T-010-line-a-oos.md) §2、§3.5）。
 
 ---
 
-## 🏗️ 三系统流水线架构
+## 两条主线
+
+**主线 A — 既有运行链路**（每个交易日定时运行，`scripts/daily_update.py`）
+
+全 A 股 → 6 层漏斗（基础质量 / 流动性 / 趋势 / 基本面 / LGBM 打分 / 行业分散）→ 四维评分 → 历史验证 → 约 10 只候选。
+仓位用 HRP；6-Agent 生成研究报告，但报告不进入推荐；LLM 重排关闭。
+
+**主线 B — 研究主线**
+
+v6 / v6_1 全市场 PIT 面板（含退市票）→ Purged Walk-Forward（方案 C：连续样本外，季度重训）→ Ridge 与 GPU 模型族 → 配对 RankIC 评估 → 可执行净值 → 研究闸门 v2。
+
+两条主线共享数据底座，但评估口径完全不同，**绩效数字不能互相引用**。
+
+---
+
+## 怎么防止自己骗自己
+
+| 陷阱 | 做法 | 位置 |
+|---|---|---|
+| 前视偏差 | 财报按公告日过滤；事件与文本必须**严格早于**决策时点；行业分类按发布日可用；信号与成交分在不同交易日 | `quantmind/data/`、`quantmind/features/` |
+| 幸存者偏差 | v6 全市场股票池保留退市票，退市时强制清仓 | `quantmind/data/` |
+| 标签泄漏 | Purged + Embargo 切分：训练标签窗口与测试期之间留隔离带 | `quantmind/backtest/wf_split.py` |
+| 风格伪装成 alpha | 行业 + 规模中性化后的 IC 作为硬性判据 | `quantmind/backtest/` |
+| 纸面收益 | 可执行净值：T+1 开盘成交、板块与时变涨跌停、停牌、流动性分层滑点、时变印花税、现金约束 | `quantmind/execution/nav_engine.py`、`quantmind/backtest/wf_costs.py` |
+| 研究者自由度 | 预登记（脚本与判定规则在看结果之前提交）、每个期限只设一个确认性比较、负对照与金丝雀、等价检验、错误率披露、跨家族验收 | `docs/work/tasks/`、`docs/work/reviews/` |
+| 闸门放水 | 研究闸门 v2 用相对财富回撤，与资金闸门分开；资金闸门一律未批准 | `quantmind/execution/nav_gate.py` |
+
+---
+
+## 系统结构
 
 ```
-全A股 5535 只（Tushare 实时拉取）
-      │
-      ▼ ── 系统一：筛选系统（6层漏斗）─────────────────────────────
-      Layer 1  基础质量：排除 ST / 新股(<180天) / 市值<30亿
-      Layer 2  流动性：换手率 > 30th 百分位
-      Layer 3  趋势：reversal_1w > -15%, momentum_1m > 10th 百分位
-      Layer 4  基本面：PE(0-150), PB>0, ROE>0
-      Layer 5  LGBM v6 打分（38 个 v4 因子）→ Top 50
-      Layer 6  行业分散（每行业最多 3 只）→ Top 15 候选
-      │
-      ▼ ── 系统二：分析系统（四维评分，v2 IC校准权重）────────────
-      价值(24.2%) + 动量(22.3%) + 质量(33.3%) + 技术(20.2%)
-      → 综合分 → 投资评级（观望/持有/买入/强烈买入）+ 建议持仓期
-      逐日 IC 均值 = +0.137，IC>0 占 70%
-      │
-      ▼ ── 系统三：回测验证（历史胜率）───────────────────────────
-      60日历史窗口 → Sharpe / 最大回撤 / 胜率 → 风险分级
-      → 过滤低胜率 → 最终可投资名单（约 10 只）
-      │
-      ▼ ── 持仓期模拟 ────────────────────────────────────────────
-      1w / 2w / 21d / 3m 四期限等权组合 → 收益率 / IC 分析
-      │
-      ▼ ── 6-Agent 深度分析（重点标的）──────────────────────────
-      估值 / 动量 / 质量 / 情绪 / 风险 / 策略 → 个股研究报告
-      │
-      ▼ ── Kelly / HRP 仓位优化 ──────────────────────────────────
-      Kelly（生产推荐）/ HRP / equal-weight / blend
-      │
-      ▼ ── Barra 风险归因 ─────────────────────────────────────────
-      行业因子 + 风格因子载荷 → 超额收益分解
-      → position_weights.json / strategies.json / Streamlit Dashboard（7页）
+数据源：Tushare（主）/ Akshare（备）/ 巨潮公告元数据 / 财经快讯
+   │
+   ▼
+PIT 数据湖 data/lake/（行情、财报、事件、文本元数据；parquet；只追加，写前备份）
+   │
+   ├──► 主线 A：每日快照 → 6 层漏斗 → LGBM → 四维评分 → 推荐 + 6-Agent 报告 → Streamlit 面板
+   │
+   └──► 主线 B：v6_1 周频面板 / 日频面板 → Purged Walk-Forward（方案 C）
+              → Ridge ｜ XGBoost · CatBoost · TabM · 序列模型（GPU）→ 等权集成
+              → 配对 RankIC → 可执行净值 → 研究闸门 v2 → 模型注册表
 ```
+
+## 仓库结构（主要部分）
+
+```
+quantmind/             核心库
+  data/                数据接入、PIT 快照、数据湖读写
+  features/            因子与面板
+  backtest/            wf_split（Purged / Embargo）、wf_costs（A 股成本）、wf_gate / wf_metrics
+  execution/           nav_engine（可执行净值）、nav_gate（闸门判定）
+  contracts/           model_registry（模型注册表）
+  models/ regime/ portfolio/ risk/ selection/ agents/ kb/
+scripts/               日更 daily_update.py、回测、数据管道 data_pipeline/
+app/                   Streamlit 面板（app/main.py + app/pages/）与 FastAPI 后端
+tests/                 单元测试（CI 只跑离线部分）
+docs/work/             任务卡 tasks/、报告 reports/、证据脚本与结果 evidence/、验收与评审 acceptance/ reviews/
+```
+
+## 分支
+
+| 分支 | 内容 | 状态 |
+|---|---|---|
+| `main` | 截至 2026-10-12 已验收合入的工作 | — |
+| `t/030-gpu-models` | 日频面板上的 GPU 模型族重建（树模型、TabM、序列模型、集成）与负对照 | `implemented`，统计复核中，未合入 |
+| `t/031-text-data` | 公告元数据、分析师预期、新闻前瞻采集 | `implemented`，下载进行中，未合入 |
+| `t/033-attribution-forward` | 20d 增益归因（探索性）与前瞻验证模型包 | `implemented` / 进行中，未合入 |
 
 ---
 
-## 📁 关键文件结构
+## 快速开始
 
-```
-quantmind/
-├── data/
-│   ├── sim30d/
-│   │   ├── daily/          # 30 个交易日 JSON（三系统每日输出）
-│   │   ├── positions.parquet       # 299 行模拟持仓记录
-│   │   ├── stock_returns.parquet   # 450 条逐股票四期限收益
-│   │   ├── summary.json    # 汇总绩效指标
-│   │   └── raw/            # Tushare 原始缓存（5535只 207日日线）
-│   ├── paper_trading/
-│   │   ├── strategy_config_v2.json   # 30日模拟驱动的策略参数
-│   │   ├── system2_weights_v2.json   # IC 校准后四维权重
-│   │   ├── ic_analysis_30day.json    # 全因子 IC 分析表
-│   │   ├── positions.parquet         # 季度回测持仓（9期×10只）
-│   │   └── forward_positions.json    # 前向跟踪持仓模板
-│   ├── feedback/
-│   │   └── realized_pnl.parquet  # 379 条实际PnL（80季度+299条30日）
-│   ├── panel/
-│   │   └── alpha_panel_v4.parquet    # v4 因子面板（1374只，至2024Q2）
-│   ├── recommendations/      # 季度推荐 JSON（9期）
-│   └── snapshots/            # PIT 快照（2019Q1–2026Q2，29个季度）
-├── models/
-│   ├── lgbm_v6_alpha.pkl          # 🔑 当前主模型（38特征 v4）
-│   ├── lgbm_v5_alpha_63d.pkl      # 备用（37特征）
-│   └── lgbm_v3_top18.pkl          # 早期基线（18特征）
-├── scripts/
-│   ├── run_30day_sim.py           # 🔑 全A股30日三系统模拟主脚本
-│   ├── optimize_30day_results.py  # 🔑 逐股归因 + System2 IC 校准
-│   ├── paper_trading_sim.py       # 季度 paper trading 回测
-│   ├── update_sim_strategy.py     # 基于模拟结果更新策略参数
-│   ├── run_nav_backtest.py        # 日频真实 NAV 回测
-│   ├── build_full_panel.py        # v4 因子面板构建
-│   ├── daily_update.py            # 端到端日更管道
-│   └── setup_cron.sh              # Cron 定时任务配置
-├── app/                           # Streamlit Dashboard（7 页）+ FastAPI 后端
-└── quantmind/
-    ├── agents/                    # 6 个 Investment Agents
-    ├── features/                  # 因子计算（v4 38特征）
-    ├── models/                    # FactorModel / meta_learner
-    ├── portfolio/                 # HRP / Kelly 仓位优化
-    └── risk/
-        └── barra.py               # Barra 风险归因（行业+风格因子）
-```
-
----
-
-## 🚀 快速开始
-
-### 环境准备
+**环境**（Python 3.11）：
 
 ```bash
 conda create -n quantmind python=3.11
 conda activate quantmind
-# 依赖由 pyproject.toml 管理（无 requirements.txt）
-pip install -e ".[data,ml,viz,ui,dev]"   # 按需选 extras；全量：pip install -e ".[all]"
+pip install -e ".[data,ml,viz,ui,dev]"
 ```
 
-### 运行 30 日全A股三系统模拟
+全量依赖可以用 `pip install -e ".[all]"`。
+
+**配置**：
 
 ```bash
-# Step 1: 拉取全A股数据（首次约 30-60min，后续使用本地缓存）
-python scripts/run_30day_sim.py --step fetch \
-    --token <YOUR_TUSHARE_TOKEN>
-
-# Step 2: 执行 30 日三系统模拟（每日 5535只 → 10只 final picks）
-python scripts/run_30day_sim.py --step simulate
-
-# Step 3: 绩效评估 + 系统自动优化
-python scripts/run_30day_sim.py --step evaluate
+cp .env.example .env
 ```
 
-### 逐股 IC 归因与系统校准
+在 `.env` 里填 `TUSHARE_TOKEN`。
+- `.env` 和 `api_key.txt` 已在 `.gitignore` 中，**不要提交任何密钥**，见 [`docs/security/secrets_handling_policy.md`](docs/security/secrets_handling_policy.md)；
+- 默认存储后端是 `DATA_BACKEND=parquet`、`WRITE_MODE=parquet_only`。
+
+**离线测试**（与 CI 相同）：
 
 ```bash
-python scripts/optimize_30day_results.py
-# 输出:
-#   data/sim30d/stock_returns.parquet       — 逐股票四期限收益
-#   data/paper_trading/system2_weights_v2.json  — 校准后权重
-#   data/paper_trading/strategy_config_v2.json  — 完整策略配置
-#   data/feedback/realized_pnl.parquet     — 扩充至 379 条
+python -m pytest tests/ -m "not integration and not requires_network and not requires_db and not requires_optional_deps and not stale_panel_fixture"
 ```
 
-### 季度 Paper Trading 回测
+**不需要数据和密钥的体验**：见 [`docs/QUICKSTART.md`](docs/QUICKSTART.md)。
+
+**日更管道**（需要 Tushare 数据）：
 
 ```bash
-python scripts/paper_trading_sim.py \
-  --positions data/paper_trading/positions.parquet \
-  --prices    data/raw/alpha_prices_panel.parquet
+python scripts/daily_update.py --universe alpha --lgbm-model models/lgbm_v6_alpha.pkl --lgbm-top 50 --no-llm --auto-regime --position-sizing hrp
 ```
 
-### 日频 NAV 回测
+**面板**：
 
 ```bash
-python scripts/run_nav_backtest.py \
-  --panel  data/panel/alpha_panel_v4.parquet \
-  --prices data/raw/alpha_prices_panel.parquet \
-  --model  models/lgbm_v6_alpha.pkl \
-  --top 30 --weight-method equal \
-  --out reports/alpha_final/
+bash start_all.sh
 ```
 
-### 运行 Barra 风险归因
+这会同时启动 FastAPI（8000）和 Streamlit（8501）。
 
-```bash
-python scripts/run_barra_attribution.py \
-  --panel data/panel/alpha_panel_v4.parquet \
-  --positions data/paper_trading/positions.parquet
-# 输出: reports/barra/
-```
-
-### 启动 Dashboard
-
-```bash
-bash start_all.sh            # FastAPI(8000) + Streamlit(8501) 一键启动
-# 或单独启动前端：
-streamlit run app/main.py
-# 访问 http://localhost:8501（共 14 页；quantmind/ui/ 为 legacy，勿用）
-```
+数据与模型文件不进 git，要用自己的 Tushare 账号下载，并按任务卡里的命令重建。
 
 ---
 
-## 🔬 系统优化结论（2025Q4 30日模拟 → 基于数据的 IC 校准）
-
-### System 2 四维权重（v2 校准版）
-
-| 维度 | 原权重 | → | 校准后 | IC vs 3m 收益 |
-|------|--------|---|--------|--------------|
-| 价值 | 30.0% | → | **24.2%** ↓ | −0.062 |
-| 动量 | 25.0% | → | **22.3%** ↓ | +0.066 |
-| **质量** | 25.0% | → | **33.3%** ↑ | **+0.141**（p=0.015，显著） |
-| 技术 | 20.0% | → | **20.2%** ≈ | +0.069 |
-
-### 关键策略参数
-
-```json
-{
-  "holding_period": "3m",
-  "top_n": 10,
-  "equal_weight": true,
-  "stop_loss_threshold": -0.15,
-  "regime_note": "bull market 下 quality 因子主导，避免短线(<21d)操作"
-}
-```
-
----
-
-## 📚 文档体系
+## 文档
 
 | 文档 | 内容 |
-|------|------|
-| [HANDOVER.md](HANDOVER.md) | Claude Code 接续开发快速上手（含待办清单） |
-| [METHODOLOGY.md](METHODOLOGY.md) | 因子体系、模型架构、回测规范完整方法论 |
-| [docs/QUICKSTART.md](docs/QUICKSTART.md) | 快速运行指南 |
-| `data/paper_trading/strategy_config_v2.json` | 当前最优策略参数 |
-| `data/paper_trading/ic_analysis_30day.json` | 因子 IC 分析结果 |
+|---|---|
+| [`METHODOLOGY.md`](METHODOLOGY.md) | 因子体系、模型、回测规范 |
+| [`docs/work/tasks/`](docs/work/tasks/) | 任务卡：目标、预登记规则、结果、修订记录 |
+| [`docs/work/reports/`](docs/work/reports/) | 研究报告（T-007 LLM 重排消融、T-010 主线 A 真实成交、T-018 主线 B 重训等） |
+| [`docs/work/evidence/`](docs/work/evidence/) | 每张卡的证据脚本与结果 JSON |
+| [`docs/work/ledger.md`](docs/work/ledger.md) | 任务台账 |
+| [`HANDOVER.md`](HANDOVER.md) | 早期交接文档（2026-05，部分内容已过时） |
+
+结果的表述遵循固定措辞：
+- 预登记比较只写"检测到增益 / 未检测到增益 / 未检测到差异"；
+- 探索性结果明确标注；
+- 历史窗口被反复使用过，所以只称"历史滚动样本外"，不称盲测。
 
 ---
 
-## 🗺️ 路线图
+## 免责声明
 
-### ✅ 阶段 1 — 全部完成（2026-05-22）
-
-#### 核心基础设施
-- Alpha 1374 宇宙 PIT 快照（2019Q1–2026Q2）+ 71 因子面板
-- **LGBM v6 重训**（38特征，ICIR=+0.380）+ Regime-Aware 集成模型
-- **全A股 5535 只三系统流水线**（筛选→分析→回测）
-- **30日全A股模拟盘** — 3m 期胜率 96.7%，均值 +20.22%
-- 6-Agent 投资分析系统 + DPO 微调（Qwen2.5-1.5B）
-- System2 IC 校准（质量因子权重 25%→33.3%）
-- **Phase E2/E3 NAV 回测**（含 13bps 成本）：HRP 净年化 +24.46%，Sharpe≈1.0
-- Barra 风险归因模块（`quantmind/risk/barra.py`）
-- Streamlit Dashboard（7 页）+ FastAPI 后端 + Cron 每日 16:30 自动化
-
-#### 阶段 1 新增（本期完成）
-- ✅ **HMM Regime 检测器**（`quantmind/regime/hmm.py`）
-  - 3状态 HMM + 前向后向算法 + Viterbi 解码
-  - `validate_state_labels()` 自动校验 bull≥neutral≥bear 排序
-  - 原型锚定假设注释 + 31 项测试全通过
-- ✅ **文本情绪因子 `ann_sentiment_5d`**（`quantmind/features/text_sentiment.py`）
-  - Tushare `anns_d` 公告拉取（76,908条 / 5,523只股票）
-  - BERT（IDEA-CCNL/hw2942）→ 词典降级三级打分
-  - 5日滚动均值因子，29项测试全通过
-  - **实盘 IC = −0.131，p = 0.025，n = 294** ✅（负向：高情绪→均值回归）
-- ✅ **序贯验证扩展至 Round 8**（`scripts/run_sequential_validation.py`）
-  - Round 8（2025Q4→2026Q1）：IC=−0.146（21d标签），PROMOTE
-  - 新增 `--label-col` 参数，适配 2026 数据 63d 窗口不足问题
-- ✅ **Meta-Learner v2**（`scripts/train_meta_learner.py`）
-  - 根因诊断：v2-draft 误用 stock_returns（单一30日窗口，伪复制）
-  - 修正为 `realized_pnl × alpha_panel_v4 join`（n=100，8季度）
-  - 任务从回归改为**分类**（预测 `hit`：是否跑赢中位数）
-  - **LOQO CV AUC = 0.6025** ✅（近期季度 Q3=0.84，Q4=0.95）
-  - 关键发现：sentiment/momentum 代理分 IC 为负（反转效应）
-
-### ✅ 阶段 2 — 全部完成（2026-05-23）
-
-- ✅ **2-A 研报因子** (`quantmind/features/analyst_revision.py`)
-  - Tushare 研报评级拉取 + 数字化 + `analyst_revision_score` 因子
-  - 27 项测试全通过；真实 IC 待 Tushare 积分升级后验证
-- ✅ **2-B FactorCNN 因子网络** (`quantmind/models/factor_cnn.py`)
-  - 4分支 Inception 架构（Value/Quality/Momentum/Technical）
-  - IC Loss（−cosine_sim）+ Walk-Forward 训练；Fold1 IC = 0.030
-  - `ensemble_scores()` 与 LGBM 集成；22 项测试全通过
-- ✅ **2-C 归因报告** (`scripts/generate_attribution_report.py`)
-  - 4 张发表级图表（NAV曲线 / IC热力图 / Regime时间轴 / Barra因子载荷）
-  - PDF + PNG + JPG 三格式输出，`reports/attribution/` 目录
-- ✅ **2-D EM 隐变量因子** (`quantmind/features/em_fundamental.py`)
-  - 纯 NumPy GMM（K=3，K-Means++初始化，Cholesky log-PDF）
-  - IC-先验权重投影到1D后拟合 GMM，避免高维退化
-  - **IC>0 占比 60.7%**（28季）；25 项测试全通过
-  - `strategy_config_v2.json` 新增 `em_factor_weight: 0.2`
-- ✅ **2-E 表达式引擎** (`quantmind/features/expr_factors.py`)
-  - 轻量 Qlib 风格表达式因子引擎（无需安装 pyqlib）
-  - 9 个时序算子 + 7 个内置因子（momentum/reversal/vol/amihud/RSI/Bollinger）
-  - **7/7 因子 Spearman = 1.000000**（expr vs 参考 Python 验证）
-  - CLAUDE.md 新增完整因子添加指南
-
-### ✅ 阶段 3 — 全部完成（2026-05-24）
-
-- ✅ **3-A 6-Agent 对抗辩论升级** (`quantmind/agents/debate_orchestrator.py`)
-  - 3-Round 对抗辩论：独立论点 → 交叉质疑 → 策略综合（无需 LLM，纯规则）
-  - `final_confidence = avg_conf×0.5 + consistency×0.3 + conviction_ratio×0.2`
-  - Regime 调节：bull×1.05 / bear×0.90；Layer6+ 置信度过滤（阈值 0.60/0.50）
-  - `build_dpo_pairs()`：按行业分组构建 DPO 训练对（chosen > rejected）
-  - `run_debate_filter()` 集成至 `scripts/run_30day_sim.py` 系统4
-  - **25 项测试全通过**
-- ✅ **3-B Barra → 组合约束** (`quantmind/portfolio/constrained_optimizer.py`)
-  - cvxpy 均值-方差优化（CLARABEL 求解器）
-  - 行业暴露约束 |B_ind^T w| ≤ 0.30 + 风格约束 ≤ 0.50 + 换手约束 L1 ≤ 0.60
-  - `compute_active_exposure()` 输出逐因子主动暴露与违约报告
-  - **13 项测试全通过**
-- ✅ **3-C Qlib 数据层迁移** (`quantmind/data/handler.py`)
-  - `QuantMindDataHandler` 单例 + 线程安全 LRU 缓存（适配器模式，不破坏现有文件）
-  - `fetch_panel/prices/positions/returns()` + `open_parquet_cached()`
-  - 缓存加速比 **2476x**（0.000038s vs 0.095s）；`memory_map=True` 大文件优化
-  - 替换 `quantmind/data/backtest_data.py` 5处 `read_parquet` 为共享全局缓存
-  - **20 项测试全通过**
-- ✅ **3-D MLflow 实验追踪** (`quantmind/workflow/mlflow_tracker.py`)
-  - `ExperimentTracker`: `log_backtest_run / compare_runs / get_best_run`
-  - `import_from_reports_dir()` 批量导入历史 NAV 结果（4种权重方案）
-  - git_commit 自动 tag；HRP Sharpe=0.996 正确识别为最优 run
-  - **15 项测试全通过**
-- ✅ **3-E Regime 动态权重完善** (`quantmind/regime/dynamic_weights.py`)
-  - `DynamicWeightManager`：bull/neutral/bear 三态权重方案 + JSON 热重载
-  - 覆盖 System2 四维 + ensemble(LGBM/CNN) + EM因子 + 文本因子权重
-  - `get_weights_for_signal()` 连续信号平滑映射；`auto_reload=True`
-  - 集成至 `scripts/run_30day_sim.py` AnalysisSystem
-
-### 📌 项目完成状态
-
-**全部 3 个阶段、15 个子任务均已交付。**
-
-| 指标 | 数值 |
-|------|------|
-| 测试总数 | 346+ 项，全部通过 |
-| 模型性能 | HRP 净年化 +24.46%，Sharpe=0.996 |
-| 数据覆盖 | 全A股 5535只，2019Q1–2026Q2，29季度快照 |
-| 因子体系 | 38 基础 + ann_contrarian(IC=+0.131) + EM基本面(IC>0=60.7%) |
-| Agent 架构 | 6-Agent 对抗辩论 + meta-learner AUC=0.6025 |
-| 自动化 | Cron 每日 16:30 全流程更新 + Streamlit Dashboard 7页 |
-
----
-
-*最后更新：2026-05-24 | 全阶段交付完成（阶段1+2+3 共15个子任务）*  
-*Stage 3 亮点：6-Agent 辩论(25测试) · Barra约束优化(13测试) · DataHandler LRU缓存2476x · MLflow追踪(15测试) · Regime动态权重闭环*
+本项目仅用于量化研究方法的学习与验证。文中所有收益数字都是历史回测，不代表未来表现，不构成投资建议。
