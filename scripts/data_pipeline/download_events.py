@@ -99,6 +99,40 @@ def budgeted(call, max_calls: int | None):
     return wrapped
 
 
+def rolling_quota(call, log_path: Path, limit: int, window_s: float, max_wait_s: float,
+                  clock=time.time, sleep=time.sleep, log=print):
+    """滚动窗口限额：任意 window_s 秒内最多 limit 次调用（被拒的也算）。
+    实测（2026-10-19）：report_rc 的"10次/天"按滚动 24 小时计，不是北京时间零点重置——
+    10-18 12:10–12:22 调满 10 次后，10-19 12:10 的第一次调用即被拒。
+    每次调用前读调用记录：已满就等最早一次过期（+5 秒），需要等的时间超过 max_wait_s 就抛 QuotaExhaustedError。"""
+    log_path = Path(log_path)
+
+    def _load() -> list[float]:
+        try:
+            return [float(t) for t in json.loads(log_path.read_text(encoding="utf-8"))]
+        except FileNotFoundError:
+            return []
+
+    def wrapped(api, **kw):
+        now = clock()
+        recent = sorted(t for t in _load() if t > now - window_s)
+        if len(recent) >= limit:
+            wait = recent[len(recent) - limit] + window_s - now + 5
+            if wait > max_wait_s:
+                raise QuotaExhaustedError(f"rolling quota {limit}/{window_s:.0f}s full; next slot in {wait:.0f}s")
+            log(f"[quota] {len(recent)} calls in window, waiting {wait:.0f}s for the oldest to expire")
+            sleep(wait)
+            now = clock()
+            recent = [t for t in recent if t > now - window_s]
+        recent.append(now)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = log_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(recent), encoding="utf-8")
+        os.replace(tmp, log_path)
+        return call(api, **kw)
+    return wrapped
+
+
 # ---------------------------------------------------------------- 分块
 def ymd(d) -> str:
     return pd.Timestamp(d).strftime("%Y%m%d")
@@ -361,6 +395,11 @@ def main(argv=None) -> int:
     ap.add_argument("--mark", action="store_true", help="与 --audit-page-cap 同用：把这些分块改记为 truncated")
     ap.add_argument("--max-calls", type=int, default=0,
                     help="本次运行最多发出的接口调用数（含分页与拆分），到数即停、退出码 3；0 = 不限")
+    ap.add_argument("--rolling-limit", type=int, default=0,
+                    help="滚动窗口限额：任意 --rolling-hours 小时内最多这么多次调用（被拒的也算）；0 = 不启用")
+    ap.add_argument("--rolling-hours", type=float, default=24.0)
+    ap.add_argument("--rolling-max-wait-min", type=float, default=40.0,
+                    help="窗口已满时最多等多少分钟让最早的调用过期，超过就停（退出码 3）")
     a = ap.parse_args(argv)
     root = Path(a.data_root)
     events = root / "data/lake/events"
@@ -374,7 +413,14 @@ def main(argv=None) -> int:
     cal = pd.read_parquet(root / "data/lake/trade_cal_sse.parquet")["cal_date"]
     trade_days = pd.DatetimeIndex(pd.to_datetime(cal.astype(str))).sort_values()
     trade_set = {ymd(d) for d in trade_days}
-    call = None if (a.compact or a.plan) else budgeted(_tushare_call(), a.max_calls)
+    call = None
+    if not (a.compact or a.plan):
+        call = _tushare_call()
+        if a.rolling_limit:
+            call = rolling_quota(call, events / "_checkpoints" / f"calls_{a.apis.replace(',', '_')}.json",
+                                 a.rolling_limit, a.rolling_hours * 3600, a.rolling_max_wait_min * 60,
+                                 log=lambda m: print(m, flush=True))
+        call = budgeted(call, a.max_calls)
     try:
         return _run_all(a, apis, events, trade_days, trade_set, call)
     except QuotaExhaustedError as e:

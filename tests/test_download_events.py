@@ -244,6 +244,35 @@ def test_call_budget_stops_before_extra_request_and_drops_partial_split(tmp_path
     assert de.budgeted(raw, 0) is raw
 
 
+def test_rolling_quota_waits_or_stops_and_persists_across_runs(tmp_path):
+    t = {"now": 1000.0}
+    sent, waits = [], []
+
+    def raw(api, **kw):
+        sent.append(t["now"])
+        return _rows(1)
+
+    def sleep(s):
+        waits.append(s)
+        t["now"] += s
+    log_path = tmp_path / "calls.json"
+    q = de.rolling_quota(raw, log_path, limit=2, window_s=100, max_wait_s=50, clock=lambda: t["now"],
+                         sleep=sleep, log=lambda *a: None)
+    q("x")
+    t["now"] += 1
+    q("x")
+    t["now"] += 1
+    with pytest.raises(de.QuotaExhaustedError):          # 需要等 1000 + 100 − 1002 + 5 = 103 秒 > 50
+        q("x")
+    assert len(sent) == 2 and waits == []
+    # 新的一次运行（读同一份调用记录），允许等更久：等最早一次过期后再发
+    q2 = de.rolling_quota(raw, log_path, limit=2, window_s=100, max_wait_s=200, clock=lambda: t["now"],
+                          sleep=sleep, log=lambda *a: None)
+    q2("x")
+    assert waits == [103] and len(sent) == 3 and sent[-1] == 1105
+    assert json.loads(log_path.read_text()) == [1105]             # 只保留窗口内的调用（1000、1001 都已过期）
+
+
 def test_report_rc_spec_respects_known_limits():
     s = de.SPECS["report_rc"]
     assert s.mode == "window" and s.window_days <= 20 and s.min_interval >= 61

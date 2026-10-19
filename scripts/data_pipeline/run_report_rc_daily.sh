@@ -14,7 +14,7 @@ export PYTHONPATH=. WRITE_MODE=parquet_only OMP_NUM_THREADS=1
 {
   echo "=== $(date '+%F %T %z') start (repo $(git rev-parse --short HEAD))"
   flock -n /tmp/qm_report_rc_daily.lock "$PY" -u scripts/data_pipeline/download_events.py \
-    --data-root "$DATA" --apis report_rc --start 2018-10-01 --end 2026-10-16 --max-calls 10
+    --data-root "$DATA" --apis report_rc --start 2018-10-01 --end 2026-10-16 --max-calls 10 --rolling-limit 10 --rolling-hours 24 --rolling-max-wait-min 40
   rc=$?
   echo "=== $(date '+%F %T %z') exit $rc"
 } >> "$LOG_DIR/report_rc_daily.log" 2>&1

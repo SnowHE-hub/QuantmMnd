@@ -95,10 +95,43 @@ def test_uncategorized_gap_truncated_then_partial_and_not_retried(tmp_path):
     assert calls == []                                                  # 终态，不再请求
 
 
+def test_unstable_default_order_on_small_day_is_filled_by_supplement(tmp_path):
+    # 默认排序每页都换一种顺序（模拟并列时间戳的不稳定分页）→ 直接翻页会漏行；按代码排序的补漏能补齐
+    import random
+    items = make_items({("szmb", "category_rcjy_szsh"): 1211})
+    calls = []
+
+    def post(data):
+        calls.append((data["sortName"], data["pageNum"]))
+        sel = list(items)
+        if data["sortName"] == "code":
+            sel.sort(key=lambda a: (a["secCode"], a["announcementId"]), reverse=data["sortType"] == "desc")
+        elif data["sortName"] == "":
+            random.Random(data["pageNum"]).shuffle(sel)
+        p = data["pageNum"]
+        return {"totalAnnouncement": len(sel), "hasMore": True,
+                "announcements": [{k: v for k, v in a.items() if k != "cats"} for a in sel[(p - 1) * 30: p * 30]]}
+    states = dc.run(tmp_path, ["2021-09-01"], dc.Client(post=post, interval=0, sleep=NOSLEEP), log=lambda *a: None)
+    ck = json.loads((tmp_path / "_checkpoints/cninfo_meta.json").read_text(encoding="utf-8"))["days"]["2021-09-01"]
+    assert states == {dc.DONE: 1} and ck["rows"] == 1211 and "code" in {c[0] for c in calls}
+
+
+def test_more_rows_than_total_counts_as_done_with_excess(tmp_path):
+    items = make_items({("szmb", "category_rcjy_szsh"): 50})
+
+    def post(data):                                       # 第 1 页报的总数比实际少 1（抓取期间新增了一条）
+        p = data["pageNum"]
+        return {"totalAnnouncement": 49, "hasMore": True,
+                "announcements": [{k: v for k, v in a.items() if k != "cats"} for a in items[(p - 1) * 30: p * 30]]}
+    states = dc.run(tmp_path, ["2021-04-30"], dc.Client(post=post, interval=0, sleep=NOSLEEP), log=lambda *a: None)
+    ck = json.loads((tmp_path / "_checkpoints/cninfo_meta.json").read_text(encoding="utf-8"))["days"]["2021-04-30"]
+    assert states == {dc.DONE: 1} and ck["rows"] == 50 and ck["excess"] == 1
+
+
 def test_category_leaf_over_6000_is_truncated():
     items = make_items({("szmb", "category_rcjy_szsh"): 7000})
     rows, ok, total = dc.fetch_node(client(items), "d", "szmb", "category_rcjy_szsh")
-    assert total == 7000 and not ok and len(rows) == 6000
+    assert total == 7000 and not ok and 6000 <= len(rows) < 7000          # 补漏能多取一些，但仍取不全
 
 
 def test_run_resume_budget_and_frame(tmp_path):

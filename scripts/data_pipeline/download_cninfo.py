@@ -126,9 +126,18 @@ def fetch_node(client: Client, day: str, plate: str = "", category: str = "") ->
             sub, _, _ = fetch_node(client, day, c, "") if not plate else fetch_node(client, day, plate, c)
             for k, v in sub.items():
                 rows.setdefault(k, v)
-        if plate and len(rows) < total:                  # 有公告不属于任何类别：用正倒序两遍补漏
-            _two_way(client, day, plate, "", total, rows)
-    return rows, len(rows) == total, total
+    if len(rows) < total:                                # 任何节点不够数：按代码、时间的正倒序补漏
+        _supplement(client, day, plate, category, total, rows)
+    return rows, len(rows) >= total, total
+
+
+def _supplement(client: Client, day: str, plate: str, category: str, total: int, rows: dict) -> None:
+    """2026-10-19 实测：总数 ≤ 3000 的日子直接翻页也会少几条（如 2021-09-01 1175 / 1211），默认排序分页不稳定；
+    2021-08 前后板块合计也少于全部（北交所前身精选层等不在 PLATES 里 `[推断]`）。所以任何节点不够数时都补四遍。"""
+    for sort in (("code", "asc"), ("code", "desc"), ("time", "asc"), ("time", "desc")):
+        if len(rows) >= total:
+            return
+        _pages(client, day, plate, category, sort, total, rows)
 
 
 def _two_way(client: Client, day: str, plate: str, category: str, total: int, rows: dict) -> None:
@@ -181,6 +190,8 @@ def run(out_dir: Path, days: list[str], client: Client, max_seconds: float = 0, 
                 os.replace(tmp, parts / f"{day.replace('-', '')}.parquet")
             state = EMPTY if total == 0 else (DONE if ok else TRUNCATED)
             rec = {"state": state, "total": total, "rows": int(len(df))}
+            if total and len(df) > total:
+                rec["excess"] = int(len(df) - total)                   # 抓取期间总数变了（如 2021-04-30 15388 / 15387）
             if state == TRUNCATED and prev.get("state") == TRUNCATED and \
                     (prev.get("total"), prev.get("rows")) == (total, rec["rows"]):
                 rec.update(state=PARTIAL, gap=total - rec["rows"])     # 重试结果不变：缺口是接口本身的，不再重试
