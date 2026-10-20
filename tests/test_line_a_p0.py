@@ -273,3 +273,26 @@ def test_f8_capacity_lots_and_participation():
     assert r2["n_unbuyable_one_lot"] == 1                                      # 1 万买不起 200 股 × 100 元
     preds = pd.DataFrame({"as_of": days[-1], "ticker": ["600000.SH", "688001.SH", "300001.SZ"], "score": [1, 2, 3]})
     assert restrict_to_profile(preds, {"MAIN": True})["ticker"].tolist() == ["600000.SH"]
+
+
+# ------------------------------------------------------------------ 前瞻网格相位
+def test_forward_grid_keeps_frozen_phase():
+    import pandas as pd
+
+    from quantmind.line_a.f8_books import extended_grid, forward_grid
+    cal = pd.bdate_range("2026-08-03", "2026-11-30")
+    frozen = list(cal[cal <= "2026-09-15"][::-5][::-1])           # 以 09-15 结尾、步长 5
+    ext = extended_grid(cal, frozen)
+    i = cal.get_loc(pd.Timestamp("2026-09-15"))
+    assert ext[len(frozen)] == cal[i + 5] and ext[len(frozen) + 1] == cal[i + 10]
+    fw = forward_grid(cal, frozen)
+    assert fw[0] > pd.Timestamp("2026-10-09") and all(d in ext for d in fw)
+    assert all((cal.get_loc(b) - cal.get_loc(a)) == 5 for a, b in zip(fw, fw[1:], strict=False))
+
+
+def test_md_table_formats():
+    import pandas as pd
+
+    from quantmind.line_a.pipeline import _md_table
+    t = _md_table(pd.DataFrame({"a": [1.23456, None], "b": ["x", "y"]}))
+    assert t.splitlines()[0] == "| a | b |" and "1.235" in t and "|  | y |" in t

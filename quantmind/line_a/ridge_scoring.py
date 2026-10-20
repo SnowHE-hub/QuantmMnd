@@ -125,3 +125,27 @@ def features_from_daily(root: Path, dates, feats: list[str]) -> pd.DataFrame:
 def score(ref: RidgeRef, X: pd.DataFrame) -> pd.Series:
     return pd.Series(ref.model.predict(X[ref.feats].to_numpy(dtype=np.float64)) * ref.direction, index=X.index,
                      name="score")
+
+
+def save_ref(ref: RidgeRef, path: Path) -> str:
+    """把重建的最后一折存成 npz（均值、标准差、系数、截距、方向、特征名），日常打分只读它，不再重训。返回 sha256。"""
+    import io
+
+    from quantmind.line_a.atomic import atomic_write_bytes
+    m = ref.model
+    buf = io.BytesIO()
+    np.savez(buf, mu=m.mu, sd=m.sd, w=m.w, b=np.float64(m.b), direction=np.int64(ref.direction),
+             feats=np.array(ref.feats), horizon=np.array(ref.horizon),
+             cutoff=np.array(str(ref.cutoff.date()) if pd.notna(ref.cutoff) else ""),
+             train_dates=np.int64(ref.train_dates))
+    return atomic_write_bytes(Path(path), buf.getvalue())
+
+
+def load_ref(path: Path) -> RidgeRef:
+    t33 = _load(EV / "T-033/attribution_ridge_20d.py", "t033ridge")
+    z = np.load(path, allow_pickle=False)
+    m = t33.Ridge()
+    m.mu, m.sd, m.w, m.b = z["mu"], z["sd"], z["w"], float(z["b"])
+    cut = str(z["cutoff"])
+    return RidgeRef(str(z["horizon"]), [str(f) for f in z["feats"]], m, int(z["direction"]),
+                    pd.Timestamp(cut) if cut else pd.NaT, int(z["train_dates"]), pd.DataFrame())

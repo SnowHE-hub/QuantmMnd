@@ -74,3 +74,39 @@ def capacity_report(targets: pd.DataFrame, prices: pd.DataFrame, aum: float, *, 
                      "n_over_participation": int((part > max_participation).sum()),
                      "min_commission_drag_bp": float(np.nansum(comm[sh > 0]) / aum * 1e4)})
     return pd.DataFrame(rows)
+
+
+# ------------------------------------------------------------------ 前瞻决策网格与账本
+FREEZE = pd.Timestamp("2026-10-09")         # 研究期数据冻结日（T-030 / T-034）
+
+
+def extended_grid(full_cal, frozen_grid, step: int = 5) -> list[pd.Timestamp]:
+    """冻结的 v6_1 周频网格按同一相位向后延伸：从冻结网格最后一个日期起，每 step 个交易日取一点。
+    （build_asof_grid 的锚点随日历末日移动，不能直接用新日历重算，否则相位漂移。）"""
+    cal = pd.DatetimeIndex(sorted(pd.to_datetime(list(full_cal))))
+    i = cal.get_loc(pd.Timestamp(frozen_grid[-1]))
+    return [pd.Timestamp(x) for x in frozen_grid] + [pd.Timestamp(cal[j]) for j in range(i + step, len(cal), step)]
+
+
+def forward_grid(full_cal, frozen_grid, step: int = 5) -> list[pd.Timestamp]:
+    return [d for d in extended_grid(full_cal, frozen_grid, step) if d > FREEZE]
+
+
+def run_forward_books(scores: dict[str, pd.DataFrame], prices: pd.DataFrame, contracts: dict, profiles: dict,
+                      amihud: pd.DataFrame | None, aums=(1e5, 1e6, 1e7), **cap_kw) -> dict:
+    """scores：{参考臂名: (as_of, ticker, score)，只含前瞻网格日}。每个参考臂 × 账户权限线跑一次引擎，
+    再对目标持仓做容量情景。返回 {臂: {线: {"nav", "targets", "capacity"}}}。"""
+    out: dict = {}
+    for arm, preds in scores.items():
+        out[arm] = {}
+        for prof, boards in profiles.items():
+            p = restrict_to_profile(preds, boards)
+            if p.empty:
+                continue
+            r = run_reference_book(p, prices, contracts[arm], amihud)
+            cap = pd.concat([capacity_report(r["targets"], prices, a, **cap_kw) for a in aums], ignore_index=True) \
+                if len(r["targets"]) else pd.DataFrame()
+            out[arm][prof] = {"nav": r["nav_daily"], "targets": r["targets"], "capacity": cap,
+                              "holdings": r["holdings_daily"], "rejected": r["rejected_trades"],
+                              "summary": r["summary"]}
+    return out

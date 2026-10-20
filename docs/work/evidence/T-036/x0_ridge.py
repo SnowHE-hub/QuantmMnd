@@ -5,6 +5,8 @@
 2. 前瞻特征复现：在 [2026-09-01, 2026-10-09] 的最后一折测试日上，用影子数据根的日频面板拼出特征打分，
    与已登记预测比较。特征与"真实数据根的日频面板"不同的行（被重叠期检查解释的迟到财报）单独计数、不计入判定；
    其余行最大差 ≤ 1e-6。
+3. 两项都通过才把重建的最后一折存档到 data/line_a_v2/refs/ridge_<期限>_lastfold.npz（日常打分只读存档），
+   并核对读回存档后的打分与内存模型逐行相同（最大差 = 0）。
 用法：python x0_ridge.py <data_root> <fwd_main_root> <out.json>
 """
 from __future__ import annotations
@@ -23,7 +25,13 @@ FROZEN = {"20d": "data/bakeoff/preds_v6_1_t028/ridge_20d_v6_1_BASE.parquet",
 
 
 def main() -> None:
-    from quantmind.line_a.ridge_scoring import features_from_daily, fit_reference, score
+    from quantmind.line_a.ridge_scoring import (
+        features_from_daily,
+        fit_reference,
+        load_ref,
+        save_ref,
+        score,
+    )
     real, shadow, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     res = {}
     for h in ("20d", "63d"):
@@ -50,7 +58,15 @@ def main() -> None:
                "max_abs_diff_unchanged": float(d[same_k].max()) if same_k.any() else None}
         fwd["pass"] = (fwd["rows_frozen_not_scored"] == 0 and fwd["max_abs_diff_unchanged"] is not None
                        and fwd["max_abs_diff_unchanged"] <= 1e-6)
-        res[h] = {"cutoff": str(ref.cutoff.date()) if pd.notna(ref.cutoff) else None, "direction": ref.direction,
+        saved = None
+        if train_ok["pass"] and fwd["pass"]:
+            ref_path = real / f"data/line_a_v2/refs/ridge_{h}_lastfold.npz"
+            sha = save_ref(ref, ref_path)
+            rt2 = score(load_ref(ref_path), Xs)
+            saved = {"path": str(ref_path.relative_to(real)), "sha256": sha,
+                     "roundtrip_max_abs_diff": float((rt2 - s).abs().max())}
+            fwd["pass"] = saved["roundtrip_max_abs_diff"] == 0.0
+        res[h] = {"saved_ref": saved, "cutoff": str(ref.cutoff.date()) if pd.notna(ref.cutoff) else None, "direction": ref.direction,
                   "n_features": len(ref.feats), "train_reproduction": train_ok, "forward_features": fwd,
                   "pass": bool(train_ok["pass"] and fwd["pass"])}
         print(h, json.dumps({"train": train_ok, "forward": {k2: v for k2, v in fwd.items() if k2 != "days"}}))
