@@ -1,0 +1,50 @@
+{
+ "what": "T-030 63d 主比较放行前登记（附件 B.3）：代码与数据冻结核对、可评估行冻结；不含任何 IC",
+ "utc": "2026-10-20T03:30:26.956913+00:00",
+ "n1r2_result": {
+  "file": "docs/work/evidence/T-030/p6/n1r2_seeds_63d.json",
+  "sha256": "a7aa531d1d78e9250ba9440c9c531720813741c3b61c629c55a2bf0e27db2cec",
+  "verdict": "N1-R2 补充复核通过"
+ },
+ "n2r_result": {
+  "file": "docs/work/evidence/T-030/p6/n2_target_canary_63d.json",
+  "sha256": "cf7ea656fdfa9f9c4a5b4d5b145a65a698fd6ea619eaa6b2e3c96687e516be84"
+ },
+ "frozen_code_sha256": {
+  "docs/work/evidence/T-030/eval_primary.py": "9cda56ac2c4b8fd7ce47ef11a49c5b96989428dcd4e5711fde33cfbea4c98a7d",
+  "quantmind/research/gpu/ensemble.py": "7685ca0ff4d888b873becd21ad086065ee12b5e03c12347ebb57a6a953862f9e",
+  "quantmind/research/gpu/folds.py": "ea63c3c079fdf7c91943cfd443b25aaef1686376363d85e21a261d338e85a79f",
+  "quantmind/research/gpu/metrics.py": "595b44f2a1a3346c26d765f8235d20dba6dc426af87dc9e8f09b27c8d9d69baf",
+  "quantmind/research/gpu/configs.py": "beb5c860ee6d89c664610515ceba8de3e259b6e30cf7b557c684f2cb90723ba2",
+  "quantmind/research/gpu/transforms.py": "dcab7c2d339354559fc082d2001e1fba1fb4d4ef65814472f14eb63979c568de",
+  "quantmind/execution/nav_engine.py": "9a0fe58f2da81b53ff46dd8c4c3b5d3480e119fabc0c351bb1643813064a8f4d",
+  "quantmind/backtest/wf_costs.py": "b0539089e58b99d75f05bc71200368677f995c5b97ad111bfbb88835231da517"
+ },
+ "frozen_code_changed_since_p7_tag": [],
+ "p7_manifest_files": 511,
+ "p7_manifest_mismatches": [],
+ "extra_inputs_sha256": {
+  "data/bakeoff/preds_v6_1/ridge_63d_v6_1_C_infnan.parquet": "e1ea5425aa1c730a9b1e1c783118d159840ca8a9a7418b18bcbc772503eacc0c",
+  "data/raw/alpha_prices_panel_v6_20261009.parquet": "b4580a9f10147638f859a06ce4360937bae0a355ca1a589dcf74ebe3bc617418",
+  "data/panel/alpha_panel_weekly_v6_1.parquet": "c7bd2c7c0e1cab38ce0faceec5968acdcc0ef5b8e7563b21e9a5a836e40489ea"
+ },
+ "frozen_dates_63d_sha256": "0f0033396bee5e298b667303a3c54a250af96cd9a18ad7599dc64d7545b87ba5",
+ "frozen_dates_63d_keys": [
+  "horizon",
+  "rule",
+  "n_planned_folds",
+  "n_evaluable_folds",
+  "n_dates",
+  "folds",
+  "dates"
+ ],
+ "n_test_asof": 200,
+ "eval_rows": {
+  "file": "docs/work/evidence/T-030/p6/frozen_eval_rows_63d.parquet",
+  "n_rows": 275958,
+  "n_dates": 189,
+  "sha256": "0c9f7b13691c5e3a326d1f2dc3a451cd006a8dc40ecc88060c66cc2694874fa1"
+ },
+ "primary_63d_json_present": false,
+ "problems": []
+}
