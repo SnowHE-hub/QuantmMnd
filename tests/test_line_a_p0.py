@@ -252,3 +252,24 @@ def test_f2_domains_and_f4_candidates(tmp_path):
     c2 = research_candidates(sc, dom, "2026-10-16", holdings={"000007.SZ"}, event_queue={"000004.SZ"}, top_k=2,
                              n_samples=1)
     assert c2.index.tolist() == c.index.tolist()                # 同一天抽样可复现
+
+
+# ------------------------------------------------------------------ F8 容量情景
+def test_f8_capacity_lots_and_participation():
+    import pandas as pd
+
+    from quantmind.line_a.f8_books import _shares, capacity_report, restrict_to_profile
+    assert _shares(1000, 15.0, "MAIN") == 0              # 不足一手
+    assert _shares(10000, 15.0, "MAIN") == 600           # 主板整百股
+    assert _shares(10000, 15.0, "STAR") == 666           # 科创板 200 股起、1 股递增
+    assert _shares(2000, 15.0, "STAR") == 0
+    days = pd.bdate_range("2026-09-01", periods=25)
+    px = pd.DataFrame([{"ts_code": t, "trade_date": d, "close": c, "amount": 1000.0}   # 千元 → 100 万元 / 日
+                       for t, c in (("600000.SH", 10.0), ("688001.SH", 100.0)) for d in days])
+    tg = pd.DataFrame([{"as_of": days[-1], "targets": ["600000.SH", "688001.SH"], "target_weight_each": 0.5}])
+    r = capacity_report(tg, px, aum=100000).iloc[0]
+    assert r["n_unbuyable_one_lot"] == 0 and r["n_over_participation"] == 2      # 5 万 / 100 万 = 5% > 1%
+    r2 = capacity_report(tg, px, aum=20000).iloc[0]
+    assert r2["n_unbuyable_one_lot"] == 1                                      # 1 万买不起 200 股 × 100 元
+    preds = pd.DataFrame({"as_of": days[-1], "ticker": ["600000.SH", "688001.SH", "300001.SZ"], "score": [1, 2, 3]})
+    assert restrict_to_profile(preds, {"MAIN": True})["ticker"].tolist() == ["600000.SH"]
