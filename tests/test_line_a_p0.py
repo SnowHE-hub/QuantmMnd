@@ -221,3 +221,34 @@ def test_f1_instrument_state_classes(tmp_path):
     assert st.loc["000002.SZ", "is_st"] and st.loc["000002.SZ", "c_low_price"]
     assert st.loc["688001.SH", "c_listed_lt_min"] and not st.loc["688001.SH", "new_buy_main"]
     assert st.loc["688001.SH", "new_buy_all"] and st.loc["600000.SH", "new_buy_main"]
+
+
+# ------------------------------------------------------------------ F2 / F4
+def test_f2_domains_and_f4_candidates(tmp_path):
+    import numpy as np
+    import pandas as pd
+
+    from quantmind.line_a.f2f4 import research_candidates, support_domains
+    mdir = tmp_path / "data/gpu_v1/model/v1"
+    mdir.mkdir(parents=True)
+    tick = [f"{i:06d}.SZ" for i in range(8)]
+    meta = pd.DataFrame({"as_of": pd.Timestamp("2026-10-16"), "ticker": tick,
+                         "top1500": [True] * 6 + [False, False]})
+    meta.to_parquet(mdir / "2026-10.meta.parquet")
+    X = np.zeros((8, 4), dtype=np.float16)
+    X[5, :3] = np.nan                                          # 缺失过多 → 数据不足域
+    np.save(mdir / "2026-10.X.npy", X)
+    dom = support_domains(tmp_path, "2026-10-16")
+    assert dom["domain"].tolist() == ["research_pool"] * 5 + ["data_insufficient", "extended", "extended"]
+    sc = pd.DataFrame({"ens20": [5, 4, 3, 2, 1, 0, 9, 9], "ridge20": [1, 2, 3, 4, 5, 6, 9, 9]}, index=tick, dtype=float)
+    c = research_candidates(sc, dom, "2026-10-16", holdings={"000007.SZ"}, event_queue={"000004.SZ"}, top_k=2,
+                            n_samples=1)
+    assert "000006.SZ" not in c.index                           # 扩展域的高分不进入宽候选
+    assert c.loc["000007.SZ", "reasons"] == ["holding"] and c.loc["000007.SZ", "priority"] == 0
+    assert set(c.loc["000000.SZ", "reasons"]) == {"top2_ens20"} and "top2_ridge20" in c.loc["000004.SZ", "reasons"]
+    assert "event_queue" in c.loc["000004.SZ", "reasons"]
+    samples = [t for t, r in c["reasons"].items() if "stratified_sample" in r]
+    assert len(samples) == 1 and samples[0] in {"000002.SZ"}    # 剩下的原研究池只有 000002
+    c2 = research_candidates(sc, dom, "2026-10-16", holdings={"000007.SZ"}, event_queue={"000004.SZ"}, top_k=2,
+                             n_samples=1)
+    assert c2.index.tolist() == c.index.tolist()                # 同一天抽样可复现
