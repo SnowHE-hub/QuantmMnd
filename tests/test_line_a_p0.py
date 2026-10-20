@@ -163,3 +163,25 @@ def test_gpu_lease_waits_for_free_memory_and_times_out(tmp_path):
     with GpuLease("t2", need_mib=10, lock_path=tmp_path / "gpu.lock", free_mib=lambda: 100, unloaders=(),
                   sleep=lambda s: None):
         pass   # 失败后锁已经释放
+
+
+# ------------------------------------------------------------------ 停机补跑
+def test_catchup_heartbeat_and_missed_days(tmp_path):
+    import json as _json
+
+    from quantmind.line_a.catchup import last_ready_snapshot, missed_trading_days, read_heartbeat
+    hb = tmp_path / "heartbeat.json"
+    assert read_heartbeat(hb) == {"present": False}
+    hb.write_text(_json.dumps({"utc": "2026-10-21T00:00:00.0000000Z", "keepalive_pid": 1, "cron": "active"}),
+                  encoding="utf-8-sig")
+    r = read_heartbeat(hb, now=datetime(2026, 10, 21, 0, 10, tzinfo=ZoneInfo("UTC")))
+    assert r["present"] and r["age_s"] == 600 and r["cron"] == "active"
+    snaps = tmp_path / "snapshots"
+    for d, ready in (("2026-10-16", True), ("2026-10-19", False)):
+        (snaps / d).mkdir(parents=True)
+        (snaps / d / "snapshot_x.json").write_text(_json.dumps({"as_of": d, "notes": [f"data_ready={ready}"]}))
+    last = last_ready_snapshot(snaps)
+    assert last == date(2026, 10, 16)
+    days = [date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)]
+    assert missed_trading_days(days, last, date(2026, 10, 20)) == [date(2026, 10, 19), date(2026, 10, 20)]
+    assert missed_trading_days(days, None, date(2026, 10, 18)) == []
