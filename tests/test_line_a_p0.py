@@ -156,10 +156,10 @@ def test_gpu_lease_waits_for_free_memory_and_times_out(tmp_path):
         assert held.info["free_mib"] == 6000 and held.info["unloaded"] == ["qwen3.5:9b"]
         assert held.holder_file.exists()
     assert not (tmp_path / "gpu.holder.json").exists()
-    with pytest.raises(GpuLeaseError):
-        with GpuLease("t", need_mib=5000, lock_path=tmp_path / "gpu.lock", free_timeout=10, poll=5,
-                      free_mib=lambda: 100, unloaders=(), sleep=lambda s: None):
-            pass
+    starved = GpuLease("t", need_mib=5000, lock_path=tmp_path / "gpu.lock", free_timeout=10, poll=5,
+                       free_mib=lambda: 100, unloaders=(), sleep=lambda s: None)
+    with pytest.raises(GpuLeaseError), starved:
+        pass
     with GpuLease("t2", need_mib=10, lock_path=tmp_path / "gpu.lock", free_mib=lambda: 100, unloaders=(),
                   sleep=lambda s: None):
         pass   # 失败后锁已经释放
