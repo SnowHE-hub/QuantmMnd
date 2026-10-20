@@ -16,7 +16,7 @@
 | 有模型上线吗 | **没有**。模型注册表里两条研究种子都是 `research_candidate_pending_nav` | `data/registry/model_registry.json`（本地数据，不在 git） |
 | 主线 A（每日运行的链路）在真实成交口径下 | 2021-12 → 2026-10 年化净超额 **−5.0%**，IR −0.48，不过闸门 | [`docs/work/reports/T-010-line-a-oos.md`](docs/work/reports/T-010-line-a-oos.md) |
 | 主线 B 最好的 Ridge 种子 | 63d 连续样本外 **+5.03%/年**，IR 0.64，16 次再平衡，不过闸门 | [`T-018`](docs/work/reports/T-018-line-b-v6-1.md)、[`T-026`](docs/work/tasks/T-026.md) |
-| GPU 模型族（研究分支） | 20d：四族等权集成对 Ridge 的日均 RankIC **+0.053**，预登记主比较**检测到增益**；但净值配对差未检测到，相对回撤翻倍，不过闸门 | 分支 `t/030-gpu-models`：`docs/work/reports/T-030-gpu-models.md` |
+| GPU 模型族（研究分支） | 20d：四族等权集成对 Ridge 的日均 RankIC **+0.053**，预登记主比较**检测到增益**。63d：RankIC +0.073，但只有一个块长的下界 > 0，**未检测到增益（块长敏感）**。两个期限的净值配对差都未检测到，相对回撤明显更高，都不过闸门 | 分支 `t/030-gpu-models`：`docs/work/reports/T-030-gpu-models.md` |
 | LLM 重排有用吗 | 19 期、437 次请求的消融：**无可检测增益**，不如一条固定的简单因子规则；生产中关闭 | [`T-007`](docs/work/reports/T-007-anonymization-v3.md) |
 | 下一份干净的证据 | 2026-10-09 冻结之后的前瞻预测。前瞻模型包已与历史预测逐位一致，前瞻数据在刷新 | 分支 `t/033-attribution-forward`：`docs/work/tasks/T-034.md` |
 
