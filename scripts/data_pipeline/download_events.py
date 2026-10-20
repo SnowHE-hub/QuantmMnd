@@ -267,7 +267,10 @@ def run_api(api: str, spec: Spec, chunks: list[tuple[str, dict]], events_dir: Pa
     parts.mkdir(parents=True, exist_ok=True)
     ck_path = events_dir / "_checkpoints" / f"{api}.json"
     ck = load_ckpt(ck_path)
-    todo = [(k, p) for k, p in chunks if ck["chunks"].get(k, {}).get("state") not in TERMINAL_OK]
+    # 分块已是终态但查询参数变了（例如当月分块上次只取到月中，这次 --end 延后），也要重取：
+    # 否则"当月 / 当季 / 最后一个窗口"这类被 --end 截断的分块，在延长截止日后永远停在旧的截止日（T-035 发现）
+    todo = [(k, p) for k, p in chunks
+            if ck["chunks"].get(k, {}).get("state") not in TERMINAL_OK or ck["chunks"].get(k, {}).get("params", p) != p]
     log(f"[{api}] chunks={len(chunks)} todo={len(todo)}")
     t0 = time.time()
     for i, (key, params) in enumerate(todo, 1):

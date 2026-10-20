@@ -34,6 +34,26 @@ def test_chunks_modes():
     assert [k for k, _ in q] == ["20250331", "20250630", "20250930", "20251231"]
 
 
+def test_truncated_chunk_is_refetched_when_end_extends(tmp_path):
+    spec = de.Spec("month", "ann_date")
+    td = pd.DatetimeIndex([])
+    calls = []
+
+    def call(api, **kw):
+        calls.append(dict(kw))
+        return _rows(3, day=kw["end_date"])
+    c1 = de.chunks_for("x", spec, "2026-10-01", "2026-10-09", td)
+    de.run_api("x", spec, c1, tmp_path, call, sleep=NOSLEEP, log=lambda m: None)
+    c2 = de.chunks_for("x", spec, "2026-10-01", "2026-10-20", td)
+    assert c1[0][0] == c2[0][0] == "202610"                      # 同一个分块键，参数不同
+    de.run_api("x", spec, c2, tmp_path, call, sleep=NOSLEEP, log=lambda m: None)
+    assert [c["end_date"] for c in calls] == ["20261009", "20261020"]
+    de.run_api("x", spec, c2, tmp_path, call, sleep=NOSLEEP, log=lambda m: None)   # 参数相同：不再重取
+    assert len(calls) == 2
+    ck = json.loads((tmp_path / "_checkpoints" / "x.json").read_text())
+    assert ck["chunks"]["202610"]["params"]["end_date"] == "20261020"
+
+
 def test_week_fri_and_ticker_modes(tmp_path):
     td = pd.DatetimeIndex(pd.to_datetime(["2026-10-09"]))
     f = de.chunks_for("pledge_stat", de.SPECS["pledge_stat"], "2026-10-01", "2026-10-19", td)
