@@ -74,9 +74,63 @@ SPECS: dict[str, Spec] = {
     "top_inst": Spec("trade_day", "trade_date"),
     "block_trade": Spec("trade_day", "trade_date"),
     # 分析师
-    # 实测限频：每分钟 1 次且每小时 10 次；单次上限 5,000 行（约 20 天）→ 20 天窗口、间隔 370 秒
-    "report_rc": Spec("window", "report_date", min_interval=370.0, window_days=20),
+    # 实测限额（2000 积分）：每分钟 1 次、每天 10 次（报错"频率超限(10次/天)"）；单次上限 5,000 行
+    # （2026-09 约 22 天到上限）→ 15 天窗口留出余量、间隔 65 秒；每天由定时任务带 --max-calls 10 慢慢补（T-031）
+    "report_rc": Spec("window", "report_date", min_interval=65.0, window_days=15),
 }
+
+
+class QuotaExhaustedError(Exception):
+    """今日额度用完：接口报"次/天"，或本次运行的调用预算（--max-calls）用完。
+    整个运行停止；正在取的分块不记终态、不写分块文件（半截数据丢弃），下次运行从它重新开始。"""
+
+
+def budgeted(call, max_calls: int | None):
+    """给 call 加调用次数上限：第 max_calls + 1 次调用前抛 QuotaExhaustedError（不发出这次请求）。"""
+    if not max_calls:
+        return call
+    used = {"n": 0}
+
+    def wrapped(api, **kw):
+        if used["n"] >= max_calls:
+            raise QuotaExhaustedError(f"call budget {max_calls} used")
+        used["n"] += 1
+        return call(api, **kw)
+    return wrapped
+
+
+def rolling_quota(call, log_path: Path, limit: int, window_s: float, max_wait_s: float,
+                  clock=time.time, sleep=time.sleep, log=print):
+    """滚动窗口限额：任意 window_s 秒内最多 limit 次调用（被拒的也算）。
+    实测（2026-10-19）：report_rc 的"10次/天"按滚动 24 小时计，不是北京时间零点重置——
+    10-18 12:10–12:22 调满 10 次后，10-19 12:10 的第一次调用即被拒。
+    每次调用前读调用记录：已满就等最早一次过期（+5 秒），需要等的时间超过 max_wait_s 就抛 QuotaExhaustedError。"""
+    log_path = Path(log_path)
+
+    def _load() -> list[float]:
+        try:
+            return [float(t) for t in json.loads(log_path.read_text(encoding="utf-8"))]
+        except FileNotFoundError:
+            return []
+
+    def wrapped(api, **kw):
+        now = clock()
+        recent = sorted(t for t in _load() if t > now - window_s)
+        if len(recent) >= limit:
+            wait = recent[len(recent) - limit] + window_s - now + 5
+            if wait > max_wait_s:
+                raise QuotaExhaustedError(f"rolling quota {limit}/{window_s:.0f}s full; next slot in {wait:.0f}s")
+            log(f"[quota] {len(recent)} calls in window, waiting {wait:.0f}s for the oldest to expire")
+            sleep(wait)
+            now = clock()
+            recent = [t for t in recent if t > now - window_s]
+        recent.append(now)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = log_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(recent), encoding="utf-8")
+        os.replace(tmp, log_path)
+        return call(api, **kw)
+    return wrapped
 
 
 # ---------------------------------------------------------------- 分块
@@ -219,8 +273,16 @@ def run_api(api: str, spec: Spec, chunks: list[tuple[str, dict]], events_dir: Pa
                 if state != FAILED:
                     rec.pop("error", None)
                     break
+            except QuotaExhaustedError:
+                save_ckpt(ck_path, ck)       # 当前分块保持原状态（不记 failed），下次运行重取
+                log(f"[{api}] stop for today at {key} ({i - 1}/{len(todo)} chunks finished this run)")
+                raise
             except Exception as e:  # noqa: BLE001
                 msg = str(e)
+                if "次/天" in msg:            # 每日额度：再试只会继续被拒（被拒的调用也可能计入额度）
+                    save_ckpt(ck_path, ck)
+                    log(f"[{api}] daily quota hit at {key} ({i - 1}/{len(todo)} chunks finished this run)")
+                    raise QuotaExhaustedError(msg[:160]) from e
                 rec.update(state=FAILED, error=f"{type(e).__name__}: {msg[:160]}")
                 if "次/小时" in msg:
                     sleep(3700)          # 失败的调用也可能计入额度：等满一小时再试
@@ -331,6 +393,13 @@ def main(argv=None) -> int:
     ap.add_argument("--plan", action="store_true", help="只打印分块数")
     ap.add_argument("--audit-page-cap", action="store_true", help="只列出页数到上限却记为 done 的分块，不调用接口")
     ap.add_argument("--mark", action="store_true", help="与 --audit-page-cap 同用：把这些分块改记为 truncated")
+    ap.add_argument("--max-calls", type=int, default=0,
+                    help="本次运行最多发出的接口调用数（含分页与拆分），到数即停、退出码 3；0 = 不限")
+    ap.add_argument("--rolling-limit", type=int, default=0,
+                    help="滚动窗口限额：任意 --rolling-hours 小时内最多这么多次调用（被拒的也算）；0 = 不启用")
+    ap.add_argument("--rolling-hours", type=float, default=24.0)
+    ap.add_argument("--rolling-max-wait-min", type=float, default=40.0,
+                    help="窗口已满时最多等多少分钟让最早的调用过期，超过就停（退出码 3）")
     a = ap.parse_args(argv)
     root = Path(a.data_root)
     events = root / "data/lake/events"
@@ -344,7 +413,22 @@ def main(argv=None) -> int:
     cal = pd.read_parquet(root / "data/lake/trade_cal_sse.parquet")["cal_date"]
     trade_days = pd.DatetimeIndex(pd.to_datetime(cal.astype(str))).sort_values()
     trade_set = {ymd(d) for d in trade_days}
-    call = None if (a.compact or a.plan) else _tushare_call()
+    call = None
+    if not (a.compact or a.plan):
+        call = _tushare_call()
+        if a.rolling_limit:
+            call = rolling_quota(call, events / "_checkpoints" / f"calls_{a.apis.replace(',', '_')}.json",
+                                 a.rolling_limit, a.rolling_hours * 3600, a.rolling_max_wait_min * 60,
+                                 log=lambda m: print(m, flush=True))
+        call = budgeted(call, a.max_calls)
+    try:
+        return _run_all(a, apis, events, trade_days, trade_set, call)
+    except QuotaExhaustedError as e:
+        print(json.dumps({"stopped_for_today": str(e)}, ensure_ascii=False), flush=True)
+        return 3
+
+
+def _run_all(a, apis, events, trade_days, trade_set, call) -> int:
     sw = None
     rc = 0
     for api in apis:
@@ -361,6 +445,8 @@ def main(argv=None) -> int:
                     try:
                         cls = call("index_classify", level="L1", src="SW2021")
                         break
+                    except QuotaExhaustedError:
+                        raise
                     except Exception as e:  # noqa: BLE001
                         print(f"[index_classify] attempt {attempt + 1} failed: {type(e).__name__}", flush=True)
                         time.sleep(10 * (attempt + 1))
