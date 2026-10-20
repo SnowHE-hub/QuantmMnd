@@ -27,8 +27,14 @@ semantic_changes:
     change_points:
       - {date: "2024-05 中旬", what: "港交所停止发布北向实时买卖成交数据（第一阶段）", source: "HKEX 2024-04-12 公告"}
       - {date: "2024-08 中旬", what: "北向持股改为按季度披露等（第二阶段）", source: "HKEX 2024-04-12 公告"}
-    status: audit_required
-    note: "本地表 2024 年后仍然非空，字段含义可能已变；口径审计完成前不进入任何新模型或规则"
+    status: broken_series
+    observed_break: "2024-08-19"
+    audit: >-
+      2026-10-21 实测（T-035）：north_money 在 2024-08-16 及以前是有正有负的净流入（季度均值约 0，30%–60% 的交易日为负）；
+      2024-08-19 起每天都是 8 万到 37 万（百万元）的正数，与 hgt + sgt 的恒等关系不变，口径看起来变成了成交额。
+      周频面板和 T-030 日频市场特征里的 north_bound_30d_net_inflow 年均值：2023 年 7,528 → 2024 年 1,801,368 → 2026 年 9,893,516。
+    affected_features: [north_bound_30d_net_inflow]
+    rule: "断点之后的值不得与断点之前混用；新模型和新规则不使用该字段，直到找到口径一致的替代数据"
   sw_industry:
     status: implemented
     note: "申万行业成分按发布日可用（index_member_all，T-022）"
