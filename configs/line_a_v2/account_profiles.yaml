@@ -1,0 +1,16 @@
+# 主线 A v2 · 账户权限的三条线（用户 2026-10-21 决定）
+# F1-A 类规则（法律与账户权限）读取本文件。每条线各跑一套账本：没开通的板块不能新买入，持仓只允许卖出。
+# 另保留不受权限限制的"研究口径"参考臂（reference_strategies.json），只用于和研究期结果对照。
+version: 1
+decided_utc: "2026-10-21"
+profiles:
+  all_boards:
+    description: 全部开通（主板、创业板、科创板、北交所）
+    boards: {MAIN: true, CHINEXT: true, STAR: true, BSE: true}
+  no_bse:
+    description: 除北交所外全部开通
+    boards: {MAIN: true, CHINEXT: true, STAR: true, BSE: false}
+  main_only:
+    description: 只开通主板
+    boards: {MAIN: true, CHINEXT: false, STAR: false, BSE: false}
+board_of: quantmind.backtest.wf_costs.board_of   # 代码前缀判板块，与成本模型同一函数

@@ -1,0 +1,28 @@
+# 主线 A v2 · 交易规则版本表（按生效区间管理，不用当前规则回放全部历史）
+# status: implemented = 已在 wf_costs / nav_engine 中实现并有出处；verify = 待逐条核实官方文件后再启用。
+version: 1
+price_limit:                       # 日涨跌幅
+  - {board: MAIN,    pct: 0.10, from: null,         status: implemented, source: wf_costs.price_limit_pct}
+  - {board: CHINEXT, pct: 0.10, from: null,         to: "2020-08-23", status: implemented, source: wf_costs.CHINEXT_20PCT_DATE}
+  - {board: CHINEXT, pct: 0.20, from: "2020-08-24", status: implemented, source: wf_costs.CHINEXT_20PCT_DATE}
+  - {board: STAR,    pct: 0.20, from: null,         status: implemented, source: wf_costs.price_limit_pct}
+  - {board: BSE,     pct: 0.30, from: null,         status: implemented, source: wf_costs.price_limit_pct}
+  - {board: MAIN_RISK_WARNING, pct: 0.05, from: null, status: verify,
+     note: "现有代码对 ST 固定用 5%；评审提示上交所 2026 年有主板风险警示股涨跌幅调整的技术文件，生效日和新比例待核实"}
+stamp_duty_sell:
+  - {rate: 0.001,  to: "2023-08-27", status: implemented, source: wf_costs.STAMP_DUTY_BEFORE}
+  - {rate: 0.0005, from: "2023-08-28", status: implemented, source: wf_costs.STAMP_DUTY_AFTER}
+lot_size:
+  - {board: MAIN,    min: 100, step: 100, status: verify}
+  - {board: CHINEXT, min: 100, step: 100, status: verify}
+  - {board: STAR,    min: 200, step: 1,   status: verify}
+  - {board: BSE,     min: 100, step: 1,   status: verify}
+delisting:                         # 只作为 F1-C 研究过滤与风险卡特征；不作为法律上的"不可交易"
+  - {rule: face_value, condition: "连续 20 个交易日收盘价低于 1 元", status: verify}
+  - {rule: market_cap_main, condition: "主板连续 20 个交易日总市值低于阈值", threshold_rmb: null, status: verify,
+     note: "评审给出 5 亿元，生效日待核实"}
+  - {rule: market_cap_chinext_star, condition: "创业板、科创板连续 20 个交易日市值低于阈值", threshold_rmb: null, status: verify}
+abnormal_volatility:               # 严重异常波动认定（风险卡特征：到阈值的距离）
+  - {rule: severe_10d, condition: "10 个交易日收盘价涨跌幅偏离值累计达到 +100%（或 -50%）", status: verify}
+  - {rule: severe_30d, condition: "30 个交易日达到 +200%（或 -70%）", status: verify}
+settlement: {rule: "T+1：当日买入次日才能卖出", status: implemented, source: nav_engine.R_T1_BLOCKED}

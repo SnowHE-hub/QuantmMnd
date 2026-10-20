@@ -1,0 +1,214 @@
+{
+ "what": "主线 A v2 原样参考策略契约（从冻结代码导出，不手写参数）",
+ "exported_utc": "2026-10-20T15:13:22.797016+00:00",
+ "git_commit": "803013932f036389e6bf1f0dc29563085a67767f",
+ "source_sha256": {
+  "docs/work/evidence/T-030/eval_primary.py": "9cda56ac2c4b8fd7ce47ef11a49c5b96989428dcd4e5711fde33cfbea4c98a7d",
+  "quantmind/execution/nav_engine.py": "9a0fe58f2da81b53ff46dd8c4c3b5d3480e119fabc0c351bb1643813064a8f4d",
+  "quantmind/backtest/wf_costs.py": "b0539089e58b99d75f05bc71200368677f995c5b97ad111bfbb88835231da517",
+  "quantmind/research/gpu/ensemble.py": "7685ca0ff4d888b873becd21ad086065ee12b5e03c12347ebb57a6a953862f9e",
+  "quantmind/research/gpu/folds.py": "ea63c3c079fdf7c91943cfd443b25aaef1686376363d85e21a261d338e85a79f",
+  "docs/work/evidence/T-030/build_daily_base.py": "be3c485b52d10737f7b4c0c2ad5e9cdf3d46415c1ef8c56e8ad247e45c086b8b",
+  "docs/work/evidence/T-030/build_model_ready.py": "7080a368a1b76c7517b31d7c7968cfd47e04543a20ce29e34965771b30143919",
+  "docs/work/evidence/T-034/forward_bundle_fold18.py": "a5d1a61a808221fe8ef23c24920c2721ef581c294b21a91acb83fdca53f153cf"
+ },
+ "strategies": {
+  "ridge_native_20d": {
+   "horizon": "20d",
+   "universe": {
+    "entry_rule": "PIT 入池：上市满 120 个交易日且未退市（build_daily_base.py）",
+    "pool": "按时点的 adv20 前 1500（NavConfig.universe_size；只用决策日及之前的数据）",
+    "decision_filters": {
+     "min_recent_bar_td": 10,
+     "adv20_min_periods": 10
+    }
+   },
+   "decision_grid": "v6_1 周频网格（folds.calendar_and_grid / build_asof_grid）；测试 as_of 来自 make_folds(方案 C)",
+   "rebalance_step_weekly_periods": 4,
+   "holding_td": 20,
+   "portfolio": {
+    "top_n": 300,
+    "weighting": "equal（nav_engine：target_weight_each = 1/n）"
+   },
+   "costs": {
+    "commission_bp_each_side": 3.0,
+    "transfer_bp_each_side": 0.2,
+    "stamp_duty_sell": {
+     "before": 0.001,
+     "after": 0.0005,
+     "change_date": "2023-08-28"
+    },
+    "slippage_tiers_bp": {
+     "large_bp": 5.0,
+     "mid_bp": 15.0,
+     "small_bp": 30.0,
+     "q_large": 0.3333333333333333,
+     "q_small": 0.6666666666666666
+    }
+   },
+   "execution": {
+    "engine": "quantmind.execution.nav_engine.ExecutableNavEngine",
+    "delist_writeoff_td": 20,
+    "rules": "T+1 成交；涨停不可买、跌停不可卖、停牌无 bar 不成交；未成交买单到下一再平衡日撤单"
+   },
+   "nav_paired_block_days": 20,
+   "signal": {
+    "model": "Ridge C（α = 10，方案 C 连续样本外）",
+    "historical_predictions": "data/bakeoff/preds_v6_1_t028/ridge_20d_v6_1_BASE.parquet"
+   }
+  },
+  "ens_native_20d": {
+   "horizon": "20d",
+   "universe": {
+    "entry_rule": "PIT 入池：上市满 120 个交易日且未退市（build_daily_base.py）",
+    "pool": "按时点的 adv20 前 1500（NavConfig.universe_size；只用决策日及之前的数据）",
+    "decision_filters": {
+     "min_recent_bar_td": 10,
+     "adv20_min_periods": 10
+    }
+   },
+   "decision_grid": "v6_1 周频网格（folds.calendar_and_grid / build_asof_grid）；测试 as_of 来自 make_folds(方案 C)",
+   "rebalance_step_weekly_periods": 4,
+   "holding_td": 20,
+   "portfolio": {
+    "top_n": 300,
+    "weighting": "equal（nav_engine：target_weight_each = 1/n）"
+   },
+   "costs": {
+    "commission_bp_each_side": 3.0,
+    "transfer_bp_each_side": 0.2,
+    "stamp_duty_sell": {
+     "before": 0.001,
+     "after": 0.0005,
+     "change_date": "2023-08-28"
+    },
+    "slippage_tiers_bp": {
+     "large_bp": 5.0,
+     "mid_bp": 15.0,
+     "small_bp": 30.0,
+     "q_large": 0.3333333333333333,
+     "q_small": 0.6666666666666666
+    }
+   },
+   "execution": {
+    "engine": "quantmind.execution.nav_engine.ExecutableNavEngine",
+    "delist_writeoff_td": 20,
+    "rules": "T+1 成交；涨停不可买、跌停不可卖、停牌无 bar 不成交；未成交买单到下一再平衡日撤单"
+   },
+   "nav_paired_block_days": 20,
+   "signal": {
+    "model": "ENS：四族等权截面排名平均（ensemble.rank_average_frames）",
+    "members": [
+     "xgb",
+     "cat",
+     "tabm",
+     "seqfusion"
+    ],
+    "historical_predictions": "data/gpu_v1/preds/<member>_20d/fold_*.parquet",
+    "forward_bundle": "data/gpu_v1/forward_models/20d_fold18/",
+    "forward_bundle_note": null
+   }
+  },
+  "ridge_native_63d": {
+   "horizon": "63d",
+   "universe": {
+    "entry_rule": "PIT 入池：上市满 120 个交易日且未退市（build_daily_base.py）",
+    "pool": "按时点的 adv20 前 1500（NavConfig.universe_size；只用决策日及之前的数据）",
+    "decision_filters": {
+     "min_recent_bar_td": 10,
+     "adv20_min_periods": 10
+    }
+   },
+   "decision_grid": "v6_1 周频网格（folds.calendar_and_grid / build_asof_grid）；测试 as_of 来自 make_folds(方案 C)",
+   "rebalance_step_weekly_periods": 13,
+   "holding_td": 63,
+   "portfolio": {
+    "top_n": 300,
+    "weighting": "equal（nav_engine：target_weight_each = 1/n）"
+   },
+   "costs": {
+    "commission_bp_each_side": 3.0,
+    "transfer_bp_each_side": 0.2,
+    "stamp_duty_sell": {
+     "before": 0.001,
+     "after": 0.0005,
+     "change_date": "2023-08-28"
+    },
+    "slippage_tiers_bp": {
+     "large_bp": 5.0,
+     "mid_bp": 15.0,
+     "small_bp": 30.0,
+     "q_large": 0.3333333333333333,
+     "q_small": 0.6666666666666666
+    }
+   },
+   "execution": {
+    "engine": "quantmind.execution.nav_engine.ExecutableNavEngine",
+    "delist_writeoff_td": 20,
+    "rules": "T+1 成交；涨停不可买、跌停不可卖、停牌无 bar 不成交；未成交买单到下一再平衡日撤单"
+   },
+   "nav_paired_block_days": 65,
+   "signal": {
+    "model": "Ridge C（α = 10，方案 C 连续样本外）",
+    "historical_predictions": "data/bakeoff/preds_v6_1/ridge_63d_v6_1_C_infnan.parquet"
+   }
+  },
+  "ens_native_63d": {
+   "horizon": "63d",
+   "universe": {
+    "entry_rule": "PIT 入池：上市满 120 个交易日且未退市（build_daily_base.py）",
+    "pool": "按时点的 adv20 前 1500（NavConfig.universe_size；只用决策日及之前的数据）",
+    "decision_filters": {
+     "min_recent_bar_td": 10,
+     "adv20_min_periods": 10
+    }
+   },
+   "decision_grid": "v6_1 周频网格（folds.calendar_and_grid / build_asof_grid）；测试 as_of 来自 make_folds(方案 C)",
+   "rebalance_step_weekly_periods": 13,
+   "holding_td": 63,
+   "portfolio": {
+    "top_n": 300,
+    "weighting": "equal（nav_engine：target_weight_each = 1/n）"
+   },
+   "costs": {
+    "commission_bp_each_side": 3.0,
+    "transfer_bp_each_side": 0.2,
+    "stamp_duty_sell": {
+     "before": 0.001,
+     "after": 0.0005,
+     "change_date": "2023-08-28"
+    },
+    "slippage_tiers_bp": {
+     "large_bp": 5.0,
+     "mid_bp": 15.0,
+     "small_bp": 30.0,
+     "q_large": 0.3333333333333333,
+     "q_small": 0.6666666666666666
+    }
+   },
+   "execution": {
+    "engine": "quantmind.execution.nav_engine.ExecutableNavEngine",
+    "delist_writeoff_td": 20,
+    "rules": "T+1 成交；涨停不可买、跌停不可卖、停牌无 bar 不成交；未成交买单到下一再平衡日撤单"
+   },
+   "nav_paired_block_days": 65,
+   "signal": {
+    "model": "ENS：四族等权截面排名平均（ensemble.rank_average_frames）",
+    "members": [
+     "xgb",
+     "cat",
+     "tabm",
+     "seqfusion"
+    ],
+    "historical_predictions": "data/gpu_v1/preds/<member>_63d/fold_*.parquet",
+    "forward_bundle": null,
+    "forward_bundle_note": "63d 还没有冻结的前瞻模型包，前瞻打分不可用，需要另行登记"
+   }
+  }
+ },
+ "rules": [
+  "参考臂只读本契约；改动任何一项就是挑战臂，必须单独登记",
+  "20 日与 63 日分开比较；不把 ENS 20 日对 Ridge 63 日的差异称为算法增益",
+  "源文件哈希变化时契约失效，需要重新导出并评审"
+ ]
+}

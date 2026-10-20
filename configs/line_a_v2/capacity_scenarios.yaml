@@ -1,0 +1,15 @@
+# 主线 A v2 · 容量情景（用户 2026-10-21 决定：10 万、100 万、1000 万元同时跑）
+# F8 的执行模拟按每个规模分别计算：整数手、最低佣金、参与率上限、无法建仓的股票。
+version: 1
+decided_utc: "2026-10-21"
+scenarios:
+  aum_1e5:  {aum_rmb: 100000}
+  aum_1e6:  {aum_rmb: 1000000}
+  aum_1e7:  {aum_rmb: 10000000}
+execution_assumptions:          # 起点值，P1 的执行模拟按规则版本表核对后冻结
+  lot_rule: see trading_rules.yaml#lot_size
+  min_commission_rmb: 5          # 常见券商最低佣金 [待核实：以用户实际券商为准]
+  max_participation_of_adv20: 0.01   # 单只计划成交额不超过其 20 日均成交额的 1%
+notes:
+  - 原样参考（前 300 只等权）在 10 万元规模下每只约 333 元，大多不足一手，按研究口径记账，同时报告"可执行版本"的偏离
+  - 集中持仓（例如 10–15 只）是单独登记的挑战臂，不是参考臂

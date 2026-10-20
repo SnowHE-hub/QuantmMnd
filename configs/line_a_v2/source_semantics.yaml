@@ -1,0 +1,34 @@
+# 主线 A v2 · 数据来源的时点依据与口径版本
+# availability_basis: observed = 系统记录的首次取得时间；source = 来源提供的发布时间；conservative = 保守推定
+# 只有日期没有时分的数据：同日夜间决策不用，等到下一个截止点再纳入（P7 原则）。
+version: 1
+sources:
+  daily_bars:            # daily / adj_factor / daily_basic / stk_limit / suspend_d
+    availability_basis: {forward: observed, history: conservative}
+    history_rule: "T 日数据视为 T 日 data_cutoff_ts 前可得（收盘后批量发布）；前瞻运行以 first_seen_at 为准"
+  fundamentals:          # income / balancesheet / cashflow / fina_indicator
+    availability_basis: {forward: observed, history: conservative}
+    history_rule: "按 ann_date（只有日期）：公告日当晚不用，下一个截止点起可用；含历史修订，修订版本另存"
+  events_tables:         # forecast / express / repurchase / holdertrade / share_float / pledge_stat / fina_audit / dividend ...
+    availability_basis: {forward: observed, history: conservative}
+    history_rule: "同 fundamentals（按 ann_date 或 end_date）"
+  cninfo_announcements:
+    availability_basis: {forward: observed, history: source}
+    history_rule: "巨潮发布时间精确到分钟：published_at < data_cutoff_ts 才能用"
+  report_rc:
+    availability_basis: {forward: observed, history: conservative}
+    history_rule: "只有 report_date：当日不用，下一个截止点起可用"
+  news_fwd:
+    availability_basis: {forward: observed, history: none}
+    history_rule: "2026-10-17 起才有；没有历史，不得回填"
+semantic_changes:
+  north_bound:
+    fields: [north_money, hgt, sgt, south_money, ggt_ss, ggt_sz]
+    change_points:
+      - {date: "2024-05 中旬", what: "港交所停止发布北向实时买卖成交数据（第一阶段）", source: "HKEX 2024-04-12 公告"}
+      - {date: "2024-08 中旬", what: "北向持股改为按季度披露等（第二阶段）", source: "HKEX 2024-04-12 公告"}
+    status: audit_required
+    note: "本地表 2024 年后仍然非空，字段含义可能已变；口径审计完成前不进入任何新模型或规则"
+  sw_industry:
+    status: implemented
+    note: "申万行业成分按发布日可用（index_member_all，T-022）"
