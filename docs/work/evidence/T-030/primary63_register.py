@@ -18,7 +18,7 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -107,7 +107,7 @@ def main() -> None:
     rows.to_parquet(out_rows, index=False)
     res = {
         "what": "T-030 63d 主比较放行前登记（附件 B.3）：代码与数据冻结核对、可评估行冻结；不含任何 IC",
-        "utc": datetime.now(timezone.utc).isoformat(),
+        "utc": datetime.now(UTC).isoformat(),
         "n1r2_result": {"file": "docs/work/evidence/T-030/p6/n1r2_seeds_63d.json",
                         "sha256": sha(P6 / "n1r2_seeds_63d.json"), "verdict": "N1-R2 补充复核通过"},
         "n2r_result": {"file": "docs/work/evidence/T-030/p6/n2_target_canary_63d.json",
