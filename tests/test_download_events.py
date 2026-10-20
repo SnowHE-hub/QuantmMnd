@@ -54,6 +54,22 @@ def test_truncated_chunk_is_refetched_when_end_extends(tmp_path):
     assert ck["chunks"]["202610"]["params"]["end_date"] == "20261020"
 
 
+def test_force_keys_refetch_terminal_chunks(tmp_path):
+    spec = de.Spec("period", "end_date")
+    td = pd.DatetimeIndex([])
+    calls = []
+
+    def call(api, **kw):
+        calls.append(kw["end_date"])
+        return _rows(2, day=kw["end_date"])
+    ch = de.chunks_for("x", spec, "2026-01-01", "2026-12-31", td)
+    de.run_api("x", spec, ch, tmp_path, call, sleep=NOSLEEP, log=lambda m: None)
+    assert len(calls) == 4
+    de.run_api("x", spec, ch, tmp_path, call, sleep=NOSLEEP, log=lambda m: None,
+               force_keys=frozenset(k for k, _ in ch[-2:]))           # 迟到与修订队列：最近两个报告期
+    assert calls[4:] == ["20260930", "20261231"]
+
+
 def test_week_fri_and_ticker_modes(tmp_path):
     td = pd.DatetimeIndex(pd.to_datetime(["2026-10-09"]))
     f = de.chunks_for("pledge_stat", de.SPECS["pledge_stat"], "2026-10-01", "2026-10-19", td)

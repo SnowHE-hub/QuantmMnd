@@ -262,15 +262,17 @@ def save_ckpt(path: Path, ck: dict) -> None:
 
 def run_api(api: str, spec: Spec, chunks: list[tuple[str, dict]], events_dir: Path, call,
             is_trade_day=lambda k: True, sleep=time.sleep, retries: int = 3,
-            log=print, max_pages: int = MAX_PAGES) -> dict:
+            log=print, max_pages: int = MAX_PAGES, force_keys: set[str] | frozenset = frozenset()) -> dict:
     parts = events_dir / "_parts" / api
     parts.mkdir(parents=True, exist_ok=True)
     ck_path = events_dir / "_checkpoints" / f"{api}.json"
     ck = load_ckpt(ck_path)
     # 分块已是终态但查询参数变了（例如当月分块上次只取到月中，这次 --end 延后），也要重取：
-    # 否则"当月 / 当季 / 最后一个窗口"这类被 --end 截断的分块，在延长截止日后永远停在旧的截止日（T-035 发现）
+    # 否则"当月 / 当季 / 最后一个窗口"这类被 --end 截断的分块，在延长截止日后永远停在旧的截止日（T-035 发现）。
+    # force_keys：迟到与修订队列（--refresh-recent），不论状态都重取
     todo = [(k, p) for k, p in chunks
-            if ck["chunks"].get(k, {}).get("state") not in TERMINAL_OK or ck["chunks"].get(k, {}).get("params", p) != p]
+            if k in force_keys or ck["chunks"].get(k, {}).get("state") not in TERMINAL_OK
+            or ck["chunks"].get(k, {}).get("params", p) != p]
     log(f"[{api}] chunks={len(chunks)} todo={len(todo)}")
     t0 = time.time()
     for i, (key, params) in enumerate(todo, 1):
@@ -414,6 +416,8 @@ def main(argv=None) -> int:
     ap.add_argument("--rolling-hours", type=float, default=24.0)
     ap.add_argument("--rolling-max-wait-min", type=float, default=40.0,
                     help="窗口已满时最多等多少分钟让最早的调用过期，超过就停（退出码 3）")
+    ap.add_argument("--refresh-recent", type=int, default=0,
+                    help="迟到与修订队列：最近 N 个分块不论状态都重取（例如 disclosure_date 的最近两个报告期）；0 = 不启用")
     a = ap.parse_args(argv)
     root = Path(a.data_root)
     events = root / "data/lake/events"
@@ -483,7 +487,9 @@ def _run_all(a, apis, events, trade_days, trade_set, call) -> int:
         if a.plan:
             print(f"{api:18s} mode={spec.mode:11s} chunks={len(chunks)}")
             continue
-        states = run_api(api, spec, chunks, events, call, is_trade_day=lambda k: k[:8] in trade_set)
+        recent = getattr(a, "refresh_recent", 0) or 0
+        force = frozenset(k for k, _ in chunks[-recent:]) if recent and spec.mode != "ticker" else frozenset()
+        states = run_api(api, spec, chunks, events, call, is_trade_day=lambda k: k[:8] in trade_set, force_keys=force)
         if states.get(FAILED) or states.get(TRUNCATED):
             rc = 2
         sys.stdout.flush()
