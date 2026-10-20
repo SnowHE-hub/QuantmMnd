@@ -34,6 +34,23 @@ def test_chunks_modes():
     assert [k for k, _ in q] == ["20250331", "20250630", "20250930", "20251231"]
 
 
+def test_week_fri_and_ticker_modes(tmp_path):
+    td = pd.DatetimeIndex(pd.to_datetime(["2026-10-09"]))
+    f = de.chunks_for("pledge_stat", de.SPECS["pledge_stat"], "2026-10-01", "2026-10-19", td)
+    assert f == [("20261002", {"end_date": "20261002"}), ("20261009", {"end_date": "20261009"}),
+                 ("20261016", {"end_date": "20261016"})]
+    t = de.chunks_for("fina_audit", de.SPECS["fina_audit"], "2019-01-01", "2026-10-19", td,
+                      tickers=["000001.SZ", "600000.SH"])
+    assert t == [("000001.SZ", {"ts_code": "000001.SZ"}), ("600000.SH", {"ts_code": "600000.SH"})]
+    lake = tmp_path / "lake"
+    lake.mkdir()
+    pd.DataFrame({"ts_code": ["600000.SH", "000001.SZ"]}).to_parquet(lake / "stock_basic_full_20261009.parquet")
+    pd.DataFrame({"ts_code": ["000002.SZ", "000001.SZ", "000002.SZ"]}).to_parquet(
+        lake / "stock_basic_full_20261019.parquet")
+    pd.DataFrame({"ts_code": ["999999.SZ"]}).to_parquet(lake / "stock_basic_full_merged_20261009.parquet")
+    assert de._universe_tickers(lake) == ["000001.SZ", "000002.SZ"]   # newest dated file, unique, not the merged one
+
+
 def test_pagination_with_offset():
     data = _rows(250)
 

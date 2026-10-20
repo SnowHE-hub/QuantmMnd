@@ -77,6 +77,11 @@ SPECS: dict[str, Spec] = {
     # 实测限额（2000 积分）：每分钟 1 次、每天 10 次（报错"频率超限(10次/天)"）；单次上限 5,000 行
     # （2026-09 约 22 天到上限）→ 15 天窗口留出余量、间隔 65 秒；每天由定时任务带 --max-calls 10 慢慢补（T-031）
     "report_rc": Spec("window", "report_date", min_interval=65.0, window_days=15),
+    # 治理与审计（T-035，2026-10-21 实测 2000 积分可访问）：
+    # pledge_stat 按周统计日（周五）横截面查询；fina_audit、dividend 只能按股票查询（全历史，一只一个分块）
+    "pledge_stat": Spec("week_fri", "end_date"),
+    "fina_audit": Spec("ticker", "ann_date"),
+    "dividend": Spec("ticker", "ann_date"),
 }
 
 
@@ -139,7 +144,7 @@ def ymd(d) -> str:
 
 
 def chunks_for(api: str, spec: Spec, start: str, end: str, trade_days: pd.DatetimeIndex,
-               sw_l1: list[str] | None = None) -> list[tuple[str, dict]]:
+               sw_l1: list[str] | None = None, tickers: list[str] | None = None) -> list[tuple[str, dict]]:
     """返回 [(chunk_key, params)]，chunk_key 可作文件名。"""
     s, e = pd.Timestamp(start), pd.Timestamp(end)
     out: list[tuple[str, dict]] = []
@@ -172,6 +177,12 @@ def chunks_for(api: str, spec: Spec, start: str, end: str, trade_days: pd.Dateti
         for code in sw_l1 or []:
             for is_new in ("Y", "N"):
                 out.append((f"{code}_{is_new}", {"l1_code": code, "is_new": is_new}))
+    elif spec.mode == "week_fri":
+        for d in pd.date_range(s, e, freq="W-FRI"):
+            out.append((ymd(d), {"end_date": ymd(d)}))
+    elif spec.mode == "ticker":
+        for t in tickers or []:
+            out.append((t, {"ts_code": t}))
     else:
         raise ValueError(f"unknown mode {spec.mode}")
     return out
@@ -428,11 +439,22 @@ def main(argv=None) -> int:
         return 3
 
 
+def _universe_tickers(lake: Path) -> list[str]:
+    """按股票查询的接口所用的股票集合：最新的 stock_basic_full_<日期>.parquet（含在市、退市、暂停上市）。"""
+    files = sorted(lake.glob("stock_basic_full_2*.parquet"))
+    if not files:
+        raise FileNotFoundError(f"no stock_basic_full_<date>.parquet in {lake}")
+    return sorted(pd.read_parquet(files[-1], columns=["ts_code"])["ts_code"].astype(str).unique())
+
+
 def _run_all(a, apis, events, trade_days, trade_set, call) -> int:
     sw = None
+    tickers = None
     rc = 0
     for api in apis:
         spec = SPECS[api]
+        if spec.mode == "ticker" and tickers is None and not a.compact:
+            tickers = _universe_tickers(events.parent)
         if a.compact:
             man = compact(api, events, a.end, spec)
             print(json.dumps({k: man[k] for k in ("api", "rows", "date_min", "date_max", "chunk_states")}, ensure_ascii=False))
@@ -454,7 +476,7 @@ def _run_all(a, apis, events, trade_days, trade_set, call) -> int:
                     raise RuntimeError("index_classify failed 5 times")
                 sw = sorted(cls["index_code"].astype(str))
         start = a.start if spec.mode != "trade_day" else max(a.start, "2019-01-01")
-        chunks = chunks_for(api, spec, start, a.end, trade_days, sw)
+        chunks = chunks_for(api, spec, start, a.end, trade_days, sw, tickers)
         if a.plan:
             print(f"{api:18s} mode={spec.mode:11s} chunks={len(chunks)}")
             continue
