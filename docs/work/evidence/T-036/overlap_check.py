@@ -76,7 +76,8 @@ def compare(fz: pd.DataFrame, sh: pd.DataFrame, *, label_cols=(), explain=None) 
         n_m, n_u = int(mism.sum()), int(unexpl.sum())
         unexplained_total += n_u
         if n_m:
-            ex = [list(map(str, idx[i])) for i in np.flatnonzero(unexpl)[:5]]
+            ex = [list(map(str, k)) if isinstance(k, tuple) else [str(k)]
+                  for k in (idx[i] for i in np.flatnonzero(unexpl)[:5])]
             res["columns"][c] = {"mismatch": n_m, "explained": n_m - n_u, "unexplained": n_u, "examples": ex}
     res["unexplained_total"] = unexplained_total
     res["pass"] = (unexplained_total == 0 and res["rows_missing_in_shadow"] == 0 and res["rows_extra_in_shadow"] == 0

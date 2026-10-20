@@ -227,16 +227,21 @@ def target_tickers(tp, lake_dir: Path, since: str, tag: str) -> tuple[list[str],
 
 
 def run(tp, lake_dir: Path, *, since: str, end: str, tag: str, workers: int = 1, flush_every: int = 200,
-        empty_retries: int = 2, retry_wait: float = 120.0, max_tickers: int = 0) -> int:
-    tickers, sb = target_tickers(tp, lake_dir, since, tag)
+        empty_retries: int = 2, retry_wait: float = 120.0, max_tickers: int = 0,
+        tickers: list[str] | None = None, ck_tag: str | None = None) -> int:
+    """tickers 给定时（三队列模式）只拉这些股票，股票信息取最新的 stock_basic_full_<日期>；检查点用 ck_tag 命名。"""
+    if tickers is None:
+        tickers, sb = target_tickers(tp, lake_dir, since, tag)
+    else:
+        sb = pd.read_parquet(sorted(lake_dir.glob("stock_basic_full_2*.parquet"))[-1])
     if max_tickers:
         tickers = tickers[:max_tickers]
     sb_info = sb.drop_duplicates("ts_code").set_index("ts_code")
     sb_info = sb_info[[c for c in ("list_status", "list_date", "delist_date") if c in sb_info.columns]]
     ck_dir = lake_dir / "_checkpoints"
     ck_dir.mkdir(parents=True, exist_ok=True)
-    ck_path = ck_dir / f"fundamentals_update_{tag}.v2.json"
-    ck = load_checkpoint(ck_path, ck_dir / f"fundamentals_update_{tag}.json")
+    ck_path = ck_dir / f"fundamentals_update_{ck_tag or tag}.v2.json"
+    ck = load_checkpoint(ck_path, ck_dir / f"fundamentals_update_{ck_tag or tag}.json")
     ck.update({"since": since, "end": end, "target": len(tickers), "empty_retries": empty_retries})
     backup_dir = lake_dir / f"_backup_{datetime.now():%Y%m%d}"
     buf: dict[str, list[pd.DataFrame]] = {t: [] for t, _ in SPEC.values()}
@@ -329,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--empty-retries", type=int, default=2, help="空返回第几次才认定 no_data / partial")
     ap.add_argument("--retry-wait", type=float, default=120.0)
     ap.add_argument("--max-tickers", type=int, default=0, help="只处理前 N 只（试跑）")
+    ap.add_argument("--queues-since", help="三队列模式：触发事件窗口的起点（不含），窗口终点 = --end")
+    ap.add_argument("--recon-buckets", type=int, default=20)
     ap.add_argument("--repair-from-backup", type=Path)
     ap.add_argument("--plan", action="store_true")
     a = ap.parse_args(argv)
@@ -352,8 +359,33 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BLE001
         pass
     tp._MIN_INTERVAL = max(tp._MIN_INTERVAL, a.rate_interval)
+    if a.queues_since:
+        return run_queues(tp, lake_dir, a, end, tag)
     return run(tp, lake_dir, since=since, end=end, tag=tag, workers=a.workers, flush_every=a.flush_every,
                empty_retries=a.empty_retries, retry_wait=a.retry_wait, max_tickers=a.max_tickers)
+
+
+def run_queues(tp, lake_dir: Path, a, end: str, tag: str) -> int:
+    """三队列模式（quantmind.line_a.fin_queue）：按触发事件和轮换对账决定拉哪些股票，每个起点一组，各自一个检查点。"""
+    from quantmind.line_a.fin_queue import build_queues
+    sb = pd.read_parquet(sorted(lake_dir.glob("stock_basic_full_2*.parquet"))[-1])
+    lo = pd.Timestamp(a.queues_since).strftime("%Y%m%d")
+    alive = sb["list_status"].isin(["L", "P"]) | (sb["delist_date"].fillna("").astype(str) >= lo)
+    universe = sorted(sb.loc[alive, "ts_code"].astype(str).unique())
+    cal = pd.to_datetime(pd.read_parquet(lake_dir / "trade_cal_sse.parquet")["cal_date"].astype(str))
+    run_index = int((cal <= pd.Timestamp(end)).sum())
+    q = build_queues(lake_dir, lo, end, universe, run_index=run_index, buckets=a.recon_buckets)
+    qpath = lake_dir / "_checkpoints" / f"fin_queue_{lo}_{end}.parquet"
+    q.to_parquet(qpath, index=False)
+    by_q = q["queues"].str.split(",").explode().value_counts().to_dict() if len(q) else {}
+    print(f"[queues] 窗口 ({lo}, {end}]：{len(q)} 只；按队列 {by_q}；清单 {qpath}", flush=True)
+    rc = 0
+    for fs, g in q.groupby("fetch_since"):
+        r = run(tp, lake_dir, since=fs, end=end, tag=tag, workers=a.workers, flush_every=a.flush_every,
+                empty_retries=a.empty_retries, retry_wait=a.retry_wait, tickers=sorted(g["ts_code"]),
+                ck_tag=f"q_{lo}_{end}_{fs}")
+        rc = rc or r
+    return rc
 
 
 if __name__ == "__main__":

@@ -296,3 +296,33 @@ def test_md_table_formats():
     from quantmind.line_a.pipeline import _md_table
     t = _md_table(pd.DataFrame({"a": [1.23456, None], "b": ["x", "y"]}))
     assert t.splitlines()[0] == "| a | b |" and "1.235" in t and "|  | y |" in t
+
+
+# ------------------------------------------------------------------ 财报三队列
+def test_fin_queues(tmp_path):
+    import pandas as pd
+
+    from quantmind.line_a.fin_queue import _bucket, build_queues
+    ev = tmp_path / "events"
+    ev.mkdir()
+    (tmp_path / "text/cninfo/_parts").mkdir(parents=True)
+    pd.DataFrame({"ts_code": ["600000.SH", "000001.SZ"], "actual_date": ["20261015", "20260830"]}) \
+        .to_parquet(ev / "disclosure_date_20261020.parquet")
+    pd.DataFrame({"ts_code": ["300001.SZ"], "ann_date": ["20261012"]}).to_parquet(ev / "forecast_20261020.parquet")
+    pd.DataFrame({"secCode": ["600519", "000002", "600036"], "plate": ["sse", "szse", "sse"],
+                  "announcementTitle": ["2026年第三季度报告", "关于2025年年度报告的更正公告", "关于举办2026年半年度报告业绩说明会的公告"]}) \
+        .to_parquet(tmp_path / "text/cninfo/_parts/20261016.parquet")
+    uni = ["600000.SH", "000001.SZ", "300001.SZ", "600519.SH", "000002.SZ", "600036.SH"]
+    q = build_queues(tmp_path, "20261009", "20261020", uni, run_index=7, buckets=1000).set_index("ts_code")
+    assert q.loc["600000.SH", "reasons"] == "disclosure_date.actual_date" and q.loc["600000.SH", "fetch_since"] == "20261009"
+    assert "forecast.ann_date" in q.loc["300001.SZ", "reasons"]
+    assert q.loc["600519.SH", "reasons"] == "cninfo.periodic_report"
+    assert q.loc["000002.SZ", "queues"] == "late_revision" and q.loc["000002.SZ", "fetch_since"] < "20260101"
+    assert "600036.SH" not in q.index or "cninfo" not in q.loc["600036.SH", "reasons"]      # 说明会不触发
+    assert "000001.SZ" not in q.index or "disclosure" not in q.loc["000001.SZ", "reasons"]  # 窗口外
+    # 轮换对账：每只股票只落在一个桶；截止日次日落在窗口内 → 全市场
+    k = {t: _bucket(t, 3) for t in uni}
+    q2 = build_queues(tmp_path, "20261009", "20261020", uni, run_index=k["600036.SH"], buckets=3)
+    assert "600036.SH" in set(q2["ts_code"])
+    q3 = build_queues(tmp_path, "20261030", "20261102", uni, run_index=0, buckets=1000)
+    assert set(q3["ts_code"]) == set(uni) and q3["reasons"].str.contains("statutory_deadline_sweep").all()
