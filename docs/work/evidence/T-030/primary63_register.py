@@ -90,7 +90,7 @@ def main() -> None:
     meta["as_of"] = pd.to_datetime(meta["as_of"])
     meta = meta[meta["as_of"].isin(set(test))].set_index(["as_of", "ticker"])
     pool = meta[meta["top1500"]]
-    ridge = pd.read_parquet(root / ep.BASE["63d"])
+    ridge = pd.read_parquet(root / "data" / ep.BASE["63d"])
     ridge["as_of"] = pd.to_datetime(ridge["as_of"])
     cols = {"ridge": ridge.set_index(["as_of", "ticker"])["score"].reindex(pool.index)}
     for m in ep.ENS_MEMBERS:
