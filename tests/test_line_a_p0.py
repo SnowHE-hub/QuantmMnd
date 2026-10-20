@@ -185,3 +185,39 @@ def test_catchup_heartbeat_and_missed_days(tmp_path):
     days = [date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)]
     assert missed_trading_days(days, last, date(2026, 10, 20)) == [date(2026, 10, 19), date(2026, 10, 20)]
     assert missed_trading_days(days, None, date(2026, 10, 18)) == []
+
+
+# ------------------------------------------------------------------ F1 证券身份与交易状态
+def test_f1_instrument_state_classes(tmp_path):
+    import pandas as pd
+
+    from quantmind.line_a.f1_instruments import instrument_state
+    lake = tmp_path / "data/lake"
+    (lake / "events").mkdir(parents=True)
+    days = pd.bdate_range("2026-01-01", "2026-10-20")
+    pd.DataFrame({"cal_date": days.strftime("%Y%m%d")}).to_parquet(lake / "trade_cal_sse.parquet")
+    pd.DataFrame({"ts_code": ["600000.SH", "300001.SZ", "688001.SH", "000002.SZ", "600999.SH"],
+                  "list_date": ["20100101", "20100101", "20260901", "20100101", "20100101"],
+                  "delist_date": [None, None, None, None, "20260101"],
+                  "name": ["浦发银行", "特锐德", "新股", "万科A", "已退市"]}).to_parquet(
+        lake / "stock_basic_full_merged_20261020.parquet")
+    pd.DataFrame({"ts_code": ["000002.SZ", "300001.SZ"], "name": ["*ST万科", "特锐德"],
+                  "start_date": ["20260601", "20100101"], "end_date": [None, None]}).to_parquet(
+        lake / "events/namechange_20261020.parquet")
+    pd.DataFrame({"ts_code": ["300001.SZ"], "trade_date": ["20261020"], "suspend_type": ["S"]}).to_parquet(
+        lake / "events/suspend_d_20261020.parquet")
+    d = pd.Timestamp("2026-10-20")
+    pd.DataFrame({"ts_code": ["600000.SH", "688001.SH", "000002.SZ"], "trade_date": [d] * 3,
+                  "close": [11.0, 30.0, 1.5], "high": [11.0, 31.0, 1.6], "low": [11.0, 29.0, 1.4],
+                  "pre_close": [10.0, 30.0, 1.5]}).to_parquet(lake / "daily.parquet")
+    pd.DataFrame({"trade_date": ["20261020"] * 3, "ts_code": ["600000.SH", "688001.SH", "000002.SZ"],
+                  "up_limit": [11.0, 36.0, 1.58], "down_limit": [9.0, 24.0, 1.43]}).to_parquet(
+        lake / "events/stk_limit_20261020.parquet")
+    prof = {"all": {"MAIN": True, "CHINEXT": True, "STAR": True, "BSE": True}, "main": {"MAIN": True}}
+    st = instrument_state(tmp_path, "2026-10-20", prof, holdings={"600999.SH"})
+    assert set(st.index) == {"600000.SH", "300001.SZ", "688001.SH", "000002.SZ", "600999.SH"}   # 已退市的持仓仍保留
+    assert st.loc["600000.SH", "one_line_up"] and st.loc["600000.SH", "buy_execution_risk"]
+    assert st.loc["300001.SZ", "suspended"] and st.loc["300001.SZ", "sell_execution_risk"]
+    assert st.loc["000002.SZ", "is_st"] and st.loc["000002.SZ", "c_low_price"]
+    assert st.loc["688001.SH", "c_listed_lt_min"] and not st.loc["688001.SH", "new_buy_main"]
+    assert st.loc["688001.SH", "new_buy_all"] and st.loc["600000.SH", "new_buy_main"]
