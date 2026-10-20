@@ -1,0 +1,15 @@
+# late_rows.py 输出（2026-10-21 运行，控制台抄录；事件表比较窗口 [20260601, 20261009]）
+prices extra rows in [0601,1009]: 0
+income added rows ann<=1009: 13 tickers 7 ['001399.SZ', '002231.SZ', '301563.SZ', '301569.SZ', '301638.SZ', '301660.SZ', '688783.SH'] ann 20260331 20260917
+balancesheet added rows ann<=1009: 6 tickers 2 ['301569.SZ', '301660.SZ'] ann 20260331 20260917
+cashflow added rows ann<=1009: 10 tickers 6 ['000004.SZ', '300344.SZ', '301569.SZ', '301660.SZ', '600355.SH', '603056.SH'] ann 20260331 20260917
+fina_indicator_full added rows ann<=1009: 2 tickers 2 ['301569.SZ', '301660.SZ'] ann 20260915 20260917
+stk_holdertrade: rows[0601,1009] frozen 3475 new 3698; added 295 tickers 143 ann_date 20261001..20261009; frozen rows not in new 72
+   by date: {'20261001': 28, '20261008': 122, '20261009': 145}
+repurchase: added 0; frozen rows not in new 0
+block_trade: added 0; frozen rows not in new 0
+stk_holdernumber: added 1 (ann_date 20261008); frozen rows not in new 0
+share_float: added 0; frozen rows not in new 0
+express: added 0; forecast: added 0
+disclosure_date: rows[0601,1009] frozen 11138 new 11030; added 133 tickers 133 ann_date 20260924..20261009; frozen rows not in new 241
+top_list: added 0; top_inst: added 0; suspend_d: added 0; stk_limit: added 0; namechange: added 0

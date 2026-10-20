@@ -1,0 +1,9 @@
+# cf_fnd.py 输出（2026-10-21 运行，控制台抄录）
+frozen_inputs 2026-09-01 rows ref 5842 recomputed 5842 only_ref 0 only_recomp 0 cells_diff 0
+frozen_inputs 2026-09-15 rows ref 5846 recomputed 5846 only_ref 0 only_recomp 0 cells_diff 0
+frozen_inputs 2026-09-30 rows ref 5851 recomputed 5851 only_ref 0 only_recomp 0 cells_diff 0
+frozen_inputs 2026-10-09 rows ref 5852 recomputed 5852 only_ref 0 only_recomp 0 cells_diff 0
+current_inputs 2026-09-01 rows ref 5844 recomputed 5844 only_ref 0 only_recomp 0 cells_diff 0
+current_inputs 2026-09-15 rows ref 5848 recomputed 5848 only_ref 0 only_recomp 0 cells_diff 0
+current_inputs 2026-09-30 rows ref 5853 recomputed 5853 only_ref 0 only_recomp 0 cells_diff 0
+current_inputs 2026-10-09 rows ref 5854 recomputed 5854 only_ref 0 only_recomp 0 cells_diff 0

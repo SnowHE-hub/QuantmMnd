@@ -1,0 +1,2 @@
+sector rows changed 2340 in (as_of, sw_l1) groups with a fnd change 2340 unexplained 0
+changed sector columns: {'ind_dm_roe_ttm': 1144, 'ind_dm_operating_profit_yoy': 1339}

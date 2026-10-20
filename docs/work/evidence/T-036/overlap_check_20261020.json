@@ -1,0 +1,1520 @@
+{
+ "window": [
+  "2026-09-01",
+  "2026-10-09"
+ ],
+ "late_fundamental_tickers": 11,
+ "groups": {
+  "base": {
+   "rows_frozen": 119031,
+   "rows_shadow": 119031,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 0,
+   "columns_equal": true,
+   "columns": {
+    "forward_return_12d": {
+     "mismatch": 36124,
+     "explained": 36124,
+     "unexplained": 0,
+     "examples": []
+    },
+    "forward_return_20d": {
+     "mismatch": 36099,
+     "explained": 36099,
+     "unexplained": 0,
+     "examples": []
+    },
+    "forward_return_21d": {
+     "mismatch": 36100,
+     "explained": 36100,
+     "unexplained": 0,
+     "examples": []
+    }
+   },
+   "unexplained_total": 0,
+   "pass": true
+  },
+  "fnd": {
+   "rows_frozen": 134481,
+   "rows_shadow": 134527,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 46,
+   "columns_equal": true,
+   "columns": {
+    "roe_ttm": {
+     "mismatch": 1404,
+     "explained": 0,
+     "unexplained": 1404,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000042.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000405.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000488.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000506.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000526.SZ"
+      ]
+     ]
+    },
+    "roa_ttm": {
+     "mismatch": 1430,
+     "explained": 13,
+     "unexplained": 1417,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000033.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000056.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000150.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000405.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000408.SZ"
+      ]
+     ]
+    },
+    "gross_margin": {
+     "mismatch": 1404,
+     "explained": 13,
+     "unexplained": 1391,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000033.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000503.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000536.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000540.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000556.SZ"
+      ]
+     ]
+    },
+    "net_margin": {
+     "mismatch": 1430,
+     "explained": 0,
+     "unexplained": 1430,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000046.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000088.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000408.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000416.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000430.SZ"
+      ]
+     ]
+    },
+    "debt_to_assets": {
+     "mismatch": 1456,
+     "explained": 0,
+     "unexplained": 1456,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000018.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000046.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000047.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000056.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000150.SZ"
+      ]
+     ]
+    },
+    "current_ratio": {
+     "mismatch": 1430,
+     "explained": 0,
+     "unexplained": 1430,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000018.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000047.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000056.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000150.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000416.SZ"
+      ]
+     ]
+    },
+    "asset_turnover": {
+     "mismatch": 1430,
+     "explained": 13,
+     "unexplained": 1417,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000034.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000405.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000535.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000556.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000587.SZ"
+      ]
+     ]
+    },
+    "equity_multiplier": {
+     "mismatch": 1404,
+     "explained": 0,
+     "unexplained": 1404,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000416.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000488.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000556.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000679.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000787.SZ"
+      ]
+     ]
+    },
+    "revenue_yoy": {
+     "mismatch": 1430,
+     "explained": 26,
+     "unexplained": 1404,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000488.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000502.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000504.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000511.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000556.SZ"
+      ]
+     ]
+    },
+    "operating_profit_yoy": {
+     "mismatch": 1430,
+     "explained": 0,
+     "unexplained": 1430,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000049.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000301.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000401.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000509.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000517.SZ"
+      ]
+     ]
+    },
+    "net_profit_yoy": {
+     "mismatch": 1430,
+     "explained": 0,
+     "unexplained": 1430,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000520.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000539.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000585.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000660.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000703.SZ"
+      ]
+     ]
+    },
+    "accruals": {
+     "mismatch": 2530,
+     "explained": 69,
+     "unexplained": 2461,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000007.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000056.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000150.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000405.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000511.SZ"
+      ]
+     ]
+    },
+    "ocf_to_revenue_ttm": {
+     "mismatch": 1320,
+     "explained": 0,
+     "unexplained": 1320,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000001.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000416.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000502.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000535.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000588.SZ"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 19394,
+   "pass": false
+  },
+  "sh": {
+   "rows_frozen": 133699,
+   "rows_shadow": 133791,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 92,
+   "columns_equal": true,
+   "columns": {
+    "sh_resid_rev_10": {
+     "mismatch": 116256,
+     "explained": 0,
+     "unexplained": 116256,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000001.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000002.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000006.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000007.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000008.SZ"
+      ]
+     ]
+    },
+    "sh_resid_vol_10": {
+     "mismatch": 117204,
+     "explained": 0,
+     "unexplained": 117204,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000001.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000002.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000006.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000007.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000008.SZ"
+      ]
+     ]
+    },
+    "sh_rskew_21": {
+     "mismatch": 117280,
+     "explained": 0,
+     "unexplained": 117280,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000001.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000002.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000006.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000007.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000008.SZ"
+      ]
+     ]
+    },
+    "sh_rkurt_21": {
+     "mismatch": 116011,
+     "explained": 0,
+     "unexplained": 116011,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000001.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000002.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000006.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000007.SZ"
+      ],
+      [
+       "2026-09-01 00:00:00",
+       "000008.SZ"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 466751,
+   "pass": false
+  },
+  "sector": {
+   "rows_frozen": 119031,
+   "rows_shadow": 119031,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 0,
+   "columns_equal": true,
+   "columns": {
+    "ind_dm_roe_ttm": {
+     "mismatch": 1144,
+     "explained": 247,
+     "unexplained": 897,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000042.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000488.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000506.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000526.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000571.SZ"
+      ]
+     ]
+    },
+    "ind_dm_operating_profit_yoy": {
+     "mismatch": 1339,
+     "explained": 442,
+     "unexplained": 897,
+     "examples": [
+      [
+       "2026-09-15 00:00:00",
+       "000049.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000301.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000401.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000517.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000520.SZ"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 1794,
+   "pass": false
+  },
+  "event": {
+   "rows_frozen": 119031,
+   "rows_shadow": 119031,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 0,
+   "columns_equal": true,
+   "columns": {
+    "insider_net_ratio_90d": {
+     "mismatch": 160,
+     "explained": 0,
+     "unexplained": 160,
+     "examples": [
+      [
+       "2026-10-08 00:00:00",
+       "000700.SZ"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "001226.SZ"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "001296.SZ"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "001336.SZ"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "001356.SZ"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 160,
+   "pass": false
+  },
+  "a158": {
+   "rows_frozen": 127842,
+   "rows_shadow": 127875,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 33,
+   "columns_equal": true,
+   "columns": {
+    "a158_STD5": {
+     "mismatch": 3,
+     "explained": 0,
+     "unexplained": 3,
+     "examples": [
+      [
+       "2026-09-10 00:00:00",
+       "300861.SZ"
+      ],
+      [
+       "2026-09-17 00:00:00",
+       "001914.SZ"
+      ],
+      [
+       "2026-09-17 00:00:00",
+       "920029.BJ"
+      ]
+     ]
+    },
+    "a158_STD10": {
+     "mismatch": 7,
+     "explained": 0,
+     "unexplained": 7,
+     "examples": [
+      [
+       "2026-09-07 00:00:00",
+       "300070.SZ"
+      ],
+      [
+       "2026-09-08 00:00:00",
+       "600101.SH"
+      ],
+      [
+       "2026-09-09 00:00:00",
+       "300702.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "300271.SZ"
+      ],
+      [
+       "2026-09-23 00:00:00",
+       "002038.SZ"
+      ]
+     ]
+    },
+    "a158_STD20": {
+     "mismatch": 2,
+     "explained": 0,
+     "unexplained": 2,
+     "examples": [
+      [
+       "2026-09-09 00:00:00",
+       "002533.SZ"
+      ],
+      [
+       "2026-09-21 00:00:00",
+       "603557.SH"
+      ]
+     ]
+    },
+    "a158_STD30": {
+     "mismatch": 5,
+     "explained": 0,
+     "unexplained": 5,
+     "examples": [
+      [
+       "2026-09-08 00:00:00",
+       "603189.SH"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000516.SZ"
+      ],
+      [
+       "2026-09-15 00:00:00",
+       "000733.SZ"
+      ],
+      [
+       "2026-09-23 00:00:00",
+       "600340.SH"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "300233.SZ"
+      ]
+     ]
+    },
+    "a158_RSQR20": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-16 00:00:00",
+       "600518.SH"
+      ]
+     ]
+    },
+    "a158_RSQR30": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-04 00:00:00",
+       "600218.SH"
+      ]
+     ]
+    },
+    "a158_CORR10": {
+     "mismatch": 11,
+     "explained": 0,
+     "unexplained": 11,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000605.SZ"
+      ],
+      [
+       "2026-09-02 00:00:00",
+       "601818.SH"
+      ],
+      [
+       "2026-09-03 00:00:00",
+       "688066.SH"
+      ],
+      [
+       "2026-09-07 00:00:00",
+       "600867.SH"
+      ],
+      [
+       "2026-09-10 00:00:00",
+       "603060.SH"
+      ]
+     ]
+    },
+    "a158_CORR20": {
+     "mismatch": 3,
+     "explained": 0,
+     "unexplained": 3,
+     "examples": [
+      [
+       "2026-09-04 00:00:00",
+       "600529.SH"
+      ],
+      [
+       "2026-09-24 00:00:00",
+       "002024.SZ"
+      ],
+      [
+       "2026-10-09 00:00:00",
+       "600071.SH"
+      ]
+     ]
+    },
+    "a158_CORR30": {
+     "mismatch": 4,
+     "explained": 0,
+     "unexplained": 4,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "600763.SH"
+      ],
+      [
+       "2026-09-10 00:00:00",
+       "300118.SZ"
+      ],
+      [
+       "2026-09-22 00:00:00",
+       "002826.SZ"
+      ],
+      [
+       "2026-09-28 00:00:00",
+       "301296.SZ"
+      ]
+     ]
+    },
+    "a158_CORR60": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-02 00:00:00",
+       "605199.SH"
+      ]
+     ]
+    },
+    "a158_CORD5": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-17 00:00:00",
+       "605058.SH"
+      ]
+     ]
+    },
+    "a158_CORD60": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-04 00:00:00",
+       "301586.SZ"
+      ]
+     ]
+    },
+    "a158_VSTD10": {
+     "mismatch": 1,
+     "explained": 0,
+     "unexplained": 1,
+     "examples": [
+      [
+       "2026-09-08 00:00:00",
+       "688529.SH"
+      ]
+     ]
+    },
+    "a158_WVMA5": {
+     "mismatch": 3,
+     "explained": 0,
+     "unexplained": 3,
+     "examples": [
+      [
+       "2026-09-24 00:00:00",
+       "300211.SZ"
+      ],
+      [
+       "2026-09-28 00:00:00",
+       "000755.SZ"
+      ],
+      [
+       "2026-10-08 00:00:00",
+       "920541.BJ"
+      ]
+     ]
+    },
+    "a158_WVMA10": {
+     "mismatch": 5,
+     "explained": 0,
+     "unexplained": 5,
+     "examples": [
+      [
+       "2026-09-01 00:00:00",
+       "000591.SZ"
+      ],
+      [
+       "2026-09-08 00:00:00",
+       "301199.SZ"
+      ],
+      [
+       "2026-09-14 00:00:00",
+       "002065.SZ"
+      ],
+      [
+       "2026-09-28 00:00:00",
+       "002441.SZ"
+      ],
+      [
+       "2026-09-29 00:00:00",
+       "920689.BJ"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 49,
+   "pass": false
+  },
+  "seq": {
+   "days": 23,
+   "tickers": 5813,
+   "mismatch_cells": 0,
+   "mismatch_by_channel": {},
+   "pass": true
+  },
+  "market_daily": {
+   "rows_frozen": 23,
+   "rows_shadow": 23,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 0,
+   "columns_equal": true,
+   "columns": {
+    "disp_1": {
+     "mismatch": 3,
+     "explained": 0,
+     "unexplained": 3,
+     "examples": [
+      [
+       "2026-09-16 00:00:00"
+      ],
+      [
+       "2026-09-18 00:00:00"
+      ],
+      [
+       "2026-09-23 00:00:00"
+      ]
+     ]
+    },
+    "disp_20": {
+     "mismatch": 4,
+     "explained": 0,
+     "unexplained": 4,
+     "examples": [
+      [
+       "2026-09-02 00:00:00"
+      ],
+      [
+       "2026-09-08 00:00:00"
+      ],
+      [
+       "2026-09-10 00:00:00"
+      ],
+      [
+       "2026-10-08 00:00:00"
+      ]
+     ]
+    },
+    "amt_rel_20": {
+     "mismatch": 9,
+     "explained": 0,
+     "unexplained": 9,
+     "examples": [
+      [
+       "2026-09-02 00:00:00"
+      ],
+      [
+       "2026-09-04 00:00:00"
+      ],
+      [
+       "2026-09-11 00:00:00"
+      ],
+      [
+       "2026-09-16 00:00:00"
+      ],
+      [
+       "2026-09-18 00:00:00"
+      ]
+     ]
+    }
+   },
+   "unexplained_total": 16,
+   "pass": false
+  },
+  "model_v1": {
+   "rows_frozen_window": 119031,
+   "rows_matched": 119031,
+   "rows_missing_in_shadow": 0,
+   "rows_extra_in_shadow": 0,
+   "X_columns_with_mismatch": {
+    "sh_resid_vol_10": {
+     "mismatch": 18,
+     "unexplained": 18,
+     "group": "other"
+    },
+    "sh_rkurt_21": {
+     "mismatch": 31,
+     "unexplained": 31,
+     "group": "other"
+    },
+    "roa_ttm": {
+     "mismatch": 551,
+     "unexplained": 0,
+     "group": "F2"
+    },
+    "gross_margin": {
+     "mismatch": 325,
+     "unexplained": 0,
+     "group": "F2"
+    },
+    "operating_profit_yoy": {
+     "mismatch": 1155,
+     "unexplained": 0,
+     "group": "F2"
+    },
+    "net_profit_yoy": {
+     "mismatch": 1144,
+     "unexplained": 0,
+     "group": "F2"
+    },
+    "a158_RSQR5": {
+     "mismatch": 27982,
+     "unexplained": 27982,
+     "group": "other"
+    },
+    "a158_RSQR10": {
+     "mismatch": 34157,
+     "unexplained": 34157,
+     "group": "other"
+    },
+    "a158_RSQR20": {
+     "mismatch": 29929,
+     "unexplained": 29929,
+     "group": "other"
+    },
+    "a158_RSQR30": {
+     "mismatch": 31317,
+     "unexplained": 31317,
+     "group": "other"
+    },
+    "a158_RSQR60": {
+     "mismatch": 32689,
+     "unexplained": 32689,
+     "group": "other"
+    },
+    "a158_IMAX5": {
+     "mismatch": 27934,
+     "unexplained": 27934,
+     "group": "other"
+    },
+    "a158_IMAX10": {
+     "mismatch": 31320,
+     "unexplained": 31320,
+     "group": "other"
+    },
+    "a158_IMAX20": {
+     "mismatch": 37372,
+     "unexplained": 37372,
+     "group": "other"
+    },
+    "a158_IMAX30": {
+     "mismatch": 39585,
+     "unexplained": 39585,
+     "group": "other"
+    },
+    "a158_IMAX60": {
+     "mismatch": 37447,
+     "unexplained": 37447,
+     "group": "other"
+    },
+    "a158_IMIN5": {
+     "mismatch": 39163,
+     "unexplained": 39163,
+     "group": "other"
+    },
+    "a158_IMIN10": {
+     "mismatch": 38381,
+     "unexplained": 38381,
+     "group": "other"
+    },
+    "a158_IMIN20": {
+     "mismatch": 35438,
+     "unexplained": 35438,
+     "group": "other"
+    },
+    "a158_IMIN30": {
+     "mismatch": 37082,
+     "unexplained": 37082,
+     "group": "other"
+    },
+    "a158_IMIN60": {
+     "mismatch": 38135,
+     "unexplained": 38135,
+     "group": "other"
+    },
+    "a158_IMXD5": {
+     "mismatch": 34964,
+     "unexplained": 34964,
+     "group": "other"
+    },
+    "a158_IMXD10": {
+     "mismatch": 35300,
+     "unexplained": 35300,
+     "group": "other"
+    },
+    "a158_IMXD20": {
+     "mismatch": 34418,
+     "unexplained": 34418,
+     "group": "other"
+    },
+    "a158_IMXD30": {
+     "mismatch": 33526,
+     "unexplained": 33526,
+     "group": "other"
+    },
+    "a158_IMXD60": {
+     "mismatch": 32814,
+     "unexplained": 32814,
+     "group": "other"
+    },
+    "a158_CORR5": {
+     "mismatch": 29126,
+     "unexplained": 29126,
+     "group": "other"
+    },
+    "a158_CORR10": {
+     "mismatch": 35002,
+     "unexplained": 35002,
+     "group": "other"
+    },
+    "a158_CORR20": {
+     "mismatch": 30482,
+     "unexplained": 30482,
+     "group": "other"
+    },
+    "a158_CORR30": {
+     "mismatch": 27516,
+     "unexplained": 27516,
+     "group": "other"
+    },
+    "a158_CORR60": {
+     "mismatch": 28615,
+     "unexplained": 28615,
+     "group": "other"
+    },
+    "a158_CORD5": {
+     "mismatch": 28846,
+     "unexplained": 28846,
+     "group": "other"
+    },
+    "a158_CORD10": {
+     "mismatch": 33892,
+     "unexplained": 33892,
+     "group": "other"
+    },
+    "a158_CORD20": {
+     "mismatch": 27828,
+     "unexplained": 27828,
+     "group": "other"
+    },
+    "a158_CORD30": {
+     "mismatch": 29928,
+     "unexplained": 29928,
+     "group": "other"
+    },
+    "a158_CORD60": {
+     "mismatch": 28692,
+     "unexplained": 28692,
+     "group": "other"
+    },
+    "a158_CNTP5": {
+     "mismatch": 36642,
+     "unexplained": 36642,
+     "group": "other"
+    },
+    "a158_CNTP10": {
+     "mismatch": 39254,
+     "unexplained": 39254,
+     "group": "other"
+    },
+    "a158_CNTP20": {
+     "mismatch": 30741,
+     "unexplained": 30741,
+     "group": "other"
+    },
+    "a158_CNTP30": {
+     "mismatch": 33403,
+     "unexplained": 33403,
+     "group": "other"
+    },
+    "a158_CNTP60": {
+     "mismatch": 36813,
+     "unexplained": 36813,
+     "group": "other"
+    },
+    "a158_CNTN5": {
+     "mismatch": 39626,
+     "unexplained": 39626,
+     "group": "other"
+    },
+    "a158_CNTN10": {
+     "mismatch": 33845,
+     "unexplained": 33845,
+     "group": "other"
+    },
+    "a158_CNTN20": {
+     "mismatch": 34533,
+     "unexplained": 34533,
+     "group": "other"
+    },
+    "a158_CNTN30": {
+     "mismatch": 32733,
+     "unexplained": 32733,
+     "group": "other"
+    },
+    "a158_CNTN60": {
+     "mismatch": 35453,
+     "unexplained": 35453,
+     "group": "other"
+    },
+    "a158_CNTD5": {
+     "mismatch": 30736,
+     "unexplained": 30736,
+     "group": "other"
+    },
+    "a158_CNTD10": {
+     "mismatch": 30469,
+     "unexplained": 30469,
+     "group": "other"
+    },
+    "a158_CNTD20": {
+     "mismatch": 28799,
+     "unexplained": 28799,
+     "group": "other"
+    },
+    "a158_CNTD30": {
+     "mismatch": 30779,
+     "unexplained": 30779,
+     "group": "other"
+    },
+    "a158_CNTD60": {
+     "mismatch": 35262,
+     "unexplained": 35262,
+     "group": "other"
+    },
+    "a158_SUMP5": {
+     "mismatch": 33806,
+     "unexplained": 33806,
+     "group": "other"
+    },
+    "a158_SUMP10": {
+     "mismatch": 34616,
+     "unexplained": 34616,
+     "group": "other"
+    },
+    "a158_SUMP20": {
+     "mismatch": 33436,
+     "unexplained": 33436,
+     "group": "other"
+    },
+    "a158_SUMP30": {
+     "mismatch": 35019,
+     "unexplained": 35019,
+     "group": "other"
+    },
+    "a158_SUMP60": {
+     "mismatch": 30756,
+     "unexplained": 30756,
+     "group": "other"
+    },
+    "a158_SUMN5": {
+     "mismatch": 33839,
+     "unexplained": 33839,
+     "group": "other"
+    },
+    "a158_SUMN10": {
+     "mismatch": 34647,
+     "unexplained": 34647,
+     "group": "other"
+    },
+    "a158_SUMN20": {
+     "mismatch": 33460,
+     "unexplained": 33460,
+     "group": "other"
+    },
+    "a158_SUMN30": {
+     "mismatch": 35000,
+     "unexplained": 35000,
+     "group": "other"
+    },
+    "a158_SUMN60": {
+     "mismatch": 30780,
+     "unexplained": 30780,
+     "group": "other"
+    },
+    "a158_SUMD5": {
+     "mismatch": 33836,
+     "unexplained": 33836,
+     "group": "other"
+    },
+    "a158_SUMD10": {
+     "mismatch": 34628,
+     "unexplained": 34628,
+     "group": "other"
+    },
+    "a158_SUMD20": {
+     "mismatch": 33466,
+     "unexplained": 33466,
+     "group": "other"
+    },
+    "a158_SUMD30": {
+     "mismatch": 35011,
+     "unexplained": 35011,
+     "group": "other"
+    },
+    "a158_SUMD60": {
+     "mismatch": 30765,
+     "unexplained": 30765,
+     "group": "other"
+    },
+    "a158_WVMA5": {
+     "mismatch": 28862,
+     "unexplained": 28862,
+     "group": "other"
+    },
+    "a158_WVMA10": {
+     "mismatch": 33249,
+     "unexplained": 33249,
+     "group": "other"
+    },
+    "a158_WVMA20": {
+     "mismatch": 32031,
+     "unexplained": 32031,
+     "group": "other"
+    },
+    "a158_WVMA30": {
+     "mismatch": 28407,
+     "unexplained": 28407,
+     "group": "other"
+    },
+    "a158_WVMA60": {
+     "mismatch": 25173,
+     "unexplained": 25173,
+     "group": "other"
+    },
+    "a158_VSUMP5": {
+     "mismatch": 36505,
+     "unexplained": 36505,
+     "group": "other"
+    },
+    "a158_VSUMP10": {
+     "mismatch": 37350,
+     "unexplained": 37350,
+     "group": "other"
+    },
+    "a158_VSUMP20": {
+     "mismatch": 33085,
+     "unexplained": 33085,
+     "group": "other"
+    },
+    "a158_VSUMP30": {
+     "mismatch": 37363,
+     "unexplained": 37363,
+     "group": "other"
+    },
+    "a158_VSUMP60": {
+     "mismatch": 33354,
+     "unexplained": 33354,
+     "group": "other"
+    },
+    "a158_VSUMN5": {
+     "mismatch": 36505,
+     "unexplained": 36505,
+     "group": "other"
+    },
+    "a158_VSUMN10": {
+     "mismatch": 37348,
+     "unexplained": 37348,
+     "group": "other"
+    },
+    "a158_VSUMN20": {
+     "mismatch": 33086,
+     "unexplained": 33086,
+     "group": "other"
+    },
+    "a158_VSUMN30": {
+     "mismatch": 37361,
+     "unexplained": 37361,
+     "group": "other"
+    },
+    "a158_VSUMN60": {
+     "mismatch": 33353,
+     "unexplained": 33353,
+     "group": "other"
+    },
+    "a158_VSUMD5": {
+     "mismatch": 36506,
+     "unexplained": 36506,
+     "group": "other"
+    },
+    "a158_VSUMD10": {
+     "mismatch": 37349,
+     "unexplained": 37349,
+     "group": "other"
+    },
+    "a158_VSUMD20": {
+     "mismatch": 33084,
+     "unexplained": 33084,
+     "group": "other"
+    },
+    "a158_VSUMD30": {
+     "mismatch": 37360,
+     "unexplained": 37360,
+     "group": "other"
+    },
+    "a158_VSUMD60": {
+     "mismatch": 33355,
+     "unexplained": 33355,
+     "group": "other"
+    },
+    "ind_dm_roe_ttm": {
+     "mismatch": 100,
+     "unexplained": 0,
+     "group": "F4"
+    },
+    "ind_dm_operating_profit_yoy": {
+     "mismatch": 88,
+     "unexplained": 0,
+     "group": "F4"
+    },
+    "insider_net_ratio_90d": {
+     "mismatch": 9964,
+     "unexplained": 9964,
+     "group": "other"
+    }
+   },
+   "X_unexplained": 2691732,
+   "meta": {
+    "y20": {
+     "mismatch": 36099,
+     "unexplained": 0
+    },
+    "y63": {
+     "mismatch": 0,
+     "unexplained": 0
+    },
+    "top1500": {
+     "mismatch": 0,
+     "unexplained": 0
+    },
+    "sw_l1": {
+     "mismatch": 0,
+     "unexplained": 0
+    },
+    "seq_idx_same_ticker": true
+   },
+   "market": {
+    "rows_frozen": 23,
+    "rows_shadow": 23,
+    "rows_missing_in_shadow": 0,
+    "rows_extra_in_shadow": 0,
+    "columns_equal": true,
+    "columns": {
+     "disp_1": {
+      "mismatch": 3,
+      "explained": 0,
+      "unexplained": 3,
+      "examples": [
+       [
+        "2026-09-16 00:00:00"
+       ],
+       [
+        "2026-09-18 00:00:00"
+       ],
+       [
+        "2026-09-23 00:00:00"
+       ]
+      ]
+     },
+     "disp_20": {
+      "mismatch": 4,
+      "explained": 0,
+      "unexplained": 4,
+      "examples": [
+       [
+        "2026-09-02 00:00:00"
+       ],
+       [
+        "2026-09-08 00:00:00"
+       ],
+       [
+        "2026-09-10 00:00:00"
+       ],
+       [
+        "2026-10-08 00:00:00"
+       ]
+      ]
+     },
+     "amt_rel_20": {
+      "mismatch": 9,
+      "explained": 0,
+      "unexplained": 9,
+      "examples": [
+       [
+        "2026-09-02 00:00:00"
+       ],
+       [
+        "2026-09-04 00:00:00"
+       ],
+       [
+        "2026-09-11 00:00:00"
+       ],
+       [
+        "2026-09-16 00:00:00"
+       ],
+       [
+        "2026-09-18 00:00:00"
+       ]
+      ]
+     }
+    },
+    "unexplained_total": 16,
+    "pass": false
+   },
+   "pass": false
+  }
+ },
+ "pass": false
+}
