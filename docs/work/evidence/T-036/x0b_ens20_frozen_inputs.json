@@ -1,0 +1,52 @@
+{
+ "days": 23,
+ "rows": 119031,
+ "families": {
+  "xgb": {
+   "max_abs_diff_by_seed": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pass": true
+  },
+  "cat": {
+   "max_abs_diff_by_seed": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pass": true
+  },
+  "tabm": {
+   "max_abs_diff_by_seed": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pass": true
+  },
+  "seqfusion": {
+   "max_abs_diff_by_seed": [
+    0.0,
+    0.0009765625,
+    2.9802322387695312e-08,
+    0.0,
+    0.000244140625
+   ],
+   "pass": false
+  }
+ },
+ "ens": {
+  "max_abs_diff": 0.00025576326000653626,
+  "rows_nan_mismatch": 0,
+  "pass": false
+ },
+ "pass": false
+}
