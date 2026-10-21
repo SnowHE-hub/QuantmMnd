@@ -353,6 +353,60 @@ def _coerce(df: pd.DataFrame, numeric_cols: set[str]) -> pd.DataFrame:
     return df
 
 
+ARROW_COMPACT_ROWS = 2_000_000      # 分片总行数超过它就用省内存的 Arrow 合并
+
+
+def _compact_arrow(files: list[Path]):
+    """与下面 pandas 合并结果相同、但省内存的写法（2026-10-22：moneyflow 约 870 万行，pandas 合并超过 7 GB 被杀）：
+    - 列顺序：按出现先后取并集；数值列（任一分片里是整数或浮点）转 float64，其余转字符串；
+    - 整行去重保留第一次出现、保持顺序：先算每行哈希，哈希相同的行再逐个比完整内容，有哈希碰撞就退回 pandas；
+    - 遇到布尔、时间等其他类型，或数值列在某个分片里是字符串，也退回 pandas（返回 None）。
+    返回 (带 pandas 元数据的 Arrow 表, 去重前行数) 或 None。"""
+    import numpy as np
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+    schemas = [pq.read_schema(f) for f in files]
+    names = list(dict.fromkeys(n for s in schemas for n in s.names))
+    num = {f.name for s in schemas for f in s if pa.types.is_integer(f.type) or pa.types.is_floating(f.type)}
+    for s in schemas:
+        for f in s:
+            ok = (pa.types.is_integer(f.type) or pa.types.is_floating(f.type) or pa.types.is_null(f.type)
+                  or (pa.types.is_string(f.type) and f.name not in num))
+            if not ok:
+                return None
+    tmpl = pd.DataFrame({c: pd.Series(dtype="float64" if c in num else "string") for c in names})
+    target = pa.Table.from_pandas(tmpl, preserve_index=False).schema
+    parts = []
+    for f in files:
+        t = pq.read_table(f)
+        cols = [pc.cast(t[c], target.field(c).type, safe=False) if c in t.column_names     # 与 pandas 一样不检查精度
+                else pa.nulls(t.num_rows, target.field(c).type) for c in names]
+        parts.append(pa.Table.from_arrays(cols, schema=target))
+    tab = pa.concat_tables(parts)
+    del parts
+    n = tab.num_rows
+    h = np.concatenate([pd.util.hash_pandas_object(b.to_pandas(), index=False).to_numpy()
+                        for b in tab.to_batches(max_chunksize=500_000)]) if n else np.zeros(0, dtype="uint64")
+    order = np.argsort(h, kind="stable")
+    hs = h[order]
+    same = np.concatenate([[False], hs[1:] == hs[:-1]]) if n else np.zeros(0, dtype=bool)
+    drop = order[same]                                          # 每组哈希里第一次出现之后的行
+    if len(drop):
+        first = order[np.maximum.accumulate(np.where(~same, np.arange(n), 0))][same]
+        a = tab.take(pa.array(drop)).to_pandas()
+        b = tab.take(pa.array(first)).to_pandas()
+        eq = np.ones(len(a), dtype=bool)
+        for c in a.columns:                                     # 逐列比：两边都空算相等；pd.NA 参与的比较按不相等
+            eq &= ((a[c] == b[c]).fillna(False).to_numpy(dtype=bool) | (a[c].isna() & b[c].isna()).to_numpy())
+        if not eq.all():
+            return None                                         # 哈希碰撞：交给 pandas
+        keep = np.ones(n, dtype=bool)
+        keep[drop] = False
+        tab = tab.filter(pa.array(keep))
+    return tab, n
+
+
 def compact(api: str, events_dir: Path, end: str, spec: Spec) -> dict:
     out = events_dir / f"{api}_{end.replace('-', '')}.parquet"
     man_path = out.with_suffix(".manifest.json")
@@ -365,23 +419,41 @@ def compact(api: str, events_dir: Path, end: str, spec: Spec) -> dict:
         os.replace(out, q / out.name)                   # 没有 manifest：上次没写完，隔离后重做（不删除）
     ck = load_ckpt(events_dir / "_checkpoints" / f"{api}.json")
     files = sorted((events_dir / "_parts" / api).glob("*.parquet"))
-    frames, numeric = [], set()
-    for f in files:
-        d = pd.read_parquet(f)
-        numeric |= {c for c in d.columns if pd.api.types.is_numeric_dtype(d[c]) and not pd.api.types.is_bool_dtype(d[c])}
-        frames.append(d)
-    if not frames:
+    if not files:
         raise RuntimeError(f"{api}: no parts")
-    df = pd.concat(frames, ignore_index=True)
-    df = _coerce(df, numeric)
-    n_before = len(df)
-    df = df.drop_duplicates(ignore_index=True)
-    df.to_parquet(out, index=False)
+    import pyarrow.parquet as pq
+    arrow = None
+    if sum(pq.read_metadata(f).num_rows for f in files) > ARROW_COMPACT_ROWS:
+        arrow = _compact_arrow(files)
+    if arrow is not None:
+        import pyarrow.compute as pc
+        tab, n_before = arrow
+        tmp = out.with_name(out.name + ".tmp")
+        pq.write_table(tab, tmp)
+        os.replace(tmp, out)
+        n_rows, cols = tab.num_rows, {f.name: ("float64" if str(f.type) == "double" else "string") for f in tab.schema}
+        dc = spec.date_col if spec.date_col in tab.column_names else None
+        mm = pc.min_max(tab[dc]) if dc else None
+        dmin, dmax = (str(mm["min"].as_py()), str(mm["max"].as_py())) if dc else (None, None)
+        del tab
+    else:
+        frames, numeric = [], set()
+        for f in files:
+            d = pd.read_parquet(f)
+            numeric |= {c for c in d.columns if pd.api.types.is_numeric_dtype(d[c]) and not pd.api.types.is_bool_dtype(d[c])}
+            frames.append(d)
+        df = pd.concat(frames, ignore_index=True)
+        df = _coerce(df, numeric)
+        n_before = len(df)
+        df = df.drop_duplicates(ignore_index=True)
+        df.to_parquet(out, index=False)
+        n_rows, cols = int(len(df)), {c: str(df[c].dtype) for c in df.columns}
+        dc = spec.date_col if spec.date_col in df.columns else None
+        dmin, dmax = (str(df[dc].min()), str(df[dc].max())) if dc else (None, None)
     states = pd.Series([c["state"] for c in ck["chunks"].values()]).value_counts().to_dict()
-    dc = spec.date_col if spec.date_col in df.columns else None
-    man = {"api": api, "file": out.name, "rows": int(len(df)), "exact_duplicate_rows_dropped": int(n_before - len(df)),
-           "columns": {c: str(df[c].dtype) for c in df.columns},
-           "date_col": dc, "date_min": str(df[dc].min()) if dc else None, "date_max": str(df[dc].max()) if dc else None,
+    man = {"api": api, "file": out.name, "rows": int(n_rows), "exact_duplicate_rows_dropped": int(n_before - n_rows),
+           "columns": cols, "compact": "arrow" if arrow is not None else "pandas",
+           "date_col": dc, "date_min": dmin, "date_max": dmax,
            "chunk_states": states,
            "failed_or_truncated": {k: v for k, v in ck["chunks"].items() if v["state"] not in TERMINAL_OK},
            "sha256": hashlib.sha256(out.read_bytes()).hexdigest()}

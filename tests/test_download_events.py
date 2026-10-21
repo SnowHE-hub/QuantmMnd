@@ -353,3 +353,27 @@ def test_compact_coerces_and_resumes(tmp_path):
     redo = de.compact("x", tmp_path, "2026-10-09", de.Spec("month", "ann_date"))
     assert redo["rows"] == 2 and "resumed" not in redo
     assert list(tmp_path.glob("_quarantine_*_partial_compact/x_20261009.parquet"))
+
+
+def test_compact_arrow_matches_pandas(tmp_path, monkeypatch):
+    """省内存的 Arrow 合并与 pandas 合并结果相同：跨分片与分片内的重复行、整列为空的数值列、只在部分分片出现的列、空值。"""
+    parts = tmp_path / "_parts/x"
+    parts.mkdir(parents=True)
+    pd.DataFrame({"ts_code": ["A", "B", "A"], "d": ["20260101", "20260102", "20260101"], "v": [1, 2, 1],
+                  "w": [0.5, None, 0.5]}).to_parquet(parts / "a.parquet")
+    pd.DataFrame({"ts_code": ["A", "C", None], "d": ["20260101", "20260103", "20260104"], "v": [1, 3, 4],
+                  "w": [None, None, None], "z": ["x", None, "y"]}).to_parquet(parts / "b.parquet")
+    pd.DataFrame({"ts_code": ["C", "C"], "d": ["20260103", "20260103"], "v": [3.0, 3.0], "w": [None, None],
+                  "z": [None, None]}).to_parquet(parts / "c.parquet")
+    de.save_ckpt(tmp_path / "_checkpoints/x.json", {"version": 1, "chunks": {k: {"state": "done"} for k in "abc"}})
+    spec = de.Spec("month", "d")
+    monkeypatch.setattr(de, "ARROW_COMPACT_ROWS", 10**9)
+    mp = de.compact("x", tmp_path, "2026-01-01", spec)
+    monkeypatch.setattr(de, "ARROW_COMPACT_ROWS", 0)
+    ma = de.compact("x", tmp_path, "2026-01-02", spec)
+    assert mp["compact"] == "pandas" and ma["compact"] == "arrow"
+    a, b = pd.read_parquet(tmp_path / "x_20260101.parquet"), pd.read_parquet(tmp_path / "x_20260102.parquet")
+    pd.testing.assert_frame_equal(a, b)
+    for k in ("rows", "exact_duplicate_rows_dropped", "columns", "date_min", "date_max"):
+        assert mp[k] == ma[k], k
+    assert ma["exact_duplicate_rows_dropped"] == 3
