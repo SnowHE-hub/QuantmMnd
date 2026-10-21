@@ -63,3 +63,25 @@ def test_dates_and_ids_are_not_unsourced_numbers():
                  "evidence": [{"evidence_id": "cninfo:ann:1"}]}])
     notes = verify(out, EV)[0].notes
     assert notes == ["unsourced_number 3000"]
+
+
+def test_multi_field_facts_units_rounding_and_formula_cleanup():
+    ev = {"tushare:income:x:1": {"evidence_id": "tushare:income:x:1", "revenue": 147693604994.14,
+                                 "total_revenue": 150560330316.45},
+          "tushare:forecast:x:1": {"evidence_id": "tushare:forecast:x:1", "net_profit_min": 7350000.0,
+                                   "_units": {"net_profit_min": "万元"}}}
+    out = _out([
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "营业收入 1476.94 亿元、营业总收入 1505.60 亿元",
+         "value": 1476.94, "unit": "亿元",
+         "evidence": [{"evidence_id": "tushare:income:x:1", "field": "revenue"},
+                      {"evidence_id": "tushare:income:x:1", "field": "total_revenue", "value": 1505.6, "unit": "亿元"}]},
+        {"local_id": "c2", "claim_type": "reported_fact", "text": "预告净利润下限 735 亿元", "value": 735, "unit": "亿元",
+         "evidence": [{"evidence_id": "tushare:forecast:x:1", "field": "net_profit_min"}]},
+        {"local_id": "c3", "claim_type": "reported_fact", "text": "营业收入 1200 亿元", "value": 1200, "unit": "亿元",
+         "evidence": [{"evidence_id": "tushare:income:x:1", "field": "revenue"}]},
+        {"local_id": "c4", "claim_type": "computed", "text": "两者差约 2.0%", "value": 1.9, "unit": "%",
+         "formula": "(c1-c2*1)/c1*100，即两者的相对差", "inputs": ["c1", "c2"]},
+    ])
+    st = {c.local_id: c.status for c in verify(out, ev)}
+    assert st["c1"] == "verified" and st["c2"] == "verified" and st["c3"] == "mismatch"
+    assert st["c4"] == "mismatch"                     # 公式能解析（去掉了解释），但 (1476.94-735)/1476.94*100 = 50.2 ≠ 1.9

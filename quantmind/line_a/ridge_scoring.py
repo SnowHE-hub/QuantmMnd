@@ -70,8 +70,21 @@ def build_lean(root: Path, dates) -> tuple[pd.DataFrame, list[str]]:
     in_base = a_idx.isin(full_idx)
     keep = [c for c in a_cols if pd.read_parquet(A, columns=[c])[c][in_base].notna().any()]   # 与 build 的 notna 口径相同
     a = pd.read_parquet(A, columns=keep, filters=filt).reindex(base.index)
-    panel = base.join(fnd).join(a)
-    return panel, feats + list(fnd.columns) + keep
+    return base, [fnd, a], feats + list(fnd.columns) + keep
+
+
+def _matrix(frames: list[pd.DataFrame], cols: list[str]) -> np.ndarray:
+    """按 cols 的顺序逐列填进预先分配的 float64 矩阵；从 frames 里逐张取出，填完就释放
+    （调用方不要再持有这些表的引用；不生成拼接后的整表，省一倍内存）。"""
+    pos = {c: j for j, c in enumerate(cols)}
+    X = np.empty((len(frames[0]), len(cols)), dtype=np.float64)
+    while frames:
+        fr = frames.pop(0)
+        for c in fr.columns:
+            if c in pos:
+                X[:, pos[c]] = fr[c].to_numpy(dtype=np.float64)
+        del fr
+    return X
 
 
 def fit_reference(root: Path, horizon: str) -> RidgeRef:
@@ -95,25 +108,28 @@ def fit_reference(root: Path, horizon: str) -> RidgeRef:
     folds = [f for f in t18.make_folds(sp, all_asof, cuts, "C") if f.test_dates and f.train_dates]
     f = folds[-1]
     need = sorted(set(f.train_dates) | set(f.val_dates) | set(f.test_dates))
-    panel, feats = build_lean(root, need)
+    base, extras, feats = build_lean(root, need)
     num = [c for c in feats if c not in CATEGORICAL]
-    panel = panel.sort_index(level=["as_of", "ticker"])
-    idx = panel.index
+    # 与"拼接后 sort_index"等价：先排基础表，其余表对齐到排好的索引
+    base = base.sort_index(level=["as_of", "ticker"])
+    extras = [e.reindex(base.index) for e in extras]
+    idx = base.index
     asof = pd.to_datetime(idx.get_level_values("as_of"))
     if horizon == "20d":
         y = pd.read_parquet(root / "data/panel/labels_extra_v6_1.parquet", columns=["forward_return_20d"],
                             filters=[("as_of", "in", list(pd.DatetimeIndex(need)))]).reindex(idx)["forward_return_20d"]
     else:
-        y = panel["forward_return_63d"]
-    y = y.to_numpy(dtype=np.float64)
-    X = panel[num].to_numpy(dtype=np.float64)
-    del panel
-    tr = np.isin(asof, pd.DatetimeIndex(f.train_dates)) & np.isfinite(y)
-    Xtr, ytr = X[tr], y[tr]
+        y = base["forward_return_63d"]
+    y = y.to_numpy(dtype=np.float64, copy=True)      # 拷贝，不让 y 引用住基础表的内存块
+    frames = [base, *extras]
+    del base, extras
+    X = _matrix(frames, num)
+    tr = np.flatnonzero(np.isin(asof, pd.DatetimeIndex(f.train_dates)) & np.isfinite(y))
 
-    def chunks():
-        for s in range(0, len(ytr), CHUNK):
-            yield Xtr[s:s + CHUNK], ytr[s:s + CHUNK]
+    def chunks():                       # 训练行按下标分块取，块边界与原来"先复制训练行再切块"相同
+        for s in range(0, len(tr), CHUNK):
+            sel = tr[s:s + CHUNK]
+            yield X[sel], y[sel]
     m = t33.Ridge().fit(chunks)
     d = t33._direction([(m.predict(X[asof == v]), y[asof == v]) for v in f.val_dates])
     rows = []

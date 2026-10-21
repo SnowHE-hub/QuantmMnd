@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field
 class EvidenceRef(BaseModel):
     evidence_id: str
     field: str | None = Field(None, description="引用的是记录里的哪个字段，例如 n_income_attr_p")
+    value: float | None = Field(None, description="一条声明引用多个字段时，逐条填写该字段对应的数值")
+    unit: str | None = Field(None, description="与 value 配套的单位")
     quote: str | None = Field(None, description="文档证据：逐字引文")
     page: int | None = None
     para: int | None = None
@@ -53,7 +55,9 @@ COMMON_RULES = """规则：
 6. 不给买卖建议，不写目标价，不写组合权重。数据不足以下结论时设 abstain = true 并说明原因。
 7. 所有日期都以 as_of 为上限；as_of 之后的信息不存在。
 8. 只引用工具结果里出现过的 evidence_id（包括事件链的 chain:… 编号）；不要自己拼编号。
-9. 声明最多 25 条，每条 text 不超过 120 字；优先写对判断最有用的事实，次要的合并或省略。"""
+9. formula 只写运算式（只用 local_id、数字、+ - * / 和 abs），解释写在 text 里；由两个数算出的比值、增速、差额
+   一律写成 computed，不要写成 reported_fact。记录里的 _units 给出每个字段的单位，换算时以它为准。
+10. 声明最多 25 条，每条 text 不超过 120 字；优先写对判断最有用的事实，次要的合并或省略。"""
 
 A1_SYSTEM = ("你是 A 股上市公司的财务研究员（角色 A1）。任务是根据按时点取得的财报、业绩预告和快报、披露日程、"
              "审计意见与股权质押数据，整理这家公司最近几期的经营与财务事实：收入与利润的同比变化、盈利质量"

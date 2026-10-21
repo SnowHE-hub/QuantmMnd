@@ -58,6 +58,28 @@ def _eval(expr: str, env: dict[str, float]) -> float:
     return ev(ast.parse(expr, mode="eval"))
 
 
+MONEY = {"元", "万元", "亿元"}
+_FORMULA_END = re.compile(r"[，,；;。]|即|其中|=")
+
+
+def _decimals(v: float) -> int:
+    s = repr(float(v))
+    return 0 if "e" in s or "." not in s else len(s.split(".")[1].rstrip("0"))
+
+
+def _matches(stated: float, stated_scale: float, truth: float) -> bool:
+    """stated × 单位 是否等于 truth，允许按 stated 的小数位四舍五入（"19.01%" 对 19.0119）和 1e-6 的相对误差。"""
+    half = 0.5 * 10 ** (-_decimals(stated)) * stated_scale
+    a = stated * stated_scale
+    return abs(a - truth) <= max(half, 1e-6 * max(1.0, abs(a), abs(truth)))
+
+
+def _clean_formula(f: str) -> str:
+    """只保留运算部分：去掉"，即 …"、"其中 …"、"= …"这类解释（第二次真实切片里常见）。"""
+    m = _FORMULA_END.search(f)
+    return (f[:m.start()] if m else f).strip()
+
+
 def _record_numbers(rec: dict) -> list[float]:
     out = []
     for v in rec.values():
@@ -79,28 +101,41 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
             if not refs:
                 ck.status = "missing_evidence"
                 ck.notes.append("reported_fact without evidence")
+            claim_v, claim_hits, claim_tried = c.get("value"), 0, 0
             for r in refs:
                 rec = evidence.get(r["evidence_id"])
                 if rec is None:
                     ck.status = "missing_evidence"
                     ck.notes.append(f"evidence {r['evidence_id']} was not returned by any tool in this run")
                     continue
-                f, v = r.get("field"), c.get("value")
-                if f and v is not None:
-                    raw = rec.get(f)
-                    scale = UNIT.get(c.get("unit") or "元", 1.0)
-                    if not isinstance(raw, (int, float)):
-                        ck.status = "unverifiable"
-                        ck.notes.append(f"field {f} not numeric in record")
-                    elif not _close(float(raw), float(v) * scale, 1e-6):
-                        ck.status = "mismatch"
-                        ck.notes.append(f"value {v} {c.get('unit')} != record {f}={raw}")
                 q = r.get("quote")
                 if q:
                     texts = "".join(str(x) for x in rec.values() if isinstance(x, str))
                     if re.sub(r"\s+", "", q) not in re.sub(r"\s+", "", texts):
                         ck.status = "mismatch"
                         ck.notes.append("quote not found in the cited record")
+                f = r.get("field")
+                own = r.get("value")                     # 多值声明：每条证据自己的数值
+                v = own if own is not None else claim_v
+                if not (f and v is not None):
+                    continue
+                raw = rec.get(f)
+                if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+                    ck.status = "unverifiable"
+                    ck.notes.append(f"field {f} not numeric in record")
+                    continue
+                cu = r.get("unit") if own is not None and r.get("unit") else (c.get("unit") or "")
+                ru = (rec.get("_units") or {}).get(f, "元" if cu in MONEY else cu)
+                ok = _matches(float(v), UNIT.get(cu, 1.0) / UNIT.get(ru, 1.0), float(raw))
+                if own is not None and not ok:
+                    ck.status = "mismatch"
+                    ck.notes.append(f"value {v} {cu} != record {f}={raw} {ru}")
+                if own is None:
+                    claim_tried += 1
+                    claim_hits += ok
+            if claim_tried and not claim_hits and ck.status == "verified":
+                ck.status = "mismatch"
+                ck.notes.append(f"value {claim_v} {c.get('unit')} matches none of the cited fields")
         elif t == "computed":
             env = {i: claims[i].get("value") for i in c.get("inputs", []) if i in claims}
             if not c.get("formula") or any(v is None for v in env.values()) or len(env) != len(c.get("inputs", [])):
@@ -108,8 +143,8 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 ck.notes.append("formula or numeric inputs missing")
             else:
                 try:
-                    val = _eval(c["formula"], {k: float(v) for k, v in env.items()})
-                    if c.get("value") is None or not _close(val, float(c["value"]), 1e-4):
+                    val = _eval(_clean_formula(c["formula"]), {k: float(v) for k, v in env.items()})
+                    if c.get("value") is None or not _matches(float(c["value"]), 1.0, val):
                         ck.status = "mismatch"
                         ck.notes.append(f"recomputed {val:.6g} != stated {c.get('value')}")
                 except (ValueError, ZeroDivisionError, SyntaxError) as e:

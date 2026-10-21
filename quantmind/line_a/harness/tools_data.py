@@ -27,6 +27,12 @@ FIN_FIELDS = {
 }
 
 
+# 每个字段的单位（Tushare 口径）：财报金额为元，业绩预告净利润为万元，比率与同比为 %
+UNITS = {"income": "元", "balancesheet": "元", "cashflow": "元", "fina_indicator_full": "%"}
+FORECAST_UNITS = {"p_change_min": "%", "p_change_max": "%", "net_profit_min": "万元", "net_profit_max": "万元"}
+EXPRESS_UNITS = {"revenue": "元", "n_income": "元", "yoy_net_profit": "%", "yoy_sales": "%", "diluted_roe": "%"}
+
+
 def _ymd(d) -> str:
     return pd.Timestamp(d).strftime("%Y%m%d")
 
@@ -69,7 +75,8 @@ class DataTools:
             out["tables"][table] = [
                 {"evidence_id": f"tushare:{table}:{ticker}:{r['end_date']}:{r['ann_date']}",
                  "end_date": str(r["end_date"]), "ann_date": str(r["ann_date"]),
-                 **{f: _clean(r[f]) for f in fields if f in r}} for _, r in df.iterrows()]
+                 **{f: _clean(r[f]) for f in fields if f in r},
+                 "_units": dict.fromkeys(fields, UNITS[table])} for _, r in df.iterrows()]
         return out
 
     def forecasts_and_express(self, ticker: str, lookback_days: int = 400) -> dict:
@@ -86,8 +93,9 @@ class DataTools:
             df = _rows(p, ticker)
             a = df["ann_date"].astype(str)
             df = df[(a > lo) & (a <= self.as_of)].sort_values("ann_date", ascending=False)
+            units = FORECAST_UNITS if api == "forecast" else EXPRESS_UNITS
             res[api] = [{"evidence_id": f"tushare:{api}:{ticker}:{r['end_date']}:{r['ann_date']}",
-                         **{c: _clean(r[c]) for c in cols if c in r}} for _, r in df.iterrows()]
+                         **{c: _clean(r[c]) for c in cols if c in r}, "_units": units} for _, r in df.iterrows()]
         return res
 
     def disclosure_schedule(self, ticker: str) -> dict:
@@ -122,7 +130,8 @@ class DataTools:
             df = df[df["end_date"].astype(str) <= self.as_of].sort_values("end_date", ascending=False).head(4)
             res["pledge"] = [{"evidence_id": f"tushare:pledge_stat:{ticker}:{r['end_date']}",
                               "end_date": str(r["end_date"]), "pledge_count": _clean(r.get("pledge_count")),
-                              "pledge_ratio": _clean(r.get("pledge_ratio"))} for _, r in df.iterrows()]
+                              "pledge_ratio": _clean(r.get("pledge_ratio")),
+                              "_units": {"pledge_ratio": "%", "pledge_count": "笔"}} for _, r in df.iterrows()]
         else:
             res["pledge"] = {"status": "source_absent"}
         return res
