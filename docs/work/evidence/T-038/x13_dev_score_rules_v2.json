@@ -1,0 +1,2272 @@
+{
+ "n_docs": 40,
+ "n_scored": 418,
+ "accuracy": 0.992822966507177,
+ "outcomes": {
+  "correct": 415,
+  "wrong": 2,
+  "not_found": 1
+ },
+ "by_field": {
+  "n_cashflow_act": {
+   "correct": 37,
+   "not_found": 1,
+   "wrong": 0
+  },
+  "n_income": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "n_income_attr_p": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "operate_profit": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "revenue": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "total_assets": {
+   "correct": 37,
+   "not_found": 0,
+   "wrong": 1
+  },
+  "total_cur_assets": {
+   "correct": 37,
+   "not_found": 0,
+   "wrong": 1
+  },
+  "total_cur_liab": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "total_hldr_eqy_exc_min_int": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "total_liab": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  },
+  "total_revenue": {
+   "correct": 38,
+   "not_found": 0,
+   "wrong": 0
+  }
+ },
+ "records": [
+  {
+   "ann_id": "1207492095",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207492095",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207635087",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209703068",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209797505",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213171754",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212644832",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216273105",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1215906728",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219874296",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219702653",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_assets",
+   "outcome": "wrong"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_cur_assets",
+   "outcome": "wrong"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207648800",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207634785",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209841615",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209438821",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212984401",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212963665",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216651622",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216562335",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219877411",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219408348",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207642470",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207382984",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209492833",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_revenue",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "revenue",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "operate_profit",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "n_income",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "n_income_attr_p",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_assets",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_liab",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_cur_assets",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "total_cur_liab",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1209937170",
+   "field": "n_cashflow_act",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213023599",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213143111",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216688319",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216116180",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219374925",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219474080",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207516505",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1207534531",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209468150",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1209820437",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_revenue",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "revenue",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "operate_profit",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "n_income",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "n_income_attr_p",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_assets",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_liab",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_cur_assets",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "total_cur_liab",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1213479627",
+   "field": "n_cashflow_act",
+   "outcome": "skipped"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1212564864",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216479435",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1216711094",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1222847477",
+   "field": "n_cashflow_act",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "revenue",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "operate_profit",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "n_income",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "n_income_attr_p",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_hldr_eqy_exc_min_int",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_cur_assets",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "total_cur_liab",
+   "outcome": "correct"
+  },
+  {
+   "ann_id": "1219886385",
+   "field": "n_cashflow_act",
+   "outcome": "not_found"
+  }
+ ],
+ "parser": "pymupdf-rules-v2",
+ "n_fetch_failed": 0,
+ "parse_seconds_mean": 0.4525
+}
