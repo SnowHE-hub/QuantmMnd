@@ -1,0 +1,21 @@
+{
+  "insts": [
+    "SH600000",
+    "SH600004",
+    "SH600006"
+  ],
+  "features_rows": 5665,
+  "close_recon_maxrelerr": 5.849044507818068e-08,
+  "close_recon_ok": true,
+  "alpha158_shape": [
+    177,
+    159
+  ],
+  "alpha360_shape": [
+    177,
+    361
+  ],
+  "handler_ok": true,
+  "pit_note": "qlib Ref/Mean 为 causal 滚动；篡改未来值不改历史输出（结构性保证）",
+  "g1_pass": true
+}
