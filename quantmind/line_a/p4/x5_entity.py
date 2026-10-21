@@ -38,7 +38,8 @@ def _sha(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
-def alias_table(lake: Path) -> AliasTable:
+def alias_table(lake: Path, *, full_history: bool = False) -> AliasTable:
+    """full_history：用按股票拉的名称变更全历史（namechange_full_*.parquet），旧名也能认出。"""
     lake = Path(lake)
     sb = pd.read_parquet(sorted(lake.glob("stock_basic_full_merged_2*.parquet"))[-1], columns=["ts_code", "name", "fullname"])
     bse = sorted((lake / "bse").glob("stock_basic_bse_*.parquet"))
@@ -46,8 +47,8 @@ def alias_table(lake: Path) -> AliasTable:
         b = pd.read_parquet(bse[-1])
         b = b.assign(fullname=b.get("fullname", None))[["ts_code", "name", "fullname"]]
         sb = pd.concat([sb, b], ignore_index=True).drop_duplicates("ts_code")
-    nc = pd.read_parquet(sorted((lake / "events").glob("namechange_2*.parquet"))[-1],
-                         columns=["ts_code", "name", "start_date", "end_date"])
+    pat = "namechange_full_2*.parquet" if full_history else "namechange_2*.parquet"
+    nc = pd.read_parquet(sorted((lake / "events").glob(pat))[-1], columns=["ts_code", "name", "start_date", "end_date"])
     return AliasTable.from_frames(sb, nc)
 
 
