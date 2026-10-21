@@ -121,14 +121,17 @@ def llm_label(dev: pd.DataFrame, llm, *, log=print) -> dict[str, list[dict]]:
                '\n只输出 JSON：{"mentions": [{"text": "...", "type": "listed" 或 "unlisted", "ts_code": "600519.SH" 或 null}]}')
     for i, r in enumerate(dev.itertuples(index=False), 1):
         user = f"研报日期：{r.trade_date}\n句子：{r.sentence}"
-        try:
-            res = llm.chat([{"role": "system", "content": sys_msg}, {"role": "user", "content": user}], json_mode=True,
-                           max_tokens=600, meta={"task": "x5_label", "sid": r.sid})
-            ms = json.loads(res.content).get("mentions", [])
-        except (TLSInterceptionError, BudgetExceededError):
-            raise
-        except Exception:  # noqa: BLE001
-            ms = None
+        ms = None
+        for mt in (600, 3000):          # 名单很长的句子 600 token 会被截断、JSON 不完整，就放大上限再试一次
+            try:
+                res = llm.chat([{"role": "system", "content": sys_msg}, {"role": "user", "content": user}],
+                               json_mode=True, max_tokens=mt, meta={"task": "x5_label", "sid": r.sid})
+                ms = json.loads(res.content).get("mentions", [])
+                break
+            except (TLSInterceptionError, BudgetExceededError):
+                raise
+            except Exception:  # noqa: BLE001
+                ms = None
         if ms is None:
             out[r.sid] = None
             continue
