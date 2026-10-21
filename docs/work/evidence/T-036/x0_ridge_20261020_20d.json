@@ -1,0 +1,35 @@
+{
+ "20d": {
+  "saved_ref": {
+   "path": "data/line_a_v2/refs/ridge_20d_lastfold.npz",
+   "sha256": "793a33b6ec95a7912558ec416b5993117b38534df519b3551080bee5570954e1",
+   "roundtrip_max_abs_diff": 0.0
+  },
+  "cutoff": "2026-07-01",
+  "direction": 1,
+  "n_features": 223,
+  "train_reproduction": {
+   "rows": 36199,
+   "rows_rebuilt": 36199,
+   "rows_unmatched": 0,
+   "max_abs_diff": 4.576422574231742e-12,
+   "pass": true
+  },
+  "forward_features": {
+   "days": [
+    "2026-09-01",
+    "2026-09-08",
+    "2026-09-15"
+   ],
+   "rows": 15519,
+   "rows_features_changed": 15516,
+   "rows_frozen_not_scored": 0,
+   "max_abs_diff_unchanged": 2.8255175976710234e-14,
+   "info_max_abs_diff_all": 5.6526984168747685e-06,
+   "info_spearman_all": 0.9999999996821476,
+   "pass": true
+  },
+  "pass": true
+ },
+ "pass": true
+}

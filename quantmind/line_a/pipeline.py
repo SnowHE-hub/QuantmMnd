@@ -22,6 +22,7 @@ from quantmind.line_a.atomic import atomic_write_json, sha256_file
 from quantmind.line_a.f1_instruments import instrument_state, load_profiles
 from quantmind.line_a.f2f4 import research_candidates, support_domains
 from quantmind.line_a.jobs import SUCCEEDED, JobStore, task_key
+from quantmind.line_a.m_market import market_state
 from quantmind.line_a.snapshot import build as build_snapshot
 
 REPO = Path(__file__).resolve().parents[2]
@@ -115,6 +116,8 @@ def run_day(ctx: Ctx, js: JobStore) -> dict:
     o = res["outputs"]
     profiles = load_profiles(CFG / "account_profiles.yaml")
     holdings = latest_holdings(ctx.out_root, ctx.as_of)
+    o["m"] = _stage(js, ctx, "m_market", "json",
+                    lambda: json.dumps(market_state(ctx.data_root, ctx.as_of), ensure_ascii=False).encode("utf-8"))
     o["f1"] = _stage(js, ctx, "f1_instruments", "parquet",
                      lambda: _pq(instrument_state(ctx.data_root, ctx.as_of, profiles, holdings)))
     o["f2"] = _stage(js, ctx, "f2_domains", "parquet", lambda: _pq(support_domains(ctx.model_root, ctx.as_of)),
@@ -175,6 +178,33 @@ def _md_table(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def _pct(v) -> str:
+    return "—" if v is None else f"{v * 100:.1f}%"
+
+
+def market_lines(m: dict) -> list[str]:
+    rows = [{"指数": k, "截至": v.get("last_date"), "5日": _pct(v.get("ret_5d")), "20日": _pct(v.get("ret_20d")),
+             "60日": _pct(v.get("ret_60d")), "相对MA20": _pct(v.get("vs_ma20")), "相对MA60": _pct(v.get("vs_ma60"))}
+            for k, v in m["trend"].items() if "close" in v]
+    L = [_md_table(pd.DataFrame(rows)), ""]
+    b, v, s, mg = m.get("breadth", {}), m.get("volatility_hs300", {}), m.get("style", {}), m.get("margin", {})
+    if "up_share" in b:
+        L.append(f"- 广度：上涨 {_pct(b['up_share'])}；高于 20 日线 {_pct(b['above_ma20_share'])}、60 日线 "
+                 f"{_pct(b['above_ma60_share'])}；20 日新高 {b['new_high_20d']} 只、新低 {b['new_low_20d']} 只（{b['n']} 只有行情）")
+    if "next_day_vol_ann" in v:
+        L.append(f"- 沪深 300 波动：HAR 预测下一日年化 {_pct(v['next_day_vol_ann'])}；20 日已实现 "
+                 f"{_pct(v['realized_vol_20d_ann'])}（三年分位 {_pct(v['realized_vol_20d_pct3y'])}）")
+    if s:
+        L.append(f"- 风格：中证 2000 相对沪深 300 近 20 日 {_pct(s['csi2000_vs_hs300_rs20'])}、近 60 日 "
+                 f"{_pct(s['csi2000_vs_hs300_rs60'])}（三年分位 {_pct(s['rs60_pct3y'])}）；成交额比的三年分位 "
+                 f"{_pct(s['amount_ratio_pct3y'])}（拥挤度代理）")
+    if "balance_yuan" in mg:
+        L.append(f"- 两融余额（截至 {mg['last_date']}）：{mg['balance_yuan'] / 1e8:,.0f} 亿元，5 日 {_pct(mg['chg_5d'])}、"
+                 f"20 日 {_pct(mg['chg_20d'])}，三年分位 {_pct(mg['pct3y'])}")
+    L.append(f"- 北向资金：{m['northbound']['note']}")
+    return L
+
+
 def report(ctx: Ctx, res: dict) -> str:
     o = res["outputs"]
     snap = res["snapshot"]
@@ -188,6 +218,7 @@ def report(ctx: Ctx, res: dict) -> str:
         L.append("- 滞后输入：" + "，".join(f"{k}（到 {v}）" for k, v in sorted(snap["stale"].items())))
     if snap["absent"]:
         L.append("- 缺失输入：" + "，".join(snap["absent"]))
+    L += ["", "## 0 市场状态（M，只监测，参考臂固定满仓）", ""] + market_lines(json.loads(Path(o["m"]).read_text("utf-8")))
     L += ["", "## 1 市场与证券状态（F1）", ""]
     st = {"在市股票": len(f1), "主板": int((f1["board"] == "MAIN").sum()), "创业板": int((f1["board"] == "CHINEXT").sum()),
           "科创板": int((f1["board"] == "STAR").sum()), "北交所": int((f1["board"] == "BSE").sum()),
