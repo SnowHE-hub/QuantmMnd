@@ -49,7 +49,12 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--seed", type=int, default=SEED, help="v1 开发集 20261021；留出集用别的种子")
     ap.add_argument("--as-ofs", default=",".join(AS_OFS))
+    ap.add_argument("--prompt", choices=["v2", "v1"], default="v2",
+                    help="v1 只用于消融：同一批案例、同一份代码，只换 A1 提示词")
     a = ap.parse_args()
+    if a.prompt == "v1":
+        from quantmind.line_a.harness import roles, slices
+        slices.A1_SYSTEM = roles.A1_SYSTEM_V1
     a.out.mkdir(parents=True, exist_ok=True)
     as_ofs = a.as_ofs.split(",")
     cases = sample_cases(a.lake, as_ofs, per_date=10, seed=a.seed)
@@ -84,7 +89,8 @@ def main() -> None:
             "mean_recall": sum(r["recall"] for r in ok) / max(1, len(ok)),
             "mean_verified_share": sum(r["verified_share"] for r in ok) / max(1, len(ok)),
             "mean_problem_share": sum(r["problem_share"] for r in ok) / max(1, len(ok)),
-            "cost_rmb_total": sum(r["cost_rmb"] for r in rows), "seed": a.seed, "as_ofs": as_ofs}
+            "cost_rmb_total": sum(r["cost_rmb"] for r in rows), "seed": a.seed, "as_ofs": as_ofs,
+            "prompt": a.prompt}
     missed: dict = {}
     for r in ok:
         for m in r.get("missed", []):

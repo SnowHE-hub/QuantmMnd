@@ -1,0 +1,19 @@
+{
+ "n_cases": 40,
+ "n_ok": 40,
+ "abstain_rate": 0.0,
+ "mean_recall": 0.95,
+ "mean_verified_share": 0.9147422052585096,
+ "mean_problem_share": 0.013315476190476192,
+ "cost_rmb_total": 3.18129528,
+ "seed": 20261021,
+ "as_ofs": [
+  "2023-05-10",
+  "2023-09-10",
+  "2023-11-10",
+  "2024-04-10"
+ ],
+ "missed_fact_counts": {
+  "forecast.type.latest": 12
+ }
+}
