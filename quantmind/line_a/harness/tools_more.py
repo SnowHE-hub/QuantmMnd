@@ -157,3 +157,90 @@ class ResearchTools(DataTools):
                 "hits": [{"evidence_id": h.para_id, "score": round(h.score, 3), "text": text[h.para_id][:400]}
                          for h in hits],
                 "note": "" if items else "该区间没有公告元数据（采集可能尚未覆盖），不能据此推断没有反证"}
+
+
+# ---------------------------------------------------------------------- A5 行业与政策（前瞻：新闻采集从 2026-10-17 开始）
+INDUSTRY_TERMS = {   # Tushare 行业名 → 额外检索词（第一版只覆盖常见行业；没有的就只用行业名本身）
+    "半导体": "芯片 晶圆 光刻 封测 存储 算力", "元器件": "电子元件 被动元件 PCB 连接器", "软件服务": "软件 信创 云计算 人工智能",
+    "通信设备": "通信 5G 光模块 基站", "汽车整车": "汽车 新能源车 电动车", "汽车配件": "汽车零部件 智能驾驶",
+    "白酒": "白酒 酒类 消费", "银行": "银行 信贷 息差 央行", "证券": "券商 资本市场 交易量", "保险": "保险 保费",
+    "医药商业": "医药 集采 医保", "化学制药": "创新药 医保 集采", "生物制药": "生物药 疫苗 创新药",
+    "电气设备": "电网 储能 光伏 风电", "新型电力": "光伏 风电 储能 电价", "煤炭开采": "煤炭 煤价 能源",
+    "小金属": "稀土 锂 钴 有色", "黄金": "黄金 金价 美联储", "房地产": "房地产 楼市 地产政策", "航空": "航空 客运 油价",
+}
+POLICY_TERMS = "国务院 发改委 工信部 证监会 央行 财政部 商务部 政策 监管 关税 补贴"
+
+
+def _news(lake, lo_ts: pd.Timestamp, hi_ts: pd.Timestamp) -> pd.DataFrame:
+    parts = []
+    for src in ("sina_global", "ths_global"):
+        for p in sorted((lake / "text/news_fwd" / src).glob("*.parquet")):
+            if lo_ts.strftime("%Y%m%d") <= p.stem <= hi_ts.strftime("%Y%m%d"):
+                parts.append(pd.read_parquet(p, columns=["source", "item_id", "publish_time_bj", "title", "content"]))
+    if not parts:
+        return pd.DataFrame()
+    df = pd.concat(parts, ignore_index=True).drop_duplicates(["source", "item_id"])
+    t = pd.to_datetime(df["publish_time_bj"], errors="coerce")
+    return df[(t > lo_ts) & (t <= hi_ts)].assign(t=t)
+
+
+def _ind_news(self: ResearchTools, query: str, days: int, top_k: int = 15) -> list[dict]:
+    from quantmind.line_a.evidence.retrieval import BM25
+    hi = pd.Timestamp(self.as_of) + pd.Timedelta(hours=21)          # 北京时间 21:00 截止（与 F0 相同）
+    df = _news(self.lake, hi - pd.Timedelta(days=days), hi)
+    if df.empty:
+        return []
+    text = (df["title"].fillna("") + " " + df["content"].fillna("")).tolist()
+    ids = [f"news:{s}:{i}" for s, i in zip(df["source"], df["item_id"], strict=True)]
+    hits = BM25(list(zip(ids, text, strict=True))).search(query, top_k=top_k)
+    by = dict(zip(ids, zip(df["t"].astype(str), text, strict=True), strict=True))
+    return [{"evidence_id": h.para_id, "publish_time_bj": by[h.para_id][0], "score": round(h.score, 3),
+             "text": by[h.para_id][1][:400]} for h in hits]
+
+
+def business_profile(self: ResearchTools, ticker: str) -> dict:
+    sb = pd.read_parquet(sorted(self.lake.glob("stock_basic_full_merged_2*.parquet"))[-1])
+    r = sb[sb["ts_code"] == ticker]
+    if r.empty:
+        return {"status": "unknown_ticker"}
+    r = r.iloc[0]
+    return {"evidence_id": f"tushare:stock_basic:{ticker}", "name": _clean(r.get("name")),
+            "industry": _clean(r.get("industry")), "area": _clean(r.get("area")), "market": _clean(r.get("market")),
+            "note": "主营业务构成（fina_mainbz）尚未下载，业务映射只到行业分类这一层"}
+
+
+def industry_pack(self: ResearchTools, ticker: str, days: int = 5) -> dict:
+    """同一行业、同一天共享的公共证据包：行业相关新闻（BM25）与行业成分股相对全市场的近期表现。"""
+    prof = business_profile(self, ticker)
+    ind = prof.get("industry") or ""
+    news = _ind_news(self, f"{ind} {INDUSTRY_TERMS.get(ind, '')}", days)
+    sb = pd.read_parquet(sorted(self.lake.glob("stock_basic_full_merged_2*.parquet"))[-1], columns=["ts_code", "industry"])
+    members = sb.loc[sb["industry"] == ind, "ts_code"].tolist()
+    stats: dict = {}
+    raw = sorted((self.lake.parent / "raw").glob("alpha_prices_panel_v6_2*.parquet"))
+    if raw and members:
+        d = pd.Timestamp(self.as_of)
+        px = pd.read_parquet(raw[-1], columns=["ts_code", "trade_date", "close", "adj_factor"],
+                             filters=[("trade_date", ">=", d - pd.Timedelta(days=45)), ("trade_date", "<=", d)])
+        w = (px["close"] * px["adj_factor"]).groupby([px["trade_date"], px["ts_code"]]).last().unstack().sort_index()
+        if len(w) > 21:
+            r5, r20 = w.iloc[-1] / w.iloc[-6] - 1, w.iloc[-1] / w.iloc[-21] - 1
+            m = [t for t in members if t in w.columns]
+            stats = {"evidence_id": f"calc:industry_stats:{ind}:{self.as_of}", "n_members": len(m),
+                     "ind_ret_5d_median": float(r5[m].median()), "mkt_ret_5d_median": float(r5.median()),
+                     "ind_ret_20d_median": float(r20[m].median()), "mkt_ret_20d_median": float(r20.median()),
+                     "_units": dict.fromkeys(("ind_ret_5d_median", "mkt_ret_5d_median", "ind_ret_20d_median",
+                                              "mkt_ret_20d_median"), "比例")}
+    return {"industry": ind, "as_of": self.as_of, "window_days": days, "news": news, "sector_stats": stats,
+            "note": "" if news else "窗口内没有采集到相关新闻（前瞻新闻从 2026-10-17 开始采集）"}
+
+
+def policy_search(self: ResearchTools, ticker: str, query: str, days: int = 10) -> dict:
+    hits = _ind_news(self, f"{query} {POLICY_TERMS}", days, top_k=10)
+    return {"as_of": self.as_of, "query": query, "hits": hits,
+            "note": "" if hits else "窗口内没有采集到相关新闻（前瞻新闻从 2026-10-17 开始采集）"}
+
+
+ResearchTools.business_profile = business_profile
+ResearchTools.industry_pack = industry_pack
+ResearchTools.policy_search = policy_search

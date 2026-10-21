@@ -24,6 +24,7 @@ from quantmind.line_a.harness.roles import (
     A2_SYSTEM,
     A3_SYSTEM,
     A4_SYSTEM,
+    A5_SYSTEM,
     A6_SYSTEM,
     ReviewOutput,
     RoleOutput,
@@ -83,6 +84,14 @@ def role_spec(role: str, dt: ResearchTools, subject: str, *, thinking: str | Non
                  _tool("flow_snapshot", "资金流向（大单与特大单净额）与融资余额的 5 / 20 日变化", dt.flow_snapshot),
                  _tool("top_list_records", "龙虎榜上榜原因与机构净买入", dt.top_list_records, _LB)]
         return RoleSpec("A4", A4_SYSTEM, tools, RoleOutput, **big)
+    if role == "A5":
+        tools = [_tool("business_profile", "公司的行业、地区、板块（业务映射目前只到行业分类）", dt.business_profile),
+                 _tool("industry_pack", "同行业共享的证据包：窗口内的行业新闻与行业成分股相对全市场的表现", dt.industry_pack,
+                       {"days": {"type": "integer", "minimum": 1, "maximum": 30}}),
+                 _tool("policy_search", "在窗口内的新闻里检索政策与监管信息", dt.policy_search,
+                       {"query": {"type": "string"}, "days": {"type": "integer", "minimum": 1, "maximum": 30}},
+                       ("query",))]
+        return RoleSpec("A5", A5_SYSTEM, tools, RoleOutput, **big)
     if role == "A6":
         tools = [_tool("read_evidence", "读回上游角色引用的原始证据记录", dt.read_evidence,
                        {"evidence_id": {"type": "string"}}, ("evidence_id",)),
@@ -167,7 +176,7 @@ def main() -> None:
     ap.add_argument("--lake", type=Path, required=True)
     ap.add_argument("--as-of", required=True)
     ap.add_argument("--ticker", required=True)
-    ap.add_argument("--role", choices=["A1", "A2", "A3", "A4"])
+    ap.add_argument("--role", choices=["A1", "A2", "A3", "A4", "A5"])
     ap.add_argument("--case", help="逗号分隔的上游角色，例如 A1,A2,A3,A4；之后自动运行 A6")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--budget", type=float, default=2.0)
