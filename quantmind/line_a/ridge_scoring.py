@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +44,36 @@ class RidgeRef:
     frozen_test: pd.DataFrame          # 最后一折在研究期的测试预测（as_of, ticker, score），用于核对
 
 
+def build_lean(root: Path, dates) -> tuple[pd.DataFrame, list[str]]:
+    """与 T-018 build(root, "63d") 相同的列与列序，但只读 dates 这些 as_of 的行（整表 build 需要 7 GB 以上内存）.
+
+    唯一需要看整表的是 a158 的"非全空列"筛选（build 在全部面板行上做 a.notna().any()），这里逐列在全部面板行上判断，
+    结果与 build 相同。"""
+    import pyarrow.parquet as pq
+
+    from quantmind.features.weekly_panel import WHITELIST_35
+    D = Path(root) / "data"
+    P = D / "panel/alpha_panel_weekly_v6_1.parquet"
+    names = set(pq.read_schema(P).names)
+    sh = [c for c in json.loads((D / "loss_signals_v4/short_horizon_survivors.json").read_text())["survivors"]
+          if c in names]
+    feats = list(WHITELIST_35) + sh
+    filt = [("as_of", "in", list(pd.DatetimeIndex(sorted(dates))))]
+    base = pd.read_parquet(P, columns=feats + ["forward_return_63d"], filters=filt)
+    surv = json.loads((D / "loss_signals_v4/fundamental_survivors_v6.json").read_text())["survivors"]
+    fnd = pd.read_parquet(D / "panel/fundamental_factors_v6_1.parquet", columns=surv, filters=filt).reindex(base.index)
+    fnd.columns = [f"fnd_{c}" for c in fnd.columns]
+    A = D / "bakeoff/alpha158_asof_v6_1.parquet"
+    full_idx = pd.read_parquet(P, columns=["forward_return_63d"]).index
+    a_cols = [c for c in pq.read_schema(A).names if c not in ("as_of", "ticker", "__index_level_0__")]
+    a_idx = pd.read_parquet(A, columns=[a_cols[0]]).index
+    in_base = a_idx.isin(full_idx)
+    keep = [c for c in a_cols if pd.read_parquet(A, columns=[c])[c][in_base].notna().any()]   # 与 build 的 notna 口径相同
+    a = pd.read_parquet(A, columns=keep, filters=filt).reindex(base.index)
+    panel = base.join(fnd).join(a)
+    return panel, feats + list(fnd.columns) + keep
+
+
 def fit_reference(root: Path, horizon: str) -> RidgeRef:
     t18 = _load(EV / "T-018/train_line_b_v6_1.py", "t18train")
     t33 = _load(EV / "T-033/attribution_ridge_20d.py", "t033ridge")
@@ -50,26 +81,33 @@ def fit_reference(root: Path, horizon: str) -> RidgeRef:
     from scripts.bakeoff.p3b_tabular import make_quarterly_cutoffs
     from scripts.survivorship.p63_3_train_v6 import make_semiannual_cutoffs
 
-    panel, feats, _ = t18.build(root, "63d")
-    num = [f for f in feats if f not in CATEGORICAL]
-    panel = panel.sort_index(level=["as_of", "ticker"])
-    idx = panel.index
-    asof = pd.to_datetime(idx.get_level_values("as_of"))
+    P = root / "data/panel/alpha_panel_weekly_v6_1.parquet"
+    all_asof = sorted(pd.to_datetime(pd.read_parquet(P, columns=["forward_return_63d"]).index
+                                     .get_level_values("as_of")).unique())
     if horizon == "20d":
-        y = pd.read_parquet(root / "data/panel/labels_extra_v6_1.parquet").reindex(idx)["forward_return_20d"]
         H = E = 20
     else:
-        y = panel["forward_return_63d"]
         H = E = 63
-    y = y.to_numpy(dtype=np.float64)
-    X = panel[num].to_numpy(dtype=np.float64)
-    del panel
     cal = t18.calendar(root)
     sp = PurgedWalkForwardSplit(cal, horizon=H, embargo=E, mode="rolling", rolling_lookback_td=756, n_val=2)
     cuts = (make_quarterly_cutoffs(cal, pd.Timestamp("2022-01-01"), pd.Timestamp("2026-07-01")) if horizon == "20d"
             else make_semiannual_cutoffs(cal, "2022-04-01", "2026-04-30"))
-    folds = [f for f in t18.make_folds(sp, sorted(asof.unique()), cuts, "C") if f.test_dates and f.train_dates]
+    folds = [f for f in t18.make_folds(sp, all_asof, cuts, "C") if f.test_dates and f.train_dates]
     f = folds[-1]
+    need = sorted(set(f.train_dates) | set(f.val_dates) | set(f.test_dates))
+    panel, feats = build_lean(root, need)
+    num = [c for c in feats if c not in CATEGORICAL]
+    panel = panel.sort_index(level=["as_of", "ticker"])
+    idx = panel.index
+    asof = pd.to_datetime(idx.get_level_values("as_of"))
+    if horizon == "20d":
+        y = pd.read_parquet(root / "data/panel/labels_extra_v6_1.parquet", columns=["forward_return_20d"],
+                            filters=[("as_of", "in", list(pd.DatetimeIndex(need)))]).reindex(idx)["forward_return_20d"]
+    else:
+        y = panel["forward_return_63d"]
+    y = y.to_numpy(dtype=np.float64)
+    X = panel[num].to_numpy(dtype=np.float64)
+    del panel
     tr = np.isin(asof, pd.DatetimeIndex(f.train_dates)) & np.isfinite(y)
     Xtr, ytr = X[tr], y[tr]
 
