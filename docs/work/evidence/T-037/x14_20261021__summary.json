@@ -1,0 +1,8 @@
+{
+ "n": 5,
+ "n_pass": 4,
+ "cost_rmb": 0.1116828,
+ "failed": [
+  "fake_number"
+ ]
+}
