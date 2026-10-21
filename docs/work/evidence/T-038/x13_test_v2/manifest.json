@@ -1,0 +1,19 @@
+{
+ "version": "x13-test-v2",
+ "seed": 20261024,
+ "n_excluded_tickers": 80,
+ "years": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023
+ ],
+ "per_board_year": 2,
+ "n_cases": 40,
+ "est_download_mb": 163.7,
+ "n_gold": 438,
+ "n_gold_usable": 428,
+ "cases_sha256": "e392da108338eae943b1c8d0ec9d7da61ff9a043412bca66b89803906bb8c376",
+ "gold_sha256": "75804c98a1ffe533effe951c6aa33549f1f5ef39982144aef4b0c8c4df170203"
+}

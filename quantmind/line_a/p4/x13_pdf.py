@@ -32,7 +32,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PARSER = "pymupdf-rules-v2"   # v1 → v2：在开发集上改了 4 轮（编号标题、折行标签、横版、连续同类标题），见 T-038
+PARSER = "pymupdf-rules-v3"   # v1 → v2：在开发集上改了 4 轮（编号标题、折行标签、横版、连续同类标题）；
+#                               v2 → v3：认不带"合并"的单体报表标题（看过 v2 测试集的失败之后改，所以 v3 用新抽的测试集 v2 评估），见 T-038
 SEED = 20261021
 YEARS = range(2019, 2024)
 PER_BOARD_YEAR = 2
@@ -59,7 +60,13 @@ HEADINGS = {"合并资产负债表": "BS", "合并利润表": "IS", "合并现�
             "合并及公司资产负债表": "BS", "合并及公司利润表": "IS", "合并及公司现金流量表": "CF",
             "母公司资产负债表": "P_BS", "母公司利润表": "P_IS", "母公司现金流量表": "P_CF",
             "合并所有者权益变动表": "EQ", "合并股东权益变动表": "EQ", "母公司所有者权益变动表": "P_EQ",
-            "母公司股东权益变动表": "P_EQ"}
+            "母公司股东权益变动表": "P_EQ",
+            # v3：没有子公司的公司只有单体报表，标题不带"合并"（例如 301040.SZ 2022、688538.SH 2023）
+            "资产负债表": "BS", "利润表": "IS", "现金流量表": "CF", "所有者权益变动表": "EQ", "股东权益变动表": "EQ"}
+STANDALONE = {"资产负债表", "利润表", "现金流量表", "所有者权益变动表", "股东权益变动表"}
+# 单体报表没有"归属于母公司"那一行；数据源对这类公司的归母口径就是全体口径
+STANDALONE_FALLBACK = {"n_income_attr_p": ("净利润",),
+                       "total_hldr_eqy_exc_min_int": ("所有者权益合计", "股东权益合计")}
 UNITS = {"元": 1.0, "千元": 1e3, "万元": 1e4, "百万元": 1e6, "亿元": 1e8}
 _TITLE = re.compile(r"(\d{4})\s*年?\s*年度报告(?:全文)?(?:（修订版）|\(修订版\)|（更新后）)?$")
 _EXCLUDE = re.compile(r"摘要|英文|审计|督导|更正|补充|取消|说明|问询|半年|季度|核查|鉴证|专项|提示")
@@ -234,9 +241,9 @@ def _segments(doc) -> list[dict]:
             if line in HEADINGS:
                 if marks and marks[-1][2] == HEADINGS[line]:
                     continue    # 连续的同类标题（"（续）"、横版每半页重复的表头）是同一张表接着印，不另起一段
-                marks.append((pno, vy, HEADINGS[line]))
+                marks.append((pno, vy, HEADINGS[line], line in STANDALONE))
     segs = []
-    for i, (pno, y, kind) in enumerate(marks):
+    for i, (pno, y, kind, standalone) in enumerate(marks):
         if i + 1 < len(marks):
             end, end_y = marks[i + 1][0], marks[i + 1][1]
         else:
@@ -245,7 +252,7 @@ def _segments(doc) -> list[dict]:
         text = "".join(doc[p].get_text("text") for p in pages[:2])
         m = re.search(r"单位[:：]\s*(?:人民币)?\s*(百万元|千元|万元|亿元|元)", text)
         segs.append({"kind": kind, "pages": pages, "start_y": y, "end_y": end_y,
-                     "unit": UNITS[m.group(1)] if m else 1.0})
+                     "unit": UNITS[m.group(1)] if m else 1.0, "standalone": standalone})
     return segs
 
 
@@ -313,6 +320,10 @@ def extract(path: Path) -> dict:
             found = {f: _find(doc, s, FIELDS[f][2]) for f in fields}
             if kind == "IS" and found["total_revenue"] is None:   # 没有"营业总收入"行的公司，营业总收入就是营业收入
                 found["total_revenue"] = found["revenue"]
+            if s.get("standalone"):                               # 单体报表：归母口径就是全体口径
+                for f, labels in STANDALONE_FALLBACK.items():
+                    if f in found and found[f] is None:
+                        found[f] = _find(doc, s, labels)
             if sum(v is not None for v in found.values()) > sum(v is not None for v in best.values()):
                 best = found
         for f in fields:
