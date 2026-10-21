@@ -60,9 +60,11 @@ def evaluate(data: Path, split: str, method: str) -> None:
     out = data / "line_a_v2/p4/x6_v1"
     paras = {k: [tuple(x) for x in v] for k, v in json.loads((out / f"paras_{split}.json").read_text(encoding="utf-8")).items()}
     q = pd.DataFrame([json.loads(x) for x in (out / f"queries_{split}.jsonl").read_text(encoding="utf-8").splitlines()])
-    dense = x6.Dense(method.split(":", 1)[1]) if ":" in method else None
+    kind, _, model = method.partition(":")
+    dense = x6.Dense(model) if kind in ("dense", "hybrid") else None
+    rerank = x6.Rerank(model) if kind == "rerank" else None
     t0 = time.time()
-    r = x6.evaluate(q, paras, method.split(":")[0] if dense is None else method, dense=dense)
+    r = x6.evaluate(q, paras, method, dense=dense, rerank=rerank)
     r["seconds"] = round(time.time() - t0, 1)
     name = method.replace(":", "_").replace("/", "_")
     (out / f"result_{split}_{name}.json").write_text(json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")

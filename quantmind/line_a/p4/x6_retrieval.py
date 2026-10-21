@@ -10,7 +10,8 @@
   正文里一个都找不到的查询丢弃并计数；
 - 风险查询：审计意见类型，标准答案来自 fina_audit 表；相关段落 = 含该意见类型说法的段落（规则见 OPINION_PATTERNS）。
 指标：每类查询的 Recall@5（前 5 条里有任一相关段落）、MRR@10。
-方法：bm25（线上基线）、dense:<模型>（句向量，余弦）、hybrid:<模型>（BM25 与向量的 RRF，k = 60）。
+方法：bm25（线上基线）、dense:<模型>（句向量，余弦）、hybrid:<模型>（BM25 与向量的 RRF，k = 60）、
+rerank:<模型>（BM25 前 50 条 + 交叉编码器重排）。
 """
 from __future__ import annotations
 
@@ -138,6 +139,23 @@ class Dense:
                              show_progress_bar=False)
 
 
+class Rerank:
+    """交叉编码器重排：BM25 取前 RERANK_POOL 条，再按 (查询, 段落) 打分重排。"""
+    def __init__(self, model: str, batch: int = 32):
+        from sentence_transformers import CrossEncoder
+        self.m = CrossEncoder(model, device="cuda", max_length=512)
+        self.batch = batch
+
+    def order(self, query: str, cands: list[tuple[str, str]]) -> list[str]:
+        if not cands:
+            return []
+        s = self.m.predict([(query, t) for _, t in cands], batch_size=self.batch, show_progress_bar=False)
+        return [cands[i][0] for i in np.argsort(-np.asarray(s))]
+
+
+RERANK_POOL = 50
+
+
 def _rank_bm25(ps: list, query: str, k: int) -> list[str]:
     return [h.para_id for h in BM25(ps).search(query, top_k=k)]
 
@@ -151,13 +169,14 @@ def _rrf(lists: list[list[str]], k: int) -> list[str]:
 
 
 def evaluate(queries: pd.DataFrame, paras: dict[str, list], method: str, *, dense: Dense | None = None,
-             k: int = 10) -> dict:
+             rerank: Rerank | None = None, k: int = 10) -> dict:
     """返回 {总体 / 每类查询: Recall@5, MRR@10, n}，以及每条查询的排名。"""
     per = []
     emb_cache: dict[str, np.ndarray] = {}
     for a, qs in queries.groupby("ann_id"):
         ps = paras[a]
-        if method != "bm25":
+        text = dict(ps)
+        if method.startswith(("dense", "hybrid")):
             if a not in emb_cache:
                 emb_cache = {a: dense.encode([t for _, t in ps])}
             qv = dense.encode(qs["query"].tolist())
@@ -165,6 +184,9 @@ def evaluate(queries: pd.DataFrame, paras: dict[str, list], method: str, *, dens
         for j, q in enumerate(qs.itertuples(index=False)):
             if method == "bm25":
                 ranked = _rank_bm25(ps, q.query, k)
+            elif method.startswith("rerank"):
+                pool = _rank_bm25(ps, q.query, RERANK_POOL)
+                ranked = rerank.order(q.query, [(p, text[p]) for p in pool])[:k]
             else:
                 order = np.argsort(-sims[j])[: max(k, 50)]
                 dl = [ps[i][0] for i in order]
