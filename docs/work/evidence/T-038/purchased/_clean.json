@@ -1,0 +1,11 @@
+{
+ "rows": 2639015,
+ "from_official": 102163,
+ "official_window": [
+  "20181001",
+  "20190413"
+ ],
+ "version_conflict_rows": 25791,
+ "report_date_min": "20110524",
+ "report_date_max": "20260522"
+}

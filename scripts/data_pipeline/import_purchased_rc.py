@@ -107,12 +107,45 @@ def validate(df: pd.DataFrame, official: Path) -> dict:
     return res
 
 
+def build_clean(out: Path, official: Path) -> dict:
+    """清洗版（2026-10-22，看到验收结果之后定的规则，与原始判定一起记在 T-038）：
+    - 官方已有的 13 个窗口（2018-10-01～2019-04-13）用官方数据替换数据包；
+    - 其余时段用数据包；同一 KEY 有多行的整组标 version_conflict = True（数据包合并了不同时间的抓取，
+      Tushare 后来改过的记录新旧版本都在），下游算特征时排除这些行；
+    - 加 source 列（official / pack）；原始 parquet 不动。"""
+    cols = [c for c in pq.read_schema(out / "report_rc.parquet").names if not c.endswith("__raw")]
+    df = pd.read_parquet(out / "report_rc.parquet", columns=cols)
+    off = pd.concat([pd.read_parquet(f) for f in sorted(official.glob("*.parquet"))], ignore_index=True)
+    lo, hi = min(f.stem.split("_")[0] for f in official.glob("*.parquet")), max(f.stem.split("_")[1] for f in official.glob("*.parquet"))
+    keep = df[(df["report_date"] < lo) | (df["report_date"] > hi)].assign(source="pack")
+    o = off.assign(source="official")
+    for c in o.columns:
+        if c in NUMERIC:
+            o[c] = pd.to_numeric(o[c], errors="coerce").astype("float64")
+        elif c != "source":
+            o[c] = o[c].astype("string").fillna("")
+    clean = pd.concat([keep, o], ignore_index=True)
+    k = clean[KEY].astype(str)
+    clean["version_conflict"] = k.duplicated(keep=False)
+    clean = clean.sort_values(["report_date", "ts_code", "org_name", "quarter"]).reset_index(drop=True)
+    clean.to_parquet(out / "report_rc_clean.parquet", compression="zstd")
+    info = {"rows": int(len(clean)), "from_official": int((clean["source"] == "official").sum()),
+            "official_window": [lo, hi], "version_conflict_rows": int(clean["version_conflict"].sum()),
+            "report_date_min": clean["report_date"].min(), "report_date_max": clean["report_date"].max()}
+    (out / "_clean.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    return info
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-root", type=Path, required=True)
     ap.add_argument("--src", type=Path, required=True)
+    ap.add_argument("--clean-only", action="store_true", help="只生成清洗版（导入和验收已做过）")
     a = ap.parse_args()
     out = a.data_root / "data/lake/events_purchased/xianyu_20261022"
+    if a.clean_only:
+        print("CLEAN", json.dumps(build_clean(out, a.data_root / "data/lake/events/_parts/report_rc"), ensure_ascii=False))
+        return 0
     raw = out / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     rep = {"source": "third-party CSV pack bought by the user on Xianyu (resold Tushare data; provenance unverifiable)",

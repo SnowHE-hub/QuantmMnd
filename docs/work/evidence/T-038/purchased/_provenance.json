@@ -1,0 +1,56 @@
+{
+ "source": "third-party CSV pack bought by the user on Xianyu (resold Tushare data; provenance unverifiable)",
+ "files": {
+  "report_rc": {
+   "csv": "tushare_report_rc.csv",
+   "sha256": "53ba1da9384bfdbeb93feb0025e5850d4fadba4d4ed1d6700200fab7d39315a1",
+   "rows": 2639290,
+   "columns": [
+    "author_name",
+    "classify",
+    "create_time",
+    "eps",
+    "ev_ebitda",
+    "imp_dg",
+    "max_price",
+    "min_price",
+    "name",
+    "np",
+    "op_pr",
+    "op_rt",
+    "org_name",
+    "pe",
+    "quarter",
+    "rating",
+    "rd",
+    "report_date",
+    "report_title",
+    "report_type",
+    "roe",
+    "tp",
+    "ts_code",
+    "row_hash"
+   ],
+   "non_numeric_values": {}
+  },
+  "research_report": {
+   "csv": "tushare_research_report.csv",
+   "sha256": "1550b21ab996aec990ab99c9f7cf2fa51873775f16cbf099bcc9c3211d752cc2",
+   "rows": 317660,
+   "columns": [
+    "abstr",
+    "author",
+    "ind_name",
+    "inst_csname",
+    "name",
+    "report_type",
+    "title",
+    "trade_date",
+    "ts_code",
+    "url",
+    "row_hash"
+   ],
+   "non_numeric_values": {}
+  }
+ }
+}
