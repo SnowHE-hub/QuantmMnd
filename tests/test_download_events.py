@@ -331,7 +331,7 @@ def test_report_rc_spec_respects_known_limits():
     assert s.mode == "window" and s.window_days <= 20 and s.min_interval >= 61
 
 
-def test_compact_coerces_and_refuses_overwrite(tmp_path):
+def test_compact_coerces_and_resumes(tmp_path):
     parts = tmp_path / "_parts/x"
     parts.mkdir(parents=True)
     pd.DataFrame({"ts_code": ["000001.SZ"], "ann_date": ["20260105"], "v": [1.5]}).to_parquet(parts / "a.parquet")
@@ -344,5 +344,12 @@ def test_compact_coerces_and_refuses_overwrite(tmp_path):
     assert man["rows"] == 2 and man["exact_duplicate_rows_dropped"] == 1
     assert out["v"].dtype == "float64" and out["ts_code"].iloc[0] == "000001.SZ"
     assert man["date_min"] == "20260105" and man["date_max"] == "20260106"
-    with pytest.raises(FileExistsError):
-        de.compact("x", tmp_path, "2026-10-09", de.Spec("month", "ann_date"))
+    # 快照和 manifest 都在：完整，不覆盖，直接返回原 manifest
+    again = de.compact("x", tmp_path, "2026-10-09", de.Spec("month", "ann_date"))
+    assert again["resumed"] and again["sha256"] == man["sha256"]
+    # 只有快照、没有 manifest：上次没写完，隔离后重做
+    (tmp_path / "x_20261009.manifest.json").unlink()
+    (tmp_path / "x_20261009.parquet").write_bytes(b"partial")
+    redo = de.compact("x", tmp_path, "2026-10-09", de.Spec("month", "ann_date"))
+    assert redo["rows"] == 2 and "resumed" not in redo
+    assert list(tmp_path.glob("_quarantine_*_partial_compact/x_20261009.parquet"))
