@@ -6,7 +6,8 @@
 # - 构建时拿住巨潮下载的文件锁，并等每日影子运行（qm-daily-*）结束，避免两边同时占内存；
 # - 产物：data/line_a_v2/p4/x4_v1/（按年数据、标签汇总、金标准样本、build_record.json），
 #   以及 D:/MCS_26S2课程资料/quantmind_colab_upload/ 下的 pack_x4_v1.zip 和运行本；
-# - 然后在本机 GPU 上训练 MacBERT 基线并评估（results_local/、eval_local.json）。
+# - 然后在本机 GPU 上训练 MacBERT 基线并评估（results_local/、eval_local.json）；
+# - 最后让 DeepSeek 预标金标准样本，生成复核表 D:/MCS_26S2课程资料/quantmind_labeling/x4_gold_review.csv。
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 DATA=${QM_DATA_ROOT:-/home/lenovo/projects/quantmind}
@@ -76,3 +77,20 @@ PACK=$QM_X4_UP/pack_x4_v1
 RES=$QM_X4_OUT/results_local
 PYTHONPATH=. python -u -m quantmind.line_a.p4.x4_macbert "$PACK" "$RES" &&   PYTHONPATH=. python -u -m quantmind.line_a.p4.x4_eval "$PACK" "$RES" "$QM_X4_OUT/eval_local.json"
 echo "=== $(date '+%F %T %z') macbert + eval exit $?"
+# 金标准预标（用户 2026-10-22 选定：DeepSeek 预标 + 用户复核）：只发公开的公告标题；复核表写到 D 盘
+PYTHONPATH=. python -u - <<'P'
+import os
+from pathlib import Path
+import pandas as pd
+from quantmind.line_a.harness.llm import LLM
+from quantmind.line_a.p4 import x4_gold
+out = Path(os.environ["QM_X4_OUT"])
+gold = pd.read_csv(out / "gold_sample_todo.csv", dtype=str, encoding="utf-8-sig")
+llm = LLM(ledger=out / "gold_llm_ledger.jsonl", cache_dir=out / "_gold_llm_cache", budget_rmb=5.0)
+pre = x4_gold.prelabel(gold, llm)
+flags = x4_gold.review_sheet(pre, Path("/mnt/d/MCS_26S2课程资料/quantmind_labeling/x4_gold_review.csv"))
+flags.to_parquet(out / "gold_prelabel.parquet")
+print("GOLD", len(flags), "to review", int(flags["needs_review"].sum()), flags["review_reason"].value_counts().to_dict(),
+      "cost", round(float(flags["ds_cost"].sum()), 3), flush=True)
+P
+echo "=== $(date '+%F %T %z') gold prelabel exit $?"

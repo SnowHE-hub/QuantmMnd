@@ -87,6 +87,33 @@ def test_consistency_compare(tmp_path):
     assert not bad["pass"] and bad["pearson_margin"] < 0.98
 
 
+def test_gold_prelabel_review_import(tmp_path):
+    from quantmind.line_a.harness.llm import LLM
+    from quantmind.line_a.p4 import x4_gold
+
+    def transport(url, headers, body):
+        title = body["messages"][1]["content"]
+        lab = "是" if "回购股份" in title else "否"
+        return 200, {"choices": [{"message": {"content": json.dumps({"label": lab, "reason": "测试"}, ensure_ascii=False)},
+                                  "finish_reason": "stop"}], "usage": {"prompt_tokens": 10, "completion_tokens": 5}}
+    gold = pd.DataFrame([
+        {"gold_id": "a1", "gold_for": "repurchase", "stratum": "pos_strong", "title": "关于回购股份的进展公告"},
+        {"gold_id": "a2", "gold_for": "repurchase", "stratum": "hard_neg", "title": "关于回购注销限制性股票的公告"},
+        {"gold_id": "a3", "gold_for": "repurchase", "stratum": "pos_rule", "title": "关于注销部分股票的公告"},
+        {"gold_id": "a4", "gold_for": "repurchase", "stratum": "uncertain", "title": "关于回购股份方案的公告"}])
+    llm = LLM(transport=transport, ledger=tmp_path / "l.jsonl", cache_dir=tmp_path / "c")
+    pre = x4_gold.prelabel(gold, llm, log=lambda m: None)
+    flags = x4_gold.review_sheet(pre, tmp_path / "review.csv")
+    s = pd.read_csv(tmp_path / "review.csv", encoding="utf-8-sig", dtype=str)
+    assert set(s["编号"]) >= {"a3", "a4"}                       # 不一致、规则不确定一定复核
+    assert dict(zip(flags.gold_id, flags.review_reason, strict=True))["a3"] == "DeepSeek 与规则不一致"
+    s["你的判断（是/否）"] = "否"
+    s.to_csv(tmp_path / "review.csv", index=False, encoding="utf-8-sig")
+    fin = x4_gold.import_review(flags, tmp_path / "review.csv").set_index("gold_id")
+    assert fin.loc["a3", "gold_label"] == "否" and fin.loc["a3", "gold_source"] == "user"
+    assert fin.loc["a1", "gold_label"] in ("是", "否") and fin["gold_label"].notna().all()
+
+
 def test_cloud_pure_functions(tmp_path):
     import hashlib
     import importlib.util
