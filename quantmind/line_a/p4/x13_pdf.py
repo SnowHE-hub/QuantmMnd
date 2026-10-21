@@ -29,6 +29,7 @@ import json
 import re
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 PARSER = "pymupdf-rules-v1"
@@ -291,6 +292,39 @@ def extract(path: Path) -> dict:
         for f in fields:
             out[f] = best.get(f)
     return out
+
+
+def run_baseline(dev_dir: Path, cache_dir: Path, out_dir: Path) -> dict:
+    """下载（已缓存的跳过）开发集里的年报，跑基线解析器并打分。"""
+    import time
+
+    from quantmind.line_a.evidence.fetch import fetch_pdf
+    dev_dir, out_dir = Path(dev_dir), Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cases = pd.read_csv(dev_dir / "cases.csv", dtype={"announcementId": str})
+    gold = pd.read_csv(dev_dir / "gold.csv", dtype={"ann_id": str})
+    results, fetch_log = {}, []
+    for r in cases.itertuples(index=False):
+        t0 = time.time()
+        try:
+            f = fetch_pdf(r.announcementId, r.adjunctUrl, cache_dir)
+        except Exception as e:  # noqa: BLE001  下载失败记下来，不算解析器的错
+            fetch_log.append({"ann_id": r.announcementId, "error": str(e)[:160]})
+            continue
+        fetch_log.append({"ann_id": r.announcementId, "bytes": f["bytes"], "sha256": f["sha256"], "cached": f["cached"]})
+        t1 = time.time()
+        res = extract(Path(f["path"]))
+        res["_meta"].update({"fetch_s": round(t1 - t0, 1), "parse_s": round(time.time() - t1, 1)})
+        results[r.announcementId] = res
+        print(f"  {r.ts_code} {r.year} pages={res['_meta']['pages']} parse {res['_meta']['parse_s']}s", flush=True)
+    (out_dir / "extract.json").write_text(json.dumps(results, ensure_ascii=False, indent=0), encoding="utf-8")
+    (out_dir / "fetch_log.json").write_text(json.dumps(fetch_log, ensure_ascii=False, indent=0), encoding="utf-8")
+    s = score(results, gold)
+    s["parser"] = PARSER
+    s["n_fetch_failed"] = sum("error" in x for x in fetch_log)
+    s["parse_seconds_mean"] = float(np.mean([v["_meta"]["parse_s"] for v in results.values()])) if results else None
+    (out_dir / "score.json").write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
+    return s
 
 
 # ---------------------------------------------------------------- 打分

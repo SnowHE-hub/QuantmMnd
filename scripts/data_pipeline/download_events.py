@@ -82,6 +82,9 @@ SPECS: dict[str, Spec] = {
     "pledge_stat": Spec("week_fri", "end_date"),
     "fina_audit": Spec("ticker", "ann_date"),
     "dividend": Spec("ticker", "ann_date"),
+    # A3 的关系链（T-037）：按期横截面单次最多 6,000 行（实测 2023-12-31 一期正好 6,000 行，被截断），按股票全历史只有几百行
+    "top10_floatholders": Spec("ticker", "ann_date"),
+    "stk_managers": Spec("ticker", "ann_date"),
 }
 
 
