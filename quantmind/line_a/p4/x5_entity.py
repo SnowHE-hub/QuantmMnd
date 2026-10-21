@@ -59,14 +59,17 @@ def sentences(rr: pd.DataFrame) -> pd.DataFrame:
             s = s.strip()
             if 15 <= len(s) <= 160:
                 rows.append({"sid": _sha(f"{r.row_hash}:{i}")[:12], "trade_date": r.trade_date, "report_type": r.report_type,
-                             "ts_code": r.ts_code, "name": r.name, "sentence": s})
+                             "ts_code": r.ts_code, "name": r.name, "sentence": s, "row_hash": r.row_hash})
     return pd.DataFrame(rows)
 
 
-def build_devset(lake: Path, rr_path: Path, out_dir: Path, *, pool: int = 6000, seed: int = SEED) -> pd.DataFrame:
-    """先按种子抽 pool 份研报切句，再用规则基线分层抽样。"""
+def build_devset(lake: Path, rr_path: Path, out_dir: Path, *, pool: int = 6000, seed: int = SEED,
+                 version: str = "x5-dev-v1", exclude_reports: set | None = None) -> pd.DataFrame:
+    """先按种子抽 pool 份研报切句，再用规则基线分层抽样。测试集换种子，并排除开发集用过的研报（exclude_reports：row_hash）。"""
     rr = pd.read_parquet(rr_path, columns=["trade_date", "ts_code", "name", "report_type", "abstr", "row_hash"])
     rr = rr[(rr["trade_date"] >= "20190101") & (rr["trade_date"] <= "20251231") & (rr["abstr"].str.len() > 30)]
+    if exclude_reports:
+        rr = rr[~rr["row_hash"].isin(exclude_reports)]
     rr = rr.sample(min(pool, len(rr)), random_state=seed)
     st = sentences(rr)
     at = alias_table(lake)
@@ -92,7 +95,8 @@ def build_devset(lake: Path, rr_path: Path, out_dir: Path, *, pool: int = 6000, 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     dev.to_csv(out_dir / "sentences.csv", index=False, encoding="utf-8-sig")
-    man = {"version": "x5-dev-v1", "seed": seed, "pool_reports": int(len(rr)), "pool_sentences": int(len(st)),
+    man = {"version": version, "seed": seed, "pool_reports": int(len(rr)), "pool_sentences": int(len(st)),
+           "n_excluded_reports": len(exclude_reports or ()),
            "strata": dev["stratum"].value_counts().to_dict(),
            "candidates": {k: int(len(v)) for k, v in cand.items()},
            "sentences_sha256": _sha((out_dir / "sentences.csv").read_text(encoding="utf-8-sig"))}
