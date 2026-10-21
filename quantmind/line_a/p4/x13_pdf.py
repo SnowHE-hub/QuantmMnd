@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PARSER = "pymupdf-rules-v1"
+PARSER = "pymupdf-rules-v2"   # v1 → v2：在开发集上改了 4 轮（编号标题、折行标签、横版、连续同类标题），见 T-038
 SEED = 20261021
 YEARS = range(2019, 2024)
 PER_BOARD_YEAR = 2
@@ -136,11 +136,13 @@ def gold_for(lake: Path, ts_code: str, year: int, pub_date: str, tables: dict | 
     return out
 
 
-def build_devset(lake: Path, out_dir: Path, seed: int = SEED) -> pd.DataFrame:
+def build_devset(lake: Path, out_dir: Path, seed: int = SEED, *, version: str = "x13-dev-v1",
+                 exclude: set | None = None) -> pd.DataFrame:
+    """开发集和测试集用同一套规则抽样；测试集换种子，并排除开发集里出现过的股票（exclude）。"""
     lake, out_dir = Path(lake), Path(out_dir)
     ar = annual_reports(lake / "text/cninfo/_parts")
     ar = ar[ar["board"] != "BSE"]
-    picks, used = [], set()
+    picks, used = [], set(exclude or ())
     for (_b, y), g in ar.groupby(["board", "year"]):
         g = g[~g["ts_code"].isin(used)].sample(frac=1.0, random_state=seed + y)
         sel = g.head(PER_BOARD_YEAR)
@@ -160,7 +162,7 @@ def build_devset(lake: Path, out_dir: Path, seed: int = SEED) -> pd.DataFrame:
     cases.to_csv(out_dir / "cases.csv", index=False, encoding="utf-8-sig")
     gd = pd.DataFrame(gold)
     gd.to_csv(out_dir / "gold.csv", index=False, encoding="utf-8-sig")
-    man = {"version": "x13-dev-v1", "seed": seed, "years": list(YEARS), "per_board_year": PER_BOARD_YEAR,
+    man = {"version": version, "seed": seed, "n_excluded_tickers": len(exclude or ()), "years": list(YEARS), "per_board_year": PER_BOARD_YEAR,
            "n_cases": len(cases), "est_download_mb": round(float(cases["adjunctSize"].astype(float).sum()) / 1024, 1),
            "n_gold": int(gd["value"].notna().sum()), "n_gold_usable": int((gd["value"].notna() & gd["excluded"].isna()).sum()),
            "cases_sha256": _sha((out_dir / "cases.csv").read_text(encoding="utf-8-sig")),
@@ -170,9 +172,8 @@ def build_devset(lake: Path, out_dir: Path, seed: int = SEED) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- 基线解析器
-def _rows(page) -> list[list[tuple]]:
-    """单词坐标 → 视觉行（按 y 中心聚类，容差 3 pt），行内按 x 排序。每个词 (x0, y0, x1, y1, text)。"""
-    words = sorted(page.get_text("words"), key=lambda w: ((w[1] + w[3]) / 2, w[0]))
+def _rows_of(words) -> list[list[tuple]]:
+    words = sorted(words, key=lambda w: ((w[1] + w[3]) / 2, w[0]))
     rows, cur, yc = [], [], None
     for w in words:
         c = (w[1] + w[3]) / 2
@@ -184,6 +185,19 @@ def _rows(page) -> list[list[tuple]]:
     if cur:
         rows.append(sorted(cur, key=lambda x: x[0]))
     return rows
+
+
+def _rows(page) -> list[tuple[float, list[tuple]]]:
+    """单词坐标 → 视觉行（按 y 中心聚类，容差 3 pt），行内按 x 排序。每个词 (x0, y0, x1, y1, text)。
+    返回 (阅读顺序坐标, 行)。横版"一张纸印两页"的版式（宽 > 1.2 × 高）先切成左右两半，右半的阅读顺序排在左半之后。"""
+    words = page.get_text("words")
+    w, h = page.rect.width, page.rect.height
+    if w > 1.2 * h:
+        mid = w / 2
+        left = [x for x in words if (x[0] + x[2]) / 2 < mid]
+        right = [x for x in words if (x[0] + x[2]) / 2 >= mid]
+        return [(r[0][1], r) for r in _rows_of(left)] + [(h + r[0][1], r) for r in _rows_of(right)]
+    return [(r[0][1], r) for r in _rows_of(words)]
 
 
 def _num(tok: str) -> tuple[float, int] | None:
@@ -213,11 +227,14 @@ def _segments(doc) -> list[dict]:
     （下一个标题所在页里、标题上方的行仍属于本段，因为报表常常跨页接着印）。"""
     marks = []
     for pno in range(doc.page_count):
-        for row in _rows(doc[pno]):
+        for vy, row in _rows(doc[pno]):
             line = re.sub(r"\s+", "", "".join(w[4] for w in row))
             line = re.sub(r"[（(]续[)）]$", "", line)
+            line = _PREFIX.sub("", line)               # 深交所格式的标题带编号："1、合并资产负债表"
             if line in HEADINGS:
-                marks.append((pno, row[0][1], HEADINGS[line]))
+                if marks and marks[-1][2] == HEADINGS[line]:
+                    continue    # 连续的同类标题（"（续）"、横版每半页重复的表头）是同一张表接着印，不另起一段
+                marks.append((pno, vy, HEADINGS[line]))
     segs = []
     for i, (pno, y, kind) in enumerate(marks):
         if i + 1 < len(marks):
@@ -244,31 +261,40 @@ def _tokens(row) -> list[tuple]:
     return out
 
 
+def _split(row) -> tuple[str, list]:
+    lab, nums = [], []
+    for w in _tokens(row):
+        n = _num(w[4])
+        if n is None and not nums:
+            lab.append(w[4])
+        elif n is not None:
+            nums.append((n, w))
+    return _norm_label("".join(lab)), nums
+
+
 def _find(doc, seg: dict, labels: tuple) -> dict | None:
-    pending = ""
+    """折行标签有三种：前半截单独一行、数字在下一行（pending + 本行）；数字跟着前半截、后半截在下一行（本行 + 下一行）；
+    两截各占一行、数字在中间（pending + 本行 + 下一行）。"""
+    rows = []
     for pno in seg["pages"]:
-        for row in _rows(doc[pno]):
-            y = row[0][1]
-            if (pno == seg["pages"][0] and y <= seg["start_y"]) or (pno == seg["pages"][-1] and y >= seg["end_y"]):
+        for vy, row in _rows(doc[pno]):
+            if (pno == seg["pages"][0] and vy <= seg["start_y"]) or (pno == seg["pages"][-1] and vy >= seg["end_y"]):
                 continue
-            lab, nums = [], []
-            for w in _tokens(row):
-                n = _num(w[4])
-                if n is None and not nums:
-                    lab.append(w[4])
-                elif n is not None:
-                    nums.append((n, w))
-            text = _norm_label("".join(lab))
-            if not nums:                       # 只有文字的行：可能是折行标签的前半截，留给下一行拼接
-                pending = text
-                continue
-            for cand in (text, pending + text, pending):
-                if cand and any(cand.startswith(x) for x in labels):
-                    (v, dec), w = nums[0]
-                    prior = nums[1][0][0] * seg["unit"] if len(nums) > 1 else None
-                    return {"value": v * seg["unit"], "decimals": dec, "unit": seg["unit"], "page": pno + 1,
-                            "bbox": [round(c, 1) for c in w[:4]], "label": cand, "prior": prior}
-            pending = ""
+            rows.append((pno, *_split(row)))
+    pending = ""
+    for i, (pno, text, nums) in enumerate(rows):
+        if not nums:                           # 只有文字的行：可能是折行标签的前半截，留给下一行拼接
+            pending = text
+            continue
+        nxt = rows[i + 1][1] if i + 1 < len(rows) and not rows[i + 1][2] else ""
+        # 第三种：标签上下两截、数字单独在中间一行（按行中心排序后，数字行夹在两截之间）
+        for cand in (text, pending + text, pending, text + nxt if nxt else "", pending + text + nxt if nxt else ""):
+            if cand and any(cand.startswith(x) for x in labels):
+                (v, dec), w = nums[0]
+                prior = nums[1][0][0] * seg["unit"] if len(nums) > 1 else None
+                return {"value": v * seg["unit"], "decimals": dec, "unit": seg["unit"], "page": pno + 1,
+                        "bbox": [round(c, 1) for c in w[:4]], "label": cand, "prior": prior}
+        pending = ""
     return None
 
 

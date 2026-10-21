@@ -1,0 +1,23 @@
+{
+ "n_cases": 40,
+ "n_ok": 40,
+ "abstain_rate": 0.0,
+ "mean_recall": 0.8516666666666668,
+ "mean_verified_share": 0.9505248554899557,
+ "mean_problem_share": 0.018366882401782293,
+ "cost_rmb_total": 4.471666279999999,
+ "seed": 20261022,
+ "as_ofs": [
+  "2024-05-10",
+  "2024-09-10",
+  "2024-11-11",
+  "2025-05-12"
+ ],
+ "prompt": "v1",
+ "missed_fact_counts": {
+  "forecast.type.latest": 17,
+  "income.n_income_attr_p.prev_year": 8,
+  "income.revenue.prev_year": 9,
+  "audit.result.latest_annual": 1
+ }
+}
