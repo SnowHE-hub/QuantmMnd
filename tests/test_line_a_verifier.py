@@ -99,3 +99,29 @@ def test_minor_mismatch_for_truncation():
     out["claims"][0]["value"] = 2.5e9
     st = {c.local_id: c.status for c in verify(out, EV)}
     assert st == {"a": "verified", "b": "verified", "c": "minor_mismatch", "d": "verified"}
+
+
+def test_eval_score_a1():
+    from quantmind.line_a.harness.evalset import score_a1
+    gold = [{"fact_id": "income.revenue.latest", "metric": "revenue", "evidence_id": "e1"},
+            {"fact_id": "audit.result.latest_annual", "metric": "audit_result", "evidence_id": "e2"}]
+    out = {"claims": [{"local_id": "c1", "evidence": [{"evidence_id": "e1", "field": "revenue"}]},
+                      {"local_id": "c2", "evidence": [{"evidence_id": "e2", "field": "audit_result"}]}]}
+    s = score_a1(out, [{"local_id": "c1", "status": "verified"}, {"local_id": "c2", "status": "mismatch"}], gold, "ok")
+    assert s["recall"] == 0.5 and s["missed"] == ["audit.result.latest_annual"] and s["problem_share"] == 0.5
+    assert score_a1(None, [], gold, "abstain")["abstained"]
+
+
+def test_tls_interception_is_not_retried(monkeypatch):
+    import httpx
+    import pytest as _pt
+
+    from quantmind.line_a.harness import llm as m
+
+    def boom(*a, **k):
+        raise httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
+    monkeypatch.setattr(httpx, "post", boom)
+    x = m.LLM()
+    x._key = "dummy"
+    with _pt.raises(m.TLSInterceptionError):
+        x.chat([{"role": "user", "content": "公开问题"}])

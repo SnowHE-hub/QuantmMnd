@@ -10,6 +10,8 @@
 - **账本**：每次请求记录模型、请求哈希、token 用量、估算费用、耗时、结果哈希（JSONL，只追加）。
 - **预算**：累计估算费用超过上限就拒绝新请求（`BudgetExceededError`）。
 - **缓存**：同一请求哈希（模型 + 消息 + 参数 + 工具 + Schema）已有成功结果时直接复用，重放和断点恢复不重复付费。
+- **网络**：始终校验证书。证书校验失败（例如校园网防火墙解密 HTTPS，2026-10-21 在悉尼大学网络上遇到）时，
+  抛出 TLSInterceptionError 并停止。不关闭校验，不安装第三方根证书，否则密钥会暴露给中间设备。
 """
 from __future__ import annotations
 
@@ -40,6 +42,10 @@ class PrivateContentError(ValueError):
 
 class BudgetExceededError(RuntimeError):
     pass
+
+
+class TLSInterceptionError(RuntimeError):
+    """证书校验失败（例如校园网防火墙在解密 HTTPS）：不发送请求、不重试，交给上层停止整个案例。"""
 
 
 @dataclass
@@ -132,8 +138,16 @@ class LLM:
         import httpx
         if self._key is None:
             self._key = read_key()
-        r = httpx.post(DEEPSEEK_URL, json=body, timeout=self.timeout_s,
-                       headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"})
+        try:
+            r = httpx.post(DEEPSEEK_URL, json=body, timeout=self.timeout_s,
+                           headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"})
+        except httpx.ConnectError as e:
+            # 证书校验失败发生在 TLS 握手阶段，请求头（含密钥）还没有发出。绝不关闭校验、不重试。
+            if "CERTIFICATE_VERIFY_FAILED" in str(e):
+                raise TLSInterceptionError(
+                    "TLS certificate verification failed for api.deepseek.com - the network may be decrypting HTTPS "
+                    "(e.g. a campus firewall). The API key was not sent. Run again on a network without interception.") from None
+            raise
         try:
             return r.status_code, r.json()
         except ValueError:
