@@ -19,10 +19,14 @@ import pandas as pd
 
 from quantmind.line_a import f8_books
 from quantmind.line_a.atomic import atomic_write_json, sha256_file
+from quantmind.line_a.event_monitor import RULE_VERSION as EVENT_RULES
+from quantmind.line_a.event_monitor import event_queue
+from quantmind.line_a.event_monitor import scan as scan_events
 from quantmind.line_a.f1_instruments import instrument_state, load_profiles
 from quantmind.line_a.f2f4 import research_candidates, support_domains
 from quantmind.line_a.jobs import SUCCEEDED, JobStore, task_key
 from quantmind.line_a.m_market import market_state
+from quantmind.line_a.risk_card import risk_cards
 from quantmind.line_a.snapshot import build as build_snapshot
 
 REPO = Path(__file__).resolve().parents[2]
@@ -135,8 +139,12 @@ def run_day(ctx: Ctx, js: JobStore) -> dict:
     else:
         res["unavailable"]["ens_native_20d"] = "本次未提供模型包"
     res["unavailable"]["ens_native_63d"] = "没有冻结的 63 日前瞻模型包（需另行登记）"
+    o["bypass"] = _stage(js, ctx, "bypass_events", "parquet",
+                         lambda: _pq(event_queue(scan_events(ctx.data_root, ctx.as_of))), rules=EVENT_RULES)
     o["f4"] = _stage(js, ctx, "f4_candidates", "parquet", lambda: _pq(candidates(ctx, o, holdings)),
                      inputs=sorted(str(v) for v in o.values()))
+    o["f5c"] = _stage(js, ctx, "f5c_risk_cards", "parquet", lambda: _pq(cards(ctx, o, holdings)),
+                      inputs=[str(o["f4"])])
     o["f9"] = _stage(js, ctx, "f9_report", "md", lambda: report(ctx, res).encode("utf-8"),
                      inputs=sorted(str(v) for v in o.values()))
     res["outputs"] = {k: str(v) for k, v in o.items()}
@@ -151,15 +159,26 @@ def _scores(o: dict, name: str, col: str = "score") -> pd.Series | None:
     return df.set_index("ticker")[col]
 
 
+def cards(ctx: Ctx, o: dict, holdings: set[str]) -> pd.DataFrame:
+    tk = sorted(set(pd.read_parquet(o["f4"])["ticker"]) | set(holdings))
+    rc = risk_cards(ctx.data_root, ctx.as_of, tk)
+    for c in rc.columns:                      # 列表列转成字符串，便于 parquet 与报告
+        if rc[c].map(lambda v: isinstance(v, list)).any():
+            rc[c] = rc[c].map(lambda v: ",".join(v) if isinstance(v, list) else v)
+    return rc.reset_index()
+
+
 def candidates(ctx: Ctx, o: dict, holdings: set[str]) -> pd.DataFrame:
     dom = pd.read_parquet(o["f2"])
+    ev = pd.read_parquet(o["bypass"]) if "bypass" in o else pd.DataFrame(columns=["ticker", "importance"])
+    major = frozenset(ev.loc[ev["importance"] == "major", "ticker"])        # 只有"重大"事件进入事件队列
     parts = []
     for h, cols in (("20d", {"ens20": ("ens_20d", "ENS"), "ridge20": ("ridge_20d", "score")}),
                     ("63d", {"ridge63": ("ridge_63d", "score")})):
         sc = {k: s for k, (n, c) in cols.items() if (s := _scores(o, n, c)) is not None}
         if not sc:
             continue
-        c = research_candidates(pd.DataFrame(sc), dom, ctx.as_of, holdings=holdings)
+        c = research_candidates(pd.DataFrame(sc), dom, ctx.as_of, holdings=holdings, event_queue=major)
         c.insert(0, "horizon", h)
         c["reasons"] = c["reasons"].map(lambda r: ",".join(r))
         parts.append(c)
@@ -252,6 +271,26 @@ def report(ctx: Ctx, res: dict) -> str:
         top = g.head(20).merge(f1[["name", "board"]], left_on="ticker", right_index=True, how="left")
         show = [c for c in ["ticker", "name", "board", "domain", "reasons", "ens20", "ridge20", "ridge63"] if c in top]
         L += [_md_table(top[show]), ""]
+    if "bypass" in o:
+        ev = pd.read_parquet(o["bypass"])
+        L += ["## 4b 旁路：全市场事件监测", "",
+              f"当日结构化事件涉及 {len(ev)} 只股票：重大 {int((ev['importance'] == 'major').sum())} 只、"
+              f"待确认 {int((ev['importance'] == 'watch').sum())} 只。只有\"重大\"进入事件队列，只提高研究优先级。", ""]
+        mj = ev[ev["importance"] == "major"].merge(f1[["name"]], left_on="ticker", right_index=True, how="left").head(15)
+        if len(mj):
+            mj = mj.assign(summary=mj["summaries"].map(lambda s: "；".join(list(s)[:3])))
+            L += [_md_table(mj[["ticker", "name", "rules", "summary"]]), ""]
+    if "f5c" in o:
+        rc = pd.read_parquet(o["f5c"])
+        flags = {"3 日偏离距上行阈值 < 5 个百分点": int((rc["av_3d_to_up"] < 0.05).sum()),
+                 "3 日偏离距下行阈值 < 5 个百分点": int((rc["av_3d_to_down"] < 0.05).sum()),
+                 "复牌不满 5 个交易日": int((rc["days_since_resumption"].fillna(99) < 5).sum()),
+                 "20 日内除权除息": int(rc["ex_dividend_next20d"].fillna("").astype(str).str.len().gt(0).sum()),
+                 "隔夜跳空 95% 分位 > 5%": int((rc["gap_p95_250"] > 0.05).sum()),
+                 "250 日封跌停 ≥ 10 次": int((rc["limit_down_close_250"] >= 10).sum())}
+        L += ["## 4c 风险与执行卡（F5c，代码计算，只是事实，不扣分）", "",
+              f"覆盖 {len(rc)} 只（宽候选 + 持仓）。异常波动阈值与基准指数映射为\"待核实\"。", "",
+              _md_table(pd.DataFrame([flags])), ""]
     L += ["## 5 已知限制", "",
           "- 北向资金字段 2024-08-19 起口径改变（T-035）：ENS 的树模型使用该市场级特征，Ridge 截面排序不受影响。",
           "- 北交所不在股票基础表与财报里，模型没有北交所输入：全开通线目前与除北交所线相同。",
