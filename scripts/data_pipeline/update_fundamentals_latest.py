@@ -338,6 +338,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--recon-buckets", type=int, default=20)
     ap.add_argument("--repair-from-backup", type=Path)
     ap.add_argument("--plan", action="store_true")
+    ap.add_argument("--stock-basic-only", action="store_true",
+                    help="只刷新 stock_basic_full_<END>.parquet（SH+SZ，L+D+P；已存在则不动），给每日影子运行用")
     a = ap.parse_args(argv)
     root = a.data_root.resolve()
     lake_dir = root / "data" / "lake"
@@ -359,6 +361,10 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BLE001
         pass
     tp._MIN_INTERVAL = max(tp._MIN_INTERVAL, a.rate_interval)
+    if a.stock_basic_only:
+        tickers, _ = target_tickers(tp, lake_dir, since, tag)
+        print(f"[stock_basic] stock_basic_full_{tag}.parquet: {len(tickers)} live tickers")
+        return 0
     if a.queues_since:
         return run_queues(tp, lake_dir, a, end, tag)
     return run(tp, lake_dir, since=since, end=end, tag=tag, workers=a.workers, flush_every=a.flush_every,

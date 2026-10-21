@@ -1,8 +1,8 @@
 #!/bin/bash
 # T-036: run the frozen T-030 builders unchanged against the forward shadow root. Stop at the first failure.
-FR=/home/lenovo/qm_fwd_root/20261020
+FR=${1:-/home/lenovo/qm_fwd_root/20261020}      # 影子数据根（2026-10-21 起作为参数传入）
 M=$FR/main; A=$FR/a158
-L=/home/lenovo/t030_scratch/logs/t036; S=$L/builders.status
+L=/home/lenovo/t030_scratch/logs/t036/$(basename $FR); mkdir -p $L; S=$L/builders.status
 cd /home/lenovo/projects/qm-t035
 G=/home/lenovo/miniforge3/envs/qm-gpu/bin/python
 Q=/home/lenovo/miniforge3/envs/qlib_bakeoff/bin/python
