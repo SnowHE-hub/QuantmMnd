@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -45,6 +47,10 @@ class RoleSpec:
     max_steps: int = 8
     thinking: str | None = "high"
     max_tokens: int = 8192
+    # 中间件限额（第 8.1 节：轮数、工具调用次数、相同调用上限、墙钟时间；起点按评审建议，后续用冷启动与故障测试确定）
+    max_tool_calls: int = 8
+    max_same_call: int = 2
+    wall_clock_s: float = 900.0
 
 
 @dataclass
@@ -90,7 +96,12 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
     msgs: list[dict] = [{"role": "system", "content": sys_msg}, {"role": "user", "content": task}]
     rec = RunRecord(role.name, "error", None)
     repaired = False
+    t0, n_calls, seen = time.time(), 0, Counter()
     for step in range(role.max_steps):
+        if time.time() - t0 > role.wall_clock_s:
+            rec.status = "budget"
+            rec.errors.append(f"wall clock {role.wall_clock_s:.0f}s exceeded")
+            return rec
         res = llm.chat(msgs, tools=[t.spec() for t in role.tools] or None, thinking=role.thinking,
                        max_tokens=role.max_tokens, meta={**(meta or {}), "role": role.name, "step": step})
         rec.cost_rmb += 0.0 if res.cached else res.cost_rmb
@@ -103,6 +114,7 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
             am["tool_calls"] = res.tool_calls
         msgs.append(am)
         if res.tool_calls:
+            exhausted = False
             for tc in res.tool_calls:
                 fn = tc.get("function", {})
                 name, raw = fn.get("name", ""), fn.get("arguments", "{}")
@@ -111,9 +123,16 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
                 except json.JSONDecodeError:
                     args, out = {}, {"error": "arguments are not valid JSON"}
                 else:
+                    key = (name, _h(args))
                     if name not in tools:
                         out = {"error": f"tool '{name}' is not available to role {role.name}"}
+                    elif n_calls >= role.max_tool_calls:
+                        out, exhausted = {"error": "tool budget exhausted"}, True
+                    elif seen[key] >= role.max_same_call:
+                        out = {"error": "identical call repeated; use the earlier result"}
                     else:
+                        n_calls += 1
+                        seen[key] += 1
                         try:
                             out = tools[name].fn(**args)
                             collect_evidence(out, rec.evidence)
@@ -125,6 +144,9 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
                 msgs.append({"role": "tool", "tool_call_id": tc.get("id", ""), "content": DATA_NOTICE + body})
                 st["tool_calls"].append({"name": name, "args_sha": _h(args), "result_sha": _h(body)})
             rec.steps.append(st)
+            if exhausted or step >= role.max_steps - 2:
+                msgs.append({"role": "user", "content": "工具预算已用完。请只根据已有证据输出最终 JSON；"
+                                                        "证据不足的地方写成 open_question，必要时弃答。"})
             continue
         rec.steps.append(st)
         try:

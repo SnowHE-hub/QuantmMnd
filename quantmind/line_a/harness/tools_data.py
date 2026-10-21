@@ -149,7 +149,9 @@ class DataTools:
         if df.empty:
             return df
         df["available_at"] = df["publish_ts_bj"].astype(str)
-        return df[df["available_at"].str.slice(0, 10).str.replace("-", "") <= self.as_of]
+        df = df[df["available_at"].str.slice(0, 10).str.replace("-", "") <= self.as_of]
+        self._remember(df)
+        return df
 
     def list_announcements(self, ticker: str, lookback_days: int = 180, limit: int = 120,
                            event_types: list[str] | None = None, min_importance: str = "routine") -> dict:
@@ -195,3 +197,50 @@ class DataTools:
              "evidence_ids": [f"cninfo:ann:{i}" for i in c.ann_ids],
              "corrections": [f"cninfo:ann:{a}" for a, _ in c.corrections], "anomalies": c.anomalies}
             for c in chains]}
+
+    # ------------------------------------------------------------------ 公告正文（A2 / A3）
+    def _ann_row(self, ann_id: str) -> dict | None:
+        """只允许读本次研究对象、as_of 之前发布、且在公告列表里出现过的公告（工具强制注入时点与证券范围）。"""
+        return getattr(self, "_known", {}).get(str(ann_id))
+
+    def _remember(self, df: pd.DataFrame) -> None:
+        known = getattr(self, "_known", {})
+        for _, r in df.iterrows():
+            known[str(r["announcementId"])] = {"adjunctUrl": r.get("adjunctUrl"), "title": r["announcementTitle"],
+                                               "available_at": r["available_at"]}
+        self._known = known
+
+    def _parsed(self, ann_id: str):
+        from quantmind.line_a.evidence.fetch import fetch_pdf
+        from quantmind.line_a.evidence.pdf_locate import parse_pdf
+        row = self._ann_row(ann_id)
+        if row is None:
+            raise ValueError("unknown announcement: call list_announcements first (only the subject's announcements "
+                             "published on or before as_of can be read)")
+        cache = getattr(self, "_docs", {})
+        if ann_id not in cache:
+            pdf_dir = self.pdf_dir or (self.lake / "text/cninfo_pdf")
+            f = fetch_pdf(ann_id, row["adjunctUrl"], pdf_dir)
+            cache[ann_id] = (parse_pdf(Path(f["path"]), f"doc:{ann_id}"), f)
+            self._docs = cache
+        return cache[ann_id]
+
+    def read_document(self, ticker: str, ann_id: str) -> dict:
+        doc, f = self._parsed(str(ann_id))
+        row = self._ann_row(str(ann_id))
+        return {"evidence_id": f"doc:{ann_id}", "title": row["title"], "available_at": row["available_at"],
+                "file_sha256": f["sha256"], "n_pages": doc.n_pages, "needs_ocr_pages": doc.needs_ocr,
+                "n_tables": len(doc.tables), "parser": doc.parser,
+                "paragraphs": [{"evidence_id": f"doc:{ann_id}:p{p.page}:{p.idx}", "page": p.page, "para": p.idx,
+                                "text": p.text[:300]} for p in doc.paras[:12]],
+                "note": "只给出前 12 段的开头；用 locate_section 按问题定位具体段落"}
+
+    def locate_section(self, ticker: str, ann_id: str, query: str, top_k: int = 5) -> dict:
+        from quantmind.line_a.evidence.retrieval import BM25
+        doc, _ = self._parsed(str(ann_id))
+        paras = {f"doc:{ann_id}:p{p.page}:{p.idx}": p for p in doc.paras}
+        hits = BM25([(k, p.text) for k, p in paras.items()]).search(query, top_k=min(int(top_k), 8))
+        return {"evidence_id": f"doc:{ann_id}", "query": query, "hits": [
+            {"evidence_id": h.para_id, "page": paras[h.para_id].page, "para": paras[h.para_id].idx,
+             "score": round(h.score, 3), "text": paras[h.para_id].text[:800],
+             "text_sha256": paras[h.para_id].sha256} for h in hits]}

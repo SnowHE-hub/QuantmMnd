@@ -83,3 +83,70 @@ def test_unknown_tool_and_abstain():
         return _resp("still not json")
     rec = run_role(LLM(transport=transport), RoleSpec("A2", "s", [], Out, thinking=None), "t")
     assert rec.status == "abstain"
+
+
+def test_tool_budget_and_repeat_limits():
+    calls = []
+
+    def transport(url, headers, body):
+        n = len(body["messages"])
+        if n < 12:
+            return _resp("", tool_calls=[{"id": f"c{n}", "type": "function",
+                                          "function": {"name": "count", "arguments": json.dumps({"x": "same"})}}])
+        return _resp('{"answer": "done", "n": 1}')
+    tool = Tool("count", "c", {"type": "object", "properties": {"x": {"type": "string"}}},
+                lambda x: calls.append(x) or {"n": len(x)})
+    spec = RoleSpec("A1", "s", [tool], Out, thinking=None, max_steps=8, max_tool_calls=3, max_same_call=2)
+    rec = run_role(LLM(transport=transport), spec, "t")
+    assert len(calls) == 2                                   # 相同调用最多 2 次，第 3 次起被拦下
+    assert rec.status == "ok"
+
+
+def test_fetch_pdf_guards(tmp_path):
+    import pytest as _pt
+
+    from quantmind.line_a.evidence.fetch import FetchRefusedError, fetch_pdf
+    ok = lambda url: (200, {"content-type": "application/pdf"}, b"%PDF-1.4 test")  # noqa: E731
+    with _pt.raises(FetchRefusedError):
+        fetch_pdf("123456", "../etc/passwd", tmp_path, transport=ok)
+    with _pt.raises(FetchRefusedError):
+        fetch_pdf("123456", "finalpage/2024-04-13/999999.PDF", tmp_path, transport=ok)      # 编号与文件名不符
+    with _pt.raises(FetchRefusedError):
+        fetch_pdf("1219592683", "finalpage/2024-04-13/1219592683.PDF", tmp_path,
+                  transport=lambda u: (302, {}, b""))
+    with _pt.raises(FetchRefusedError):
+        fetch_pdf("1219592683", "finalpage/2024-04-13/1219592683.PDF", tmp_path,
+                  transport=lambda u: (200, {"content-type": "text/html"}, b"<html>"))
+    r = fetch_pdf("1219592683", "finalpage/2024-04-13/1219592683.PDF", tmp_path, transport=ok)
+    assert not r["cached"] and r["bytes"] == 13 and r["url"].startswith("https://static.cninfo.com.cn/")
+    assert fetch_pdf("1219592683", "finalpage/2024-04-13/1219592683.PDF", tmp_path, transport=ok)["cached"]
+
+
+def test_document_tools_scope_and_locate(tmp_path, monkeypatch):
+    import fitz
+    import pandas as pd
+
+    from quantmind.line_a.evidence import fetch as fetchmod
+    from quantmind.line_a.harness.tools_data import DataTools
+    parts = tmp_path / "text/cninfo/_parts"
+    parts.mkdir(parents=True)
+    pd.DataFrame([{"announcementId": "1219592683", "secCode": "600519", "announcementTitle": "关于回购股份的进展公告",
+                   "publish_ts_bj": "2024-04-03T00:00:00+08:00", "adjunctUrl": "finalpage/2024-04-03/1219592683.PDF"}]) \
+        .to_parquet(parts / "20240403.parquet")
+    doc = fitz.open()
+    pg = doc.new_page()
+    pg.insert_text((50, 72), "截至本公告日，公司已回购股份1000000股。", fontname="china-s")
+    pg.insert_text((50, 120), "本次回购资金来源为自有资金。", fontname="china-s")
+    pdf = doc.tobytes()
+    monkeypatch.setattr(fetchmod, "MIN_INTERVAL", 0.0)
+    real = fetchmod.fetch_pdf
+    monkeypatch.setattr(fetchmod, "fetch_pdf", lambda a, u, c: real(a, u, c, transport=lambda url: (200, {}, pdf)))
+    dt = DataTools(tmp_path, "20240410", pdf_dir=tmp_path / "pdf")
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        dt.read_document("600519.SH", "1219592683")             # 没列过公告：不允许读
+    dt.list_announcements("600519.SH", lookback_days=30)
+    r = dt.read_document("600519.SH", "1219592683")
+    assert r["n_pages"] == 1 and r["paragraphs"]
+    h = dt.locate_section("600519.SH", "1219592683", "资金来源")["hits"]
+    assert h and "自有资金" in h[0]["text"] and h[0]["evidence_id"].startswith("doc:1219592683:p1:")
