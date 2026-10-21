@@ -94,3 +94,55 @@ def import_review(pre_with_flags: pd.DataFrame, sheet_path: Path) -> pd.DataFram
     d.loc[d["gold_label"].isna(), "gold_source"] = "missing"
     d.attrs["n_unreviewed"] = int(len(missing))
     return d
+
+
+SEVERE = ("investigation", "penalty", "st_change", "regulatory_letter", "restructuring", "control_change")
+
+
+def _prf(y: pd.Series, p: pd.Series) -> dict:
+    tp = int((y & p).sum())
+    prec = tp / max(1, int(p.sum()))
+    rec = tp / max(1, int(y.sum()))
+    return {"n": int(len(y)), "n_pos": int(y.sum()), "precision": prec, "recall": rec,
+            "f1": 2 * prec * rec / max(1e-9, prec + rec)}
+
+
+def score_gold(final: pd.DataFrame, pack: Path, results: Path) -> dict:
+    """金标准上比较规则和各模型。final：import_review 的输出（gold_id、gold_for、announcementId、title、gold_label）。
+    - 规则：标题规则 classify_title 判出的类型是不是 gold_for；
+    - 模型：每类的阈值在银标签校准集上按 F1 选（与 x4_eval 相同），用到金标准条目（cell = sha(公告编号:类型)）上；
+    - 指标：每类和宏平均的精确率、召回率、F1；严重事件类型（SEVERE）合在一起的召回率。"""
+    import hashlib
+
+    from quantmind.line_a.evidence.ann_types import classify_title
+    from quantmind.line_a.p4.x4_eval import _best_threshold, _read
+    f = final[final["gold_label"].isin(["是", "否"])].copy()
+    f["y"] = f["gold_label"] == "是"
+    f["cell"] = [hashlib.sha256(f"{a}:{t}".encode()).hexdigest()[:16] for a, t in zip(f["announcementId"], f["gold_for"],
+                                                                                      strict=True)]
+    systems = {"rule": pd.Series([classify_title(t).event_type == g for t, g in zip(f["title"], f["gold_for"], strict=True)],
+                                 index=f.index)}
+    cells = pd.DataFrame(_read(Path(pack) / "cells.jsonl")).set_index("cell")
+    for fp in sorted(Path(results).rglob("*.jsonl")):
+        if "_smoke" in fp.parts or fp.name == "train_log.jsonl":
+            continue
+        rows = pd.DataFrame(_read(fp))
+        if rows.empty or "p_yes" not in rows:
+            continue
+        rows = rows[rows["status"] == "ok"].set_index("cell")
+        name = f"{rows['mode'].iloc[0]}__{rows['model_key'].iloc[0]}"
+        d = cells.join(rows[["p_yes"]], how="inner")
+        pred = pd.Series(False, index=f.index)
+        for t, g in d[d["split"] == "calib"].groupby("type"):
+            thr = _best_threshold(g["label"].to_numpy(), g["p_yes"].to_numpy())
+            m = f["gold_for"] == t
+            p = f.loc[m, "cell"].map(rows["p_yes"])
+            pred.loc[m] = (p >= thr).fillna(False).to_numpy()
+        systems[name] = pred
+    out = {}
+    for name, pred in systems.items():
+        by = {t: _prf(f.loc[f["gold_for"] == t, "y"], pred[f["gold_for"] == t]) for t in sorted(f["gold_for"].unique())}
+        sev = f["gold_for"].isin(SEVERE)
+        out[name] = {"all": _prf(f["y"], pred), "macro_f1": float(pd.Series([v["f1"] for v in by.values()]).mean()),
+                     "severe": _prf(f.loc[sev, "y"], pred[sev]), "by_type": by}
+    return out

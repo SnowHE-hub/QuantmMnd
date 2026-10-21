@@ -54,7 +54,7 @@ g = gold_sample(test)
 g.to_csv(out / "gold_sample_todo.csv", index=False, encoding="utf-8-sig")
 del test
 up.mkdir(parents=True, exist_ok=True)
-zp = export(out, up)
+zp = export(out, up, gold=g)          # 金标准条目以 split = gold 放进题包，云端一起打分
 write_notebook(up / "QuantMind_X4_Colab.ipynb")
 man = json.loads((up / "pack_x4_v1" / "manifest.json").read_text(encoding="utf-8"))
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()

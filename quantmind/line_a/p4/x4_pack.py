@@ -74,16 +74,35 @@ def make_rows(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def export(x4_dir: Path, out_dir: Path) -> Path:
+def gold_rows(gold: pd.DataFrame, have: set[str]) -> list[dict]:
+    """金标准条目也放进题包（split = gold，label = -1），云端照常打分，金标准标完后才能比较模型和规则。
+    与 calib / test 里已有的题重复（同一公告、同一类型）的不再加。"""
+    rows = []
+    for g in gold.itertuples(index=False):
+        cell = _sha(f"{g.announcementId}:{g.gold_for}")[:16]
+        if cell in have:
+            continue
+        have.add(cell)
+        user = message(g.gold_for, g.title)
+        rows.append({"cell": cell, "ann_id": str(g.announcementId), "type": g.gold_for, "split": "gold",
+                     "stratum": g.stratum, "label": -1, "label_source": "gold_pending", "date": str(g.date),
+                     "user": user, "sha": _sha(user), "gold_id": g.gold_id})
+    return rows
+
+
+def export(x4_dir: Path, out_dir: Path, gold: pd.DataFrame | None = None) -> Path:
     x4_dir, out_dir = Path(x4_dir), Path(out_dir)
     df = pd.concat([pd.read_parquet(p, columns=["announcementId", "date", "title", "split", "keep",
                                                 *[f"label_{t}" for t in TYPES]])
                     for p in sorted(x4_dir.glob("x4_*.parquet"))], ignore_index=True)
     rows = make_rows(df)
+    if gold is not None:
+        rows += gold_rows(gold, {r["cell"] for r in rows if r["split"] != "train"})
     ann_by_split: dict[str, set] = {}
     for r in rows:
         ann_by_split.setdefault(r["split"], set()).add(r["ann_id"])
-    assert not (ann_by_split.get("train", set()) & (ann_by_split.get("calib", set()) | ann_by_split.get("test", set())))
+    assert not (ann_by_split.get("train", set()) & (ann_by_split.get("calib", set()) | ann_by_split.get("test", set())
+                                                     | ann_by_split.get("gold", set())))
     pack = out_dir / "pack_x4_v1"
     if pack.exists():
         shutil.rmtree(pack)

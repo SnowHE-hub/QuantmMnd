@@ -87,6 +87,32 @@ def test_consistency_compare(tmp_path):
     assert not bad["pass"] and bad["pearson_margin"] < 0.98
 
 
+def test_gold_rows_in_pack_and_gold_scoring(tmp_path):
+    from quantmind.line_a.p4 import x4_gold
+    from quantmind.line_a.p4.x4_pack import gold_rows, make_rows
+    rows = [r for r in make_rows(_fake_corpus()) if r["split"] != "train"]
+    dup = next(r for r in rows if r["type"] == "repurchase")
+    gold = pd.DataFrame([
+        {"gold_id": "g1", "gold_for": "repurchase", "stratum": "pos_strong", "announcementId": dup["ann_id"],
+         "date": "20240101", "title": "关于回购股份的进展公告"},
+        {"gold_id": "g2", "gold_for": "repurchase", "stratum": "uncertain", "announcementId": "999",
+         "date": "20240102", "title": "关于回购注销限制性股票的公告"}])
+    extra = gold_rows(gold, {r["cell"] for r in rows})
+    assert len(extra) == 1 and extra[0]["split"] == "gold" and extra[0]["label"] == -1      # 重复的那条不再加
+    cells = rows + extra
+    pack, res = tmp_path / "pack", tmp_path / "out"
+    pack.mkdir()
+    res.mkdir()
+    (pack / "cells.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in cells), encoding="utf-8")
+    sc = [{"cell": r["cell"], "sha": r["sha"], "status": "ok", "mode": "zs", "model_key": "m",
+           "p_yes": 0.9 if (r["label"] == 1 or r.get("gold_id") == "g1") else 0.1} for r in cells]
+    (res / "zs__m.jsonl").write_text("\n".join(json.dumps(r) for r in sc), encoding="utf-8")
+    final = gold.assign(gold_label=["是", "否"])
+    out = x4_gold.score_gold(final, pack, res)
+    assert out["zs__m"]["all"]["f1"] == 1.0
+    assert out["rule"]["all"]["n"] == 2 and "severe" in out["rule"]
+
+
 def test_gold_prelabel_review_import(tmp_path):
     from quantmind.line_a.harness.llm import LLM
     from quantmind.line_a.p4 import x4_gold
