@@ -148,21 +148,36 @@ def rule_predict(at: AliasTable, dev: pd.DataFrame) -> dict[str, list[dict]]:
     return out
 
 
+def dedupe(ms: list[dict]) -> list[dict]:
+    """同一句里链接到同一代码的提及只留第一个（规范第 2 条"同一企业只标第一次"；对所有系统一样处理，打分前定下）。"""
+    seen, out = set(), []
+    for m in ms:
+        c = m.get("ts_code")
+        if c and c in seen:
+            continue
+        if c:
+            seen.add(c)
+        out.append(m)
+    return out
+
+
 def score(pred: dict[str, list[dict]], gold: dict[str, list[dict]]) -> dict:
-    """识别：公司提及（listed + unlisted）的片段 P/R/F1；链接：标准 listed 片段上，预测里同一片段链接到同一 ts_code 的比例。"""
+    """识别：公司提及（listed + unlisted）的片段 P/R/F1；链接：标准 listed 片段上，预测里同一片段链接到同一证券的比例
+    （标准里的 alt_codes 是同一证券的其他代码，例如北交所换码前的旧代码，也算对）。"""
     tp = fp = fn = 0
     link_ok = link_n = 0
     for sid, g in gold.items():
+        p = dedupe(pred.get(sid) or [])
         gs = {(m["text"]) for m in g}
-        ps = {(m["text"]) for m in pred.get(sid, [])}
+        ps = {(m["text"]) for m in p}
         tp += len(gs & ps)
         fp += len(ps - gs)
         fn += len(gs - ps)
-        pmap = {m["text"]: m.get("ts_code") for m in pred.get(sid, [])}
+        pmap = {m["text"]: m.get("ts_code") for m in p}
         for m in g:
             if m.get("type") == "listed":
                 link_n += 1
-                link_ok += int(pmap.get(m["text"]) == m.get("ts_code"))
+                link_ok += int(pmap.get(m["text"]) in {m.get("ts_code"), *m.get("alt_codes", [])})
     p = tp / max(1, tp + fp)
     r = tp / max(1, tp + fn)
     return {"ner": {"precision": p, "recall": r, "f1": 2 * p * r / max(1e-9, p + r), "tp": tp, "fp": fp, "fn": fn},

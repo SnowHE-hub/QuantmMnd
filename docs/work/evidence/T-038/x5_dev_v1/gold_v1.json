@@ -1,0 +1,3847 @@
+{
+"bd67dd389a87": [
+{
+"text": "阳光电源",
+"type": "listed",
+"ts_code": "300274.SZ"
+},
+{
+"text": "德业股份",
+"type": "listed",
+"ts_code": "605117.SH"
+},
+{
+"text": "中信博",
+"type": "listed",
+"ts_code": "688408.SH"
+},
+{
+"text": "聚和材料",
+"type": "listed",
+"ts_code": "688503.SH"
+},
+{
+"text": "钧达股份",
+"type": "listed",
+"ts_code": "002865.SZ"
+},
+{
+"text": "东方电缆",
+"type": "listed",
+"ts_code": "603606.SH"
+},
+{
+"text": "海力风电",
+"type": "listed",
+"ts_code": "301155.SZ"
+},
+{
+"text": "天顺风能",
+"type": "listed",
+"ts_code": "002531.SZ"
+},
+{
+"text": "明阳智能",
+"type": "listed",
+"ts_code": "601615.SH"
+}
+],
+"3b1013f8379a": [],
+"c659d87b82d8": [],
+"368b15f6b8fd": [],
+"51515df49290": [
+{
+"text": "西麦食品",
+"type": "listed",
+"ts_code": "002956.SZ"
+},
+{
+"text": "有友食品",
+"type": "listed",
+"ts_code": "603697.SH"
+},
+{
+"text": "东鹏饮料",
+"type": "listed",
+"ts_code": "605499.SH"
+},
+{
+"text": "小菜园",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "莲花控股",
+"type": "listed",
+"ts_code": "600186.SH"
+}
+],
+"2165d5218f92": [],
+"52e6b36b8fc5": [
+{
+"text": "无锡鼎邦",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"6db032fabe8b": [],
+"6f3a9d10d727": [
+{
+"text": "中国石化",
+"type": "listed",
+"ts_code": "600028.SH"
+},
+{
+"text": "中国石油",
+"type": "listed",
+"ts_code": "601857.SH"
+},
+{
+"text": "中国海油",
+"type": "listed",
+"ts_code": "600938.SH"
+},
+{
+"text": "中曼石油",
+"type": "listed",
+"ts_code": "603619.SH"
+}
+],
+"2e447d679aaa": [
+{
+"text": "蔚来汽车",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"2468020602ab": [
+{
+"text": "奥托立夫",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "特斯拉",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "蔚来",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+}
+],
+"1a6a7a8a2d9e": [],
+"66a510120f7a": [],
+"efeba1ae91ae": [],
+"e9947bc40236": [
+{
+"text": "中国稀土",
+"type": "listed",
+"ts_code": "000831.SZ"
+},
+{
+"text": "北方稀土",
+"type": "listed",
+"ts_code": "600111.SH"
+},
+{
+"text": "金力永磁",
+"type": "listed",
+"ts_code": "300748.SZ"
+},
+{
+"text": "中科三环",
+"type": "listed",
+"ts_code": "000970.SZ"
+}
+],
+"561530835f04": [
+{
+"text": "思维列控",
+"type": "listed",
+"ts_code": "603508.SH"
+},
+{
+"text": "中国中车",
+"type": "listed",
+"ts_code": "601766.SH"
+},
+{
+"text": "中国通号",
+"type": "listed",
+"ts_code": "688009.SH"
+}
+],
+"1fbf9f6e975f": [],
+"7a2e2af80928": [
+{
+"text": "平煤股份",
+"type": "listed",
+"ts_code": "601666.SH"
+},
+{
+"text": "淮北矿业",
+"type": "listed",
+"ts_code": "600985.SH"
+},
+{
+"text": "神火股份",
+"type": "listed",
+"ts_code": "000933.SZ"
+}
+],
+"6518a5967a7f": [],
+"81c87665d88c": [
+{
+"text": "中际旭创",
+"type": "listed",
+"ts_code": "300308.SZ"
+}
+],
+"bc912f829ffe": [
+{
+"text": "亚玛顿",
+"type": "listed",
+"ts_code": "002623.SZ"
+},
+{
+"text": "金晶科技",
+"type": "listed",
+"ts_code": "600586.SH"
+},
+{
+"text": "硅宝科技",
+"type": "listed",
+"ts_code": "300019.SZ"
+},
+{
+"text": "回天新材",
+"type": "listed",
+"ts_code": "300041.SZ"
+}
+],
+"7044cff8f791": [],
+"56bc28e98f3d": [
+{
+"text": "中国中免",
+"type": "listed",
+"ts_code": "601888.SH"
+}
+],
+"f05b21eb7b5d": [
+{
+"text": "友发集团",
+"type": "listed",
+"ts_code": "601686.SH"
+},
+{
+"text": "新兴铸管",
+"type": "listed",
+"ts_code": "000778.SZ"
+}
+],
+"ecc3624a76e5": [],
+"804704651fe7": [
+{
+"text": "国茂股份",
+"type": "listed",
+"ts_code": "603915.SH"
+}
+],
+"e1c29bc1059e": [],
+"9cc1085a2bae": [
+{
+"text": "禾元生物",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"9c3834fd0815": [
+{
+"text": "恒大汽车",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "纽顿集团",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"5df4e99a696c": [
+{
+"text": "川能动力",
+"type": "listed",
+"ts_code": "000155.SZ"
+},
+{
+"text": "启迪新材料(北京)有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"b049d8641e75": [
+{
+"text": "北路智控",
+"type": "listed",
+"ts_code": "301195.SZ"
+},
+{
+"text": "梅安森",
+"type": "listed",
+"ts_code": "300275.SZ"
+},
+{
+"text": "龙软科技",
+"type": "listed",
+"ts_code": "688078.SH"
+},
+{
+"text": "云鼎科技",
+"type": "listed",
+"ts_code": "000409.SZ"
+},
+{
+"text": "山源科技",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "科达自控",
+"type": "listed",
+"ts_code": "920932.BJ",
+"alt_codes": [
+"831832.BJ"
+]
+},
+{
+"text": "天玛智控",
+"type": "listed",
+"ts_code": "688570.SH"
+},
+{
+"text": "精准信息",
+"type": "listed",
+"ts_code": "300099.SZ"
+},
+{
+"text": "震有科技",
+"type": "listed",
+"ts_code": "688418.SH"
+}
+],
+"e86bbf38f315": [
+{
+"text": "西藏药业",
+"type": "listed",
+"ts_code": "600211.SH"
+}
+],
+"2447a55223eb": [
+{
+"text": "瑞康医药",
+"type": "listed",
+"ts_code": "002589.SZ"
+}
+],
+"497d52664b45": [
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+},
+{
+"text": "国轩高科",
+"type": "listed",
+"ts_code": "002074.SZ"
+}
+],
+"6620b48c5988": [],
+"5184a9511f54": [
+{
+"text": "青达环保",
+"type": "listed",
+"ts_code": "688501.SH"
+},
+{
+"text": "龙源技术",
+"type": "listed",
+"ts_code": "300105.SZ"
+},
+{
+"text": "东方电气",
+"type": "listed",
+"ts_code": "600875.SH"
+}
+],
+"5e1605c853e3": [
+{
+"text": "华为",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "赛力斯",
+"type": "listed",
+"ts_code": "601127.SH"
+}
+],
+"8dd4ef008b19": [],
+"efdb52d9f3ba": [
+{
+"text": "阿里巴巴",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中国移动",
+"type": "listed",
+"ts_code": "600941.SH"
+}
+],
+"76012830316a": [
+{
+"text": "华润三九",
+"type": "listed",
+"ts_code": "000999.SZ"
+},
+{
+"text": "同仁堂",
+"type": "listed",
+"ts_code": "600085.SH"
+},
+{
+"text": "以岭药业",
+"type": "listed",
+"ts_code": "002603.SZ"
+}
+],
+"348ff079ee5b": [],
+"8494c4d57d2a": [],
+"a96e36f28bbb": [
+{
+"text": "博威合金",
+"type": "listed",
+"ts_code": "601137.SH"
+},
+{
+"text": "上机数控",
+"type": "listed",
+"ts_code": "603185.SH"
+},
+{
+"text": "中来股份",
+"type": "listed",
+"ts_code": "300393.SZ"
+}
+],
+"1a58ff956030": [
+{
+"text": "中青旅",
+"type": "listed",
+"ts_code": "600138.SH"
+},
+{
+"text": "众信旅游",
+"type": "listed",
+"ts_code": "002707.SZ"
+}
+],
+"3ee2e366f0f6": [
+{
+"text": "万达信息",
+"type": "listed",
+"ts_code": "300168.SZ"
+},
+{
+"text": "卫宁健康",
+"type": "listed",
+"ts_code": "300253.SZ"
+},
+{
+"text": "创业慧康",
+"type": "listed",
+"ts_code": "300451.SZ"
+},
+{
+"text": "久远银海",
+"type": "listed",
+"ts_code": "002777.SZ"
+}
+],
+"069de947e9eb": [],
+"27927722f898": [
+{
+"text": "科达制造",
+"type": "listed",
+"ts_code": "600499.SH"
+},
+{
+"text": "盛新锂能",
+"type": "listed",
+"ts_code": "002240.SZ"
+},
+{
+"text": "融捷股份",
+"type": "listed",
+"ts_code": "002192.SZ"
+},
+{
+"text": "天齐锂业",
+"type": "listed",
+"ts_code": "002466.SZ"
+},
+{
+"text": "嘉元科技",
+"type": "listed",
+"ts_code": "688388.SH"
+},
+{
+"text": "诺德股份",
+"type": "listed",
+"ts_code": "600110.SH"
+},
+{
+"text": "翔丰华",
+"type": "listed",
+"ts_code": "300890.SZ"
+}
+],
+"47da63ef42ae": [
+{
+"text": "特变电工",
+"type": "listed",
+"ts_code": "600089.SH"
+},
+{
+"text": "中国西电",
+"type": "listed",
+"ts_code": "601179.SH"
+},
+{
+"text": "山东电力设备",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "日立能源",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"db013d7ade09": [],
+"5cb79a32f4e3": [
+{
+"text": "天银机电",
+"type": "listed",
+"ts_code": "300342.SZ"
+},
+{
+"text": "陕西华达",
+"type": "listed",
+"ts_code": "301517.SZ"
+},
+{
+"text": "富士达",
+"type": "listed",
+"ts_code": "920640.BJ",
+"alt_codes": [
+"835640.BJ"
+]
+},
+{
+"text": "银河电子",
+"type": "listed",
+"ts_code": "002519.SZ"
+},
+{
+"text": "中国卫星",
+"type": "listed",
+"ts_code": "600118.SH"
+},
+{
+"text": "天奥电子",
+"type": "listed",
+"ts_code": "002935.SZ"
+},
+{
+"text": "上海沪工",
+"type": "listed",
+"ts_code": "603131.SH"
+},
+{
+"text": "乾照光电",
+"type": "listed",
+"ts_code": "300102.SZ"
+},
+{
+"text": "航天智装",
+"type": "listed",
+"ts_code": "300455.SZ"
+},
+{
+"text": "长光卫星",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"41fd3ff24823": [
+{
+"text": "特斯拉",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+},
+{
+"text": "蔚来",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "理想",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"6bb7c55c0d68": [
+{
+"text": "恺英网络",
+"type": "listed",
+"ts_code": "002517.SZ"
+},
+{
+"text": "三七互娱",
+"type": "listed",
+"ts_code": "002555.SZ"
+},
+{
+"text": "世纪华通",
+"type": "listed",
+"ts_code": "002602.SZ"
+},
+{
+"text": "游族网络",
+"type": "listed",
+"ts_code": "002174.SZ"
+},
+{
+"text": "星辉娱乐",
+"type": "listed",
+"ts_code": "300043.SZ"
+},
+{
+"text": "名臣健康",
+"type": "listed",
+"ts_code": "002919.SZ"
+},
+{
+"text": "紫天科技",
+"type": "listed",
+"ts_code": "300280.SZ"
+},
+{
+"text": "富春股份",
+"type": "listed",
+"ts_code": "300299.SZ"
+},
+{
+"text": "天舟文化",
+"type": "listed",
+"ts_code": "300148.SZ"
+}
+],
+"db2fc989cdb4": [
+{
+"text": "亿帆医药",
+"type": "listed",
+"ts_code": "002019.SZ"
+}
+],
+"9fd0bfe5ba57": [
+{
+"text": "先导智能",
+"type": "listed",
+"ts_code": "300450.SZ"
+},
+{
+"text": "常州乐萌",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"aec6eaaae3fd": [
+{
+"text": "中兴通讯",
+"type": "listed",
+"ts_code": "000063.SZ"
+},
+{
+"text": "紫光股份",
+"type": "listed",
+"ts_code": "000938.SZ"
+},
+{
+"text": "移远通信",
+"type": "listed",
+"ts_code": "603236.SH"
+}
+],
+"d9c727c7760e": [],
+"898117f248e1": [
+{
+"text": "大众汽车集团",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "QuantumScape",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "PowerCo",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"1b57b173c795": [
+{
+"text": "潞安环能",
+"type": "listed",
+"ts_code": "601699.SH"
+},
+{
+"text": "山西焦煤",
+"type": "listed",
+"ts_code": "000983.SZ"
+},
+{
+"text": "盘江股份",
+"type": "listed",
+"ts_code": "600395.SH"
+}
+],
+"e634ba33dafc": [],
+"74578c4b7ac1": [
+{
+"text": "菱电电控",
+"type": "listed",
+"ts_code": "688667.SH"
+},
+{
+"text": "三花智控",
+"type": "listed",
+"ts_code": "002050.SZ"
+},
+{
+"text": "星宇股份",
+"type": "listed",
+"ts_code": "601799.SH"
+},
+{
+"text": "上声电子",
+"type": "listed",
+"ts_code": "688533.SH"
+},
+{
+"text": "中鼎股份",
+"type": "listed",
+"ts_code": "000887.SZ"
+}
+],
+"9f953e3a94cf": [
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+}
+],
+"4d3fd7ba4669": [
+{
+"text": "宇信科技",
+"type": "listed",
+"ts_code": "300674.SZ"
+},
+{
+"text": "天阳科技",
+"type": "listed",
+"ts_code": "300872.SZ"
+},
+{
+"text": "三未信安",
+"type": "listed",
+"ts_code": "688489.SH"
+}
+],
+"c8cbba534a3f": [
+{
+"text": "正泰电器",
+"type": "listed",
+"ts_code": "601877.SH"
+},
+{
+"text": "良信股份",
+"type": "listed",
+"ts_code": "002706.SZ"
+},
+{
+"text": "常熟开关",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "德力西",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "天正电气",
+"type": "listed",
+"ts_code": "605066.SH"
+},
+{
+"text": "ABB",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"f2371a07d1dd": [
+{
+"text": "招商蛇口",
+"type": "listed",
+"ts_code": "001979.SZ"
+}
+],
+"3901c7b6a54b": [
+{
+"text": "山西汾酒",
+"type": "listed",
+"ts_code": "600809.SH"
+},
+{
+"text": "古井贡酒",
+"type": "listed",
+"ts_code": "000596.SZ"
+}
+],
+"f18cb31fbd0a": [],
+"5e2a7a55350d": [
+{
+"text": "步科股份",
+"type": "listed",
+"ts_code": "688160.SH"
+},
+{
+"text": "鸣志电器",
+"type": "listed",
+"ts_code": "603728.SH"
+}
+],
+"7dd2b83f45bb": [],
+"5e0c8e8cc774": [
+{
+"text": "五粮液",
+"type": "listed",
+"ts_code": "000858.SZ"
+}
+],
+"ba6b972c91a6": [
+{
+"text": "桐昆股份",
+"type": "listed",
+"ts_code": "601233.SH"
+}
+],
+"f92517e2742f": [],
+"bd8cc46f8afa": [
+{
+"text": "华新水泥",
+"type": "listed",
+"ts_code": "600801.SH"
+},
+{
+"text": "海螺水泥",
+"type": "listed",
+"ts_code": "600585.SH"
+},
+{
+"text": "上峰水泥",
+"type": "listed",
+"ts_code": "000672.SZ"
+},
+{
+"text": "天山股份",
+"type": "listed",
+"ts_code": "000877.SZ"
+},
+{
+"text": "冀东水泥",
+"type": "listed",
+"ts_code": "000401.SZ"
+}
+],
+"f764e92c26b7": [
+{
+"text": "华为",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "赛力斯",
+"type": "listed",
+"ts_code": "601127.SH"
+},
+{
+"text": "江淮汽车",
+"type": "listed",
+"ts_code": "600418.SH"
+},
+{
+"text": "北汽蓝谷",
+"type": "listed",
+"ts_code": "600733.SH"
+}
+],
+"cd9409d84d1a": [
+{
+"text": "中国巨石",
+"type": "listed",
+"ts_code": "600176.SH"
+},
+{
+"text": "中材科技",
+"type": "listed",
+"ts_code": "002080.SZ"
+},
+{
+"text": "山东玻纤",
+"type": "listed",
+"ts_code": "605006.SH"
+},
+{
+"text": "长海股份",
+"type": "listed",
+"ts_code": "300196.SZ"
+},
+{
+"text": "国际复材",
+"type": "listed",
+"ts_code": "301526.SZ"
+},
+{
+"text": "宏和科技",
+"type": "listed",
+"ts_code": "603256.SH"
+}
+],
+"674b0cb9c735": [
+{
+"text": "泰和新材",
+"type": "listed",
+"ts_code": "002254.SZ"
+},
+{
+"text": "中化国际",
+"type": "listed",
+"ts_code": "600500.SH"
+}
+],
+"0fd59a983c0d": [],
+"9ae0f998e815": [],
+"7d6caa8cab5b": [
+{
+"text": "先导智能",
+"type": "listed",
+"ts_code": "300450.SZ"
+}
+],
+"4ce5714e9ff2": [
+{
+"text": "鼎龙股份",
+"type": "listed",
+"ts_code": "300054.SZ"
+}
+],
+"1646c3be7f44": [],
+"9aa029b70eaf": [
+{
+"text": "天孚通信",
+"type": "listed",
+"ts_code": "300394.SZ"
+},
+{
+"text": "中际旭创",
+"type": "listed",
+"ts_code": "300308.SZ"
+},
+{
+"text": "新易盛",
+"type": "listed",
+"ts_code": "300502.SZ"
+},
+{
+"text": "锐捷网络",
+"type": "listed",
+"ts_code": "301165.SZ"
+},
+{
+"text": "光环新网",
+"type": "listed",
+"ts_code": "300383.SZ"
+},
+{
+"text": "三维通信",
+"type": "listed",
+"ts_code": "002115.SZ"
+},
+{
+"text": "神州泰岳",
+"type": "listed",
+"ts_code": "300002.SZ"
+}
+],
+"6dabd9cf16d4": [],
+"45cc9438489e": [],
+"6d9d493e3e3a": [
+{
+"text": "永杉锂业",
+"type": "listed",
+"ts_code": "603399.SH"
+},
+{
+"text": "盛新锂能",
+"type": "listed",
+"ts_code": "002240.SZ"
+},
+{
+"text": "威领股份",
+"type": "listed",
+"ts_code": "002667.SZ"
+},
+{
+"text": "天齐锂业",
+"type": "listed",
+"ts_code": "002466.SZ"
+},
+{
+"text": "融捷股份",
+"type": "listed",
+"ts_code": "002192.SZ"
+},
+{
+"text": "永兴材料",
+"type": "listed",
+"ts_code": "002756.SZ"
+},
+{
+"text": "赣锋锂业",
+"type": "listed",
+"ts_code": "002460.SZ"
+}
+],
+"4d9d6917b8a0": [
+{
+"text": "奥福环保",
+"type": "listed",
+"ts_code": "688021.SH"
+}
+],
+"cc4f8a26e38a": [
+{
+"text": "中宠股份",
+"type": "listed",
+"ts_code": "002891.SZ"
+},
+{
+"text": "佩蒂股份",
+"type": "listed",
+"ts_code": "300673.SZ"
+},
+{
+"text": "科沃斯",
+"type": "listed",
+"ts_code": "603486.SH"
+},
+{
+"text": "石头科技",
+"type": "listed",
+"ts_code": "688169.SH"
+},
+{
+"text": "极米科技",
+"type": "listed",
+"ts_code": "688696.SH"
+},
+{
+"text": "小熊电器",
+"type": "listed",
+"ts_code": "002959.SZ"
+},
+{
+"text": "珀莱雅",
+"type": "listed",
+"ts_code": "603605.SH"
+},
+{
+"text": "贝泰妮",
+"type": "listed",
+"ts_code": "300957.SZ"
+}
+],
+"c0eba14172a2": [
+{
+"text": "远兴能源",
+"type": "listed",
+"ts_code": "000683.SZ"
+},
+{
+"text": "三友化工",
+"type": "listed",
+"ts_code": "600409.SH"
+},
+{
+"text": "滨化股份",
+"type": "listed",
+"ts_code": "601678.SH"
+}
+],
+"1ed411290931": [],
+"adf20463601f": [
+{
+"text": "阳光电源",
+"type": "listed",
+"ts_code": "300274.SZ"
+},
+{
+"text": "华为",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"3a44a108d450": [
+{
+"text": "绿的谐波",
+"type": "listed",
+"ts_code": "688017.SH"
+},
+{
+"text": "双环传动",
+"type": "listed",
+"ts_code": "002472.SZ"
+},
+{
+"text": "中大力德",
+"type": "listed",
+"ts_code": "002896.SZ"
+}
+],
+"6b2a40a87dec": [],
+"e12cfb9f3c35": [
+{
+"text": "国电南瑞",
+"type": "listed",
+"ts_code": "600406.SH"
+},
+{
+"text": "思源电气",
+"type": "listed",
+"ts_code": "002028.SZ"
+},
+{
+"text": "三星医疗",
+"type": "listed",
+"ts_code": "601567.SH"
+},
+{
+"text": "金盘科技",
+"type": "listed",
+"ts_code": "688676.SH"
+},
+{
+"text": "平高电气",
+"type": "listed",
+"ts_code": "600312.SH"
+},
+{
+"text": "东方电子",
+"type": "listed",
+"ts_code": "000682.SZ"
+},
+{
+"text": "四方股份",
+"type": "listed",
+"ts_code": "601126.SH"
+},
+{
+"text": "金杯电工",
+"type": "listed",
+"ts_code": "002533.SZ"
+}
+],
+"2b231f69002e": [
+{
+"text": "恒铭达",
+"type": "listed",
+"ts_code": "002947.SZ"
+},
+{
+"text": "鸿富瀚",
+"type": "listed",
+"ts_code": "301086.SZ"
+}
+],
+"897053df86ca": [
+{
+"text": "长高集团",
+"type": "listed",
+"ts_code": "002452.SZ"
+},
+{
+"text": "国家电投集团贵州金元威宁能源股份有限公司",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "浙江中略新能源科技有限公司",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "淳化中略风力发电有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"3101bb531089": [
+{
+"text": "中兴通讯",
+"type": "listed",
+"ts_code": "000063.SZ"
+},
+{
+"text": "小米集团",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "星网锐捷",
+"type": "listed",
+"ts_code": "002396.SZ"
+}
+],
+"0c0f8f03e54d": [],
+"e6820ab040ef": [],
+"fe5a92be60d2": [
+{
+"text": "巨子生物",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "锦波生物",
+"type": "listed",
+"ts_code": "920982.BJ",
+"alt_codes": [
+"832982.BJ"
+]
+},
+{
+"text": "科思股份",
+"type": "listed",
+"ts_code": "300856.SZ"
+}
+],
+"eb59292a53b5": [],
+"be7bc34b14a0": [
+{
+"text": "华为",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中兴通讯",
+"type": "listed",
+"ts_code": "000063.SZ"
+},
+{
+"text": "超聚变",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "百度",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "阿里",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "腾讯",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中石油",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中海油",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "万国数据",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "秦淮数据",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中国电信",
+"type": "listed",
+"ts_code": "601728.SH"
+},
+{
+"text": "中国移动",
+"type": "listed",
+"ts_code": "600941.SH"
+},
+{
+"text": "中国联通",
+"type": "listed",
+"ts_code": "600050.SH"
+}
+],
+"147e8e368e86": [
+{
+"text": "视涯科技",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"126e78bd92fb": [
+{
+"text": "拓普集团",
+"type": "listed",
+"ts_code": "601689.SH"
+},
+{
+"text": "伯特利",
+"type": "listed",
+"ts_code": "603596.SH"
+},
+{
+"text": "爱柯迪",
+"type": "listed",
+"ts_code": "600933.SH"
+},
+{
+"text": "双环传动",
+"type": "listed",
+"ts_code": "002472.SZ"
+},
+{
+"text": "银轮股份",
+"type": "listed",
+"ts_code": "002126.SZ"
+},
+{
+"text": "豪能股份",
+"type": "listed",
+"ts_code": "603809.SH"
+},
+{
+"text": "均胜电子",
+"type": "listed",
+"ts_code": "600699.SH"
+},
+{
+"text": "隆盛科技",
+"type": "listed",
+"ts_code": "300680.SZ"
+},
+{
+"text": "富临精工",
+"type": "listed",
+"ts_code": "300432.SZ"
+},
+{
+"text": "中鼎股份",
+"type": "listed",
+"ts_code": "000887.SZ"
+}
+],
+"07d7c3818b7c": [],
+"521f8ccfea2f": [
+{
+"text": "海兰信",
+"type": "listed",
+"ts_code": "300065.SZ"
+}
+],
+"0fb5798ae135": [
+{
+"text": "旭升集团",
+"type": "listed",
+"ts_code": "603305.SH"
+}
+],
+"835d76a2b728": [
+{
+"text": "无锡极致液冷科技",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"cf50e3984d49": [],
+"2c53cfaef4c5": [],
+"85c581755538": [
+{
+"text": "三一重工",
+"type": "listed",
+"ts_code": "600031.SH"
+},
+{
+"text": "恒立液压",
+"type": "listed",
+"ts_code": "601100.SH"
+}
+],
+"81eee0c81a03": [],
+"6c5bc105a93c": [],
+"88a9fc8cb718": [
+{
+"text": "信立泰",
+"type": "listed",
+"ts_code": "002294.SZ"
+},
+{
+"text": "百诚医药",
+"type": "listed",
+"ts_code": "301096.SZ"
+},
+{
+"text": "康哲药业",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "亿帆医药",
+"type": "listed",
+"ts_code": "002019.SZ"
+}
+],
+"e01866138d7e": [
+{
+"text": "北方稀土",
+"type": "listed",
+"ts_code": "600111.SH"
+},
+{
+"text": "五矿稀土",
+"type": "listed",
+"ts_code": "000831.SZ"
+},
+{
+"text": "正海磁材",
+"type": "listed",
+"ts_code": "300224.SZ"
+},
+{
+"text": "金力永磁",
+"type": "listed",
+"ts_code": "300748.SZ"
+}
+],
+"2cd0a3be9153": [
+{
+"text": "美心翼申",
+"type": "listed",
+"ts_code": "920833.BJ",
+"alt_codes": [
+"873833.BJ"
+]
+}
+],
+"d9f0e52169a8": [],
+"c63ef7c6ac7e": [
+{
+"text": "牧原股份",
+"type": "listed",
+"ts_code": "002714.SZ"
+},
+{
+"text": "海大集团",
+"type": "listed",
+"ts_code": "002311.SZ"
+},
+{
+"text": "普莱柯",
+"type": "listed",
+"ts_code": "603566.SH"
+},
+{
+"text": "科前生物",
+"type": "listed",
+"ts_code": "688526.SH"
+},
+{
+"text": "生物股份",
+"type": "listed",
+"ts_code": "600201.SH"
+}
+],
+"84e3895c89e9": [],
+"134f550aae91": [
+{
+"text": "科锐国际",
+"type": "listed",
+"ts_code": "300662.SZ"
+},
+{
+"text": "宋城演艺",
+"type": "listed",
+"ts_code": "300144.SZ"
+},
+{
+"text": "首旅酒店",
+"type": "listed",
+"ts_code": "600258.SH"
+}
+],
+"13cd92851318": [
+{
+"text": "国金证券",
+"type": "listed",
+"ts_code": "600109.SH"
+}
+],
+"30a3cd523af5": [
+{
+"text": "值得买",
+"type": "listed",
+"ts_code": "300785.SZ"
+},
+{
+"text": "返利科技",
+"type": "listed",
+"ts_code": "600228.SH"
+}
+],
+"a3393a710b3a": [
+{
+"text": "横店东磁",
+"type": "listed",
+"ts_code": "002056.SZ"
+},
+{
+"text": "上海紫江",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "江苏斯迪克",
+"type": "listed",
+"ts_code": "300806.SZ"
+},
+{
+"text": "宁波兴业",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"0e622dc8d467": [],
+"456f6483d583": [
+{
+"text": "拓普集团",
+"type": "listed",
+"ts_code": "601689.SH"
+}
+],
+"a48157f5eefc": [],
+"7560e498f83a": [
+{
+"text": "三维化学",
+"type": "listed",
+"ts_code": "002469.SZ"
+},
+{
+"text": "鲁西化工",
+"type": "listed",
+"ts_code": "000830.SZ"
+},
+{
+"text": "巨化股份",
+"type": "listed",
+"ts_code": "600160.SH"
+}
+],
+"ab5a6fee9ff1": [
+{
+"text": "中微半导体设备（上海）股份有限公司",
+"type": "listed",
+"ts_code": "688012.SH"
+},
+{
+"text": "成都英杰晨晖科技有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"ac6ba2dbcd74": [
+{
+"text": "山东钢铁",
+"type": "listed",
+"ts_code": "600022.SH"
+},
+{
+"text": "华菱钢铁",
+"type": "listed",
+"ts_code": "000932.SZ"
+},
+{
+"text": "首钢股份",
+"type": "listed",
+"ts_code": "000959.SZ"
+},
+{
+"text": "沙钢股份",
+"type": "listed",
+"ts_code": "002075.SZ"
+},
+{
+"text": "三钢闽光",
+"type": "listed",
+"ts_code": "002110.SZ"
+}
+],
+"721928d99de4": [
+{
+"text": "中国移动",
+"type": "listed",
+"ts_code": "600941.SH"
+}
+],
+"67d801a1678f": [
+{
+"text": "安集科技",
+"type": "listed",
+"ts_code": "688019.SH"
+}
+],
+"beadbfb4dca9": [
+{
+"text": "天箭科技",
+"type": "listed",
+"ts_code": "002977.SZ"
+},
+{
+"text": "国睿科技",
+"type": "listed",
+"ts_code": "600562.SH"
+},
+{
+"text": "盟升电子",
+"type": "listed",
+"ts_code": "688311.SH"
+},
+{
+"text": "中航高科",
+"type": "listed",
+"ts_code": "600862.SH"
+}
+],
+"792779f4151f": [],
+"f5b979c980d5": [
+{
+"text": "阿里巴巴",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "腾讯控股",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "百度",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "深信服",
+"type": "listed",
+"ts_code": "300454.SZ"
+},
+{
+"text": "金山云",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "优刻得",
+"type": "listed",
+"ts_code": "688158.SH"
+},
+{
+"text": "青云科技",
+"type": "listed",
+"ts_code": "688316.SH"
+},
+{
+"text": "顺网科技",
+"type": "listed",
+"ts_code": "300113.SZ"
+}
+],
+"74172ea5eafe": [],
+"49f333c07c80": [
+{
+"text": "泓博医药",
+"type": "listed",
+"ts_code": "301230.SZ"
+},
+{
+"text": "皓元医药",
+"type": "listed",
+"ts_code": "688131.SH"
+},
+{
+"text": "药石科技",
+"type": "listed",
+"ts_code": "300725.SZ"
+},
+{
+"text": "美迪西",
+"type": "listed",
+"ts_code": "688202.SH"
+},
+{
+"text": "毕得医药",
+"type": "listed",
+"ts_code": "688073.SH"
+},
+{
+"text": "采纳股份",
+"type": "listed",
+"ts_code": "301122.SZ"
+},
+{
+"text": "昌红科技",
+"type": "listed",
+"ts_code": "300151.SZ"
+},
+{
+"text": "博腾股份",
+"type": "listed",
+"ts_code": "300363.SZ"
+},
+{
+"text": "康拓医疗",
+"type": "listed",
+"ts_code": "688314.SH"
+},
+{
+"text": "中国中药",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "太极集团",
+"type": "listed",
+"ts_code": "600129.SH"
+},
+{
+"text": "国际医学",
+"type": "listed",
+"ts_code": "000516.SZ"
+},
+{
+"text": "江苏吴中",
+"type": "listed",
+"ts_code": "600200.SH"
+},
+{
+"text": "义翘神州",
+"type": "listed",
+"ts_code": "301047.SZ"
+}
+],
+"4e75797c0f1f": [
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+},
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+},
+{
+"text": "德方纳米",
+"type": "listed",
+"ts_code": "300769.SZ"
+},
+{
+"text": "容百科技",
+"type": "listed",
+"ts_code": "688005.SH"
+},
+{
+"text": "当升科技",
+"type": "listed",
+"ts_code": "300073.SZ"
+},
+{
+"text": "杉杉股份",
+"type": "listed",
+"ts_code": "600884.SH"
+},
+{
+"text": "鹏辉能源",
+"type": "listed",
+"ts_code": "300438.SZ"
+}
+],
+"99861ffd955f": [
+{
+"text": "索菲亚",
+"type": "listed",
+"ts_code": "002572.SZ"
+},
+{
+"text": "欧派家居",
+"type": "listed",
+"ts_code": "603833.SH"
+},
+{
+"text": "金牌厨柜",
+"type": "listed",
+"ts_code": "603180.SH"
+},
+{
+"text": "志邦家居",
+"type": "listed",
+"ts_code": "603801.SH"
+}
+],
+"0d60e40466aa": [
+{
+"text": "双良节能",
+"type": "listed",
+"ts_code": "600481.SH"
+},
+{
+"text": "上机数控",
+"type": "listed",
+"ts_code": "603185.SH"
+}
+],
+"afc5d923c155": [],
+"0cad3af7c857": [],
+"39a9bb33b278": [
+{
+"text": "五粮液",
+"type": "listed",
+"ts_code": "000858.SZ"
+},
+{
+"text": "泸州老窖",
+"type": "listed",
+"ts_code": "000568.SZ"
+}
+],
+"37305afd970a": [],
+"660469cd2dc8": [
+{
+"text": "三棵树",
+"type": "listed",
+"ts_code": "603737.SH"
+},
+{
+"text": "亚士创能",
+"type": "listed",
+"ts_code": "603378.SH"
+},
+{
+"text": "蓝晓科技",
+"type": "listed",
+"ts_code": "300487.SZ"
+},
+{
+"text": "青松股份",
+"type": "listed",
+"ts_code": "300132.SZ"
+},
+{
+"text": "宏大爆破",
+"type": "listed",
+"ts_code": "002683.SZ"
+}
+],
+"8b78d5945efc": [],
+"87631e9e8b69": [
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+},
+{
+"text": "璞泰来",
+"type": "listed",
+"ts_code": "603659.SH"
+},
+{
+"text": "恩捷股份",
+"type": "listed",
+"ts_code": "002812.SZ"
+}
+],
+"78a93fc36350": [],
+"05f48e655b85": [
+{
+"text": "金发科技",
+"type": "listed",
+"ts_code": "600143.SH"
+}
+],
+"2b9e75ff5321": [
+{
+"text": "新战略移动机器人产业研究所",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"598bf1434fe7": [],
+"80ffea1b2f8b": [
+{
+"text": "一心堂",
+"type": "listed",
+"ts_code": "002727.SZ"
+},
+{
+"text": "益丰药房",
+"type": "listed",
+"ts_code": "603939.SH"
+},
+{
+"text": "金域医学",
+"type": "listed",
+"ts_code": "603882.SH"
+},
+{
+"text": "迪安诊断",
+"type": "listed",
+"ts_code": "300244.SZ"
+}
+],
+"eae75d83c827": [
+{
+"text": "供销大集",
+"type": "listed",
+"ts_code": "000564.SZ"
+},
+{
+"text": "*ST 宏图",
+"type": "listed",
+"ts_code": "600122.SH"
+},
+{
+"text": "天音控股",
+"type": "listed",
+"ts_code": "000829.SZ"
+},
+{
+"text": "*ST 赫美",
+"type": "listed",
+"ts_code": "002356.SZ"
+},
+{
+"text": "*ST 劝业",
+"type": "listed",
+"ts_code": "600821.SH"
+}
+],
+"fa1732533b99": [
+{
+"text": "美诺华",
+"type": "listed",
+"ts_code": "603538.SH"
+}
+],
+"e004719a897d": [
+{
+"text": "华新水泥",
+"type": "listed",
+"ts_code": "600801.SH"
+},
+{
+"text": "海螺水泥",
+"type": "listed",
+"ts_code": "600585.SH"
+},
+{
+"text": "上峰水泥",
+"type": "listed",
+"ts_code": "000672.SZ"
+},
+{
+"text": "天山股份",
+"type": "listed",
+"ts_code": "000877.SZ"
+},
+{
+"text": "冀东水泥",
+"type": "listed",
+"ts_code": "000401.SZ"
+}
+],
+"865740cefa27": [],
+"3e020e1f83da": [],
+"dcba86f25f13": [],
+"2c321a29bfe0": [
+{
+"text": "博迅生物",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "福立仪器",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "纳微科技",
+"type": "listed",
+"ts_code": "688690.SH"
+}
+],
+"cef2914ce94f": [
+{
+"text": "金赛药业",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"6cf472b1e425": [
+{
+"text": "中信证券",
+"type": "listed",
+"ts_code": "600030.SH"
+},
+{
+"text": "中金公司",
+"type": "listed",
+"ts_code": "601995.SH"
+},
+{
+"text": "广发证券",
+"type": "listed",
+"ts_code": "000776.SZ"
+},
+{
+"text": "东方财富",
+"type": "listed",
+"ts_code": "300059.SZ"
+},
+{
+"text": "华泰证券",
+"type": "listed",
+"ts_code": "601688.SH"
+}
+],
+"f5e803c602c8": [],
+"1456c041a1e9": [
+{
+"text": "安培龙",
+"type": "listed",
+"ts_code": "301413.SZ"
+},
+{
+"text": "东华测试",
+"type": "listed",
+"ts_code": "300354.SZ"
+},
+{
+"text": "康斯特",
+"type": "listed",
+"ts_code": "300445.SZ"
+},
+{
+"text": "柯力传感",
+"type": "listed",
+"ts_code": "603662.SH"
+},
+{
+"text": "华培动力",
+"type": "listed",
+"ts_code": "603121.SH"
+}
+],
+"8b41414f8131": [
+{
+"text": "工商银行",
+"type": "listed",
+"ts_code": "601398.SH"
+},
+{
+"text": "建设银行",
+"type": "listed",
+"ts_code": "601939.SH"
+},
+{
+"text": "邮储银行",
+"type": "listed",
+"ts_code": "601658.SH"
+},
+{
+"text": "江苏银行",
+"type": "listed",
+"ts_code": "600919.SH"
+},
+{
+"text": "常熟银行",
+"type": "listed",
+"ts_code": "601128.SH"
+}
+],
+"c0fba9067e07": [
+{
+"text": "圣湘生物",
+"type": "listed",
+"ts_code": "688289.SH"
+},
+{
+"text": "中山未名海济生物医药有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"64b10ed2ea7b": [
+{
+"text": "中航沈飞",
+"type": "listed",
+"ts_code": "600760.SH"
+},
+{
+"text": "华秦科技",
+"type": "listed",
+"ts_code": "688281.SH"
+},
+{
+"text": "内蒙一机",
+"type": "listed",
+"ts_code": "600967.SH"
+},
+{
+"text": "国力股份",
+"type": "listed",
+"ts_code": "688103.SH"
+}
+],
+"fd45c383d1af": [
+{
+"text": "长安",
+"type": "listed",
+"ts_code": "000625.SZ"
+}
+],
+"af856de8d804": [
+{
+"text": "健之佳",
+"type": "listed",
+"ts_code": "605266.SH"
+}
+],
+"a99468b57f2a": [
+{
+"text": "兴福电子",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"39e281e9930c": [],
+"39257553b3bd": [],
+"c4313330541e": [],
+"04227b7bab6c": [
+{
+"text": "新和成",
+"type": "listed",
+"ts_code": "002001.SZ"
+},
+{
+"text": "梅花生物",
+"type": "listed",
+"ts_code": "600873.SH"
+}
+],
+"c1e6704a1b04": [
+{
+"text": "万达电影",
+"type": "listed",
+"ts_code": "002739.SZ"
+},
+{
+"text": "猫眼娱乐",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "光线传媒",
+"type": "listed",
+"ts_code": "300251.SZ"
+},
+{
+"text": "华策影视",
+"type": "listed",
+"ts_code": "300133.SZ"
+}
+],
+"f78241f50f33": [],
+"c101750d445b": [
+{
+"text": "兰剑智能科技（临邑）有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"d1eb7804da2d": [
+{
+"text": "腾讯控股",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "吉比特",
+"type": "listed",
+"ts_code": "603444.SH"
+},
+{
+"text": "三七互娱",
+"type": "listed",
+"ts_code": "002555.SZ"
+},
+{
+"text": "完美世界",
+"type": "listed",
+"ts_code": "002624.SZ"
+},
+{
+"text": "电魂网络",
+"type": "listed",
+"ts_code": "603258.SH"
+},
+{
+"text": "姚记科技",
+"type": "listed",
+"ts_code": "002605.SZ"
+},
+{
+"text": "神州泰岳",
+"type": "listed",
+"ts_code": "300002.SZ"
+},
+{
+"text": "祖龙娱乐",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "网易-S",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"1135f321a353": [],
+"32e6b781b177": [
+{
+"text": "浙石化",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "桐昆股份",
+"type": "listed",
+"ts_code": "601233.SH"
+}
+],
+"0e0db77b8450": [],
+"091e73a1ef3c": [
+{
+"text": "富士莱",
+"type": "listed",
+"ts_code": "301258.SZ"
+}
+],
+"ca3a85dbb6fa": [
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+},
+{
+"text": "吉利",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "小米",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"3fdc2427f99f": [],
+"8e62a45f9c12": [
+{
+"text": "天赐材料",
+"type": "listed",
+"ts_code": "002709.SZ"
+},
+{
+"text": "新宙邦",
+"type": "listed",
+"ts_code": "300037.SZ"
+}
+],
+"9a4397bd318f": [],
+"4df6bb7e00e4": [
+{
+"text": "中国核电",
+"type": "listed",
+"ts_code": "601985.SH"
+},
+{
+"text": "中国广核",
+"type": "listed",
+"ts_code": "003816.SZ"
+}
+],
+"642e169e3bbe": [],
+"487c0f5d0cb2": [],
+"d626284a2d92": [],
+"f3e5b8cc5c05": [
+{
+"text": "京隆科技",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"e7b25baadbfd": [
+{
+"text": "酒鬼酒",
+"type": "listed",
+"ts_code": "000799.SZ"
+},
+{
+"text": "胖东来",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"013ccb6498f2": [
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+},
+{
+"text": "亿纬锂能",
+"type": "listed",
+"ts_code": "300014.SZ"
+},
+{
+"text": "比亚迪",
+"type": "listed",
+"ts_code": "002594.SZ"
+},
+{
+"text": "中创新航",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"581e36204c40": [
+{
+"text": "誊展精密",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"f9f75c0213cb": [],
+"7d6e93a046dd": [
+{
+"text": "皇氏集团",
+"type": "listed",
+"ts_code": "002329.SZ"
+},
+{
+"text": "新乳业",
+"type": "listed",
+"ts_code": "002946.SZ"
+},
+{
+"text": "伊利股份",
+"type": "listed",
+"ts_code": "600887.SH"
+}
+],
+"818a789cfe85": [
+{
+"text": "嵘泰股份",
+"type": "listed",
+"ts_code": "605133.SH"
+},
+{
+"text": "江苏润孚动力",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "江苏润泰机器人科技有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"0d1001720aec": [
+{
+"text": "天猫",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "京东",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "苏宁易购",
+"type": "listed",
+"ts_code": "002024.SZ"
+}
+],
+"d9744f8f12a4": [],
+"6f23826c1844": [],
+"eec06712fa33": [
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+},
+{
+"text": "亿纬",
+"type": "listed",
+"ts_code": "300014.SZ"
+},
+{
+"text": "孚能",
+"type": "listed",
+"ts_code": "688567.SH"
+}
+],
+"826ee2ef8dff": [
+{
+"text": "普利特",
+"type": "listed",
+"ts_code": "002324.SZ"
+}
+],
+"cfa8e5b343a3": [],
+"ce6645e894d6": [
+{
+"text": "卫龙美味",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "盐津铺子",
+"type": "listed",
+"ts_code": "002847.SZ"
+},
+{
+"text": "东鹏饮料",
+"type": "listed",
+"ts_code": "605499.SH"
+},
+{
+"text": "山西汾酒",
+"type": "listed",
+"ts_code": "600809.SH"
+},
+{
+"text": "贵州茅台",
+"type": "listed",
+"ts_code": "600519.SH"
+},
+{
+"text": "华润啤酒",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "青岛啤酒",
+"type": "listed",
+"ts_code": "600600.SH"
+},
+{
+"text": "燕京啤酒",
+"type": "listed",
+"ts_code": "000729.SZ"
+},
+{
+"text": "重庆啤酒",
+"type": "listed",
+"ts_code": "600132.SH"
+},
+{
+"text": "海天味业",
+"type": "listed",
+"ts_code": "603288.SH"
+}
+],
+"9731b526a7b6": [
+{
+"text": "古井贡酒",
+"type": "listed",
+"ts_code": "000596.SZ"
+},
+{
+"text": "泸州老窖",
+"type": "listed",
+"ts_code": "000568.SZ"
+},
+{
+"text": "珍酒李渡",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "舍得酒业",
+"type": "listed",
+"ts_code": "600702.SH"
+},
+{
+"text": "酒鬼酒",
+"type": "listed",
+"ts_code": "000799.SZ"
+}
+],
+"ae1dd255c13f": [
+{
+"text": "*ST凯乐",
+"type": "listed",
+"ts_code": "600260.SH"
+},
+{
+"text": "*ST泽达",
+"type": "listed",
+"ts_code": "688555.SH"
+},
+{
+"text": "*ST紫晶",
+"type": "listed",
+"ts_code": "688086.SH"
+}
+],
+"1b761d78f752": [
+{
+"text": "华利集团",
+"type": "listed",
+"ts_code": "300979.SZ"
+},
+{
+"text": "申洲国际",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "兴业科技",
+"type": "listed",
+"ts_code": "002674.SZ"
+},
+{
+"text": "明新旭腾",
+"type": "listed",
+"ts_code": "605068.SH"
+},
+{
+"text": "新澳股份",
+"type": "listed",
+"ts_code": "603889.SH"
+},
+{
+"text": "南山智尚",
+"type": "listed",
+"ts_code": "300918.SZ"
+},
+{
+"text": "星华新材",
+"type": "listed",
+"ts_code": "301077.SZ"
+}
+],
+"c104f3342469": [
+{
+"text": "东宝生物",
+"type": "listed",
+"ts_code": "300239.SZ"
+},
+{
+"text": "益青生物",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"d80338786ccc": [
+{
+"text": "中国科学院控股有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"aa5e756b7cf5": [
+{
+"text": "中国移动",
+"type": "listed",
+"ts_code": "600941.SH"
+}
+],
+"8f465f4fb37c": [],
+"d126ec904c20": [
+{
+"text": "中国电信",
+"type": "listed",
+"ts_code": "601728.SH"
+},
+{
+"text": "PICC人保财险",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中石化物探院",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"4572c88cdf68": [],
+"c03a1d117c89": [
+{
+"text": "沧州大化",
+"type": "listed",
+"ts_code": "600230.SH"
+}
+],
+"4dbac76f1f2c": [],
+"a08062b67917": [
+{
+"text": "安博通",
+"type": "listed",
+"ts_code": "688168.SH"
+},
+{
+"text": "南天信息",
+"type": "listed",
+"ts_code": "000948.SZ"
+},
+{
+"text": "用友网络",
+"type": "listed",
+"ts_code": "600588.SH"
+}
+],
+"096be4687b5d": [
+{
+"text": "万丰奥威",
+"type": "listed",
+"ts_code": "002085.SZ"
+},
+{
+"text": "宗申动力",
+"type": "listed",
+"ts_code": "001696.SZ"
+},
+{
+"text": "卧龙电驱",
+"type": "listed",
+"ts_code": "600580.SH"
+},
+{
+"text": "绿能慧充",
+"type": "listed",
+"ts_code": "600212.SH"
+}
+],
+"cc65b18bf71d": [
+{
+"text": "台湾盟立公司",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "科盟创新机器人有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"32915a077f3a": [
+{
+"text": "中国太保",
+"type": "listed",
+"ts_code": "601601.SH"
+},
+{
+"text": "中国平安",
+"type": "listed",
+"ts_code": "601318.SH"
+},
+{
+"text": "中国人寿",
+"type": "listed",
+"ts_code": "601628.SH"
+},
+{
+"text": "新华保险",
+"type": "listed",
+"ts_code": "601336.SH"
+}
+],
+"034e51ccf579": [
+{
+"text": "科达利",
+"type": "listed",
+"ts_code": "002850.SZ"
+},
+{
+"text": "斯莱克",
+"type": "listed",
+"ts_code": "300382.SZ"
+}
+],
+"10b8568f0617": [],
+"197fd28f839d": [
+{
+"text": "腾讯控股",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "网易",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "恺英网络",
+"type": "listed",
+"ts_code": "002517.SZ"
+},
+{
+"text": "巨人网络",
+"type": "listed",
+"ts_code": "002558.SZ"
+},
+{
+"text": "完美世界",
+"type": "listed",
+"ts_code": "002624.SZ"
+},
+{
+"text": "心动公司",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "吉比特",
+"type": "listed",
+"ts_code": "603444.SH"
+},
+{
+"text": "神州泰岳",
+"type": "listed",
+"ts_code": "300002.SZ"
+},
+{
+"text": "电魂网络",
+"type": "listed",
+"ts_code": "603258.SH"
+},
+{
+"text": "三七互娱",
+"type": "listed",
+"ts_code": "002555.SZ"
+},
+{
+"text": "掌趣科技",
+"type": "listed",
+"ts_code": "300315.SZ"
+},
+{
+"text": "百奥家庭互动",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "友谊时光",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "冰川网络",
+"type": "listed",
+"ts_code": "300533.SZ"
+},
+{
+"text": "名臣健康",
+"type": "listed",
+"ts_code": "002919.SZ"
+},
+{
+"text": "富春股份",
+"type": "listed",
+"ts_code": "300299.SZ"
+},
+{
+"text": "禅游科技",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中手游",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "创梦天地",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "祖龙娱乐",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"dbd04ffb5fcd": [
+{
+"text": "安徽合力",
+"type": "listed",
+"ts_code": "600761.SH"
+},
+{
+"text": "杭叉集团",
+"type": "listed",
+"ts_code": "603298.SH"
+},
+{
+"text": "丰田叉车",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "TVH集团",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"447e40f46d5f": [],
+"7ae089494069": [
+{
+"text": "三生国健",
+"type": "listed",
+"ts_code": "688336.SH"
+}
+],
+"14c9850916b2": [
+{
+"text": "广和通",
+"type": "listed",
+"ts_code": "300638.SZ"
+},
+{
+"text": "中天科技",
+"type": "listed",
+"ts_code": "600522.SH"
+},
+{
+"text": "意华股份",
+"type": "listed",
+"ts_code": "002897.SZ"
+},
+{
+"text": "亨通光电",
+"type": "listed",
+"ts_code": "600487.SH"
+},
+{
+"text": "映翰通",
+"type": "listed",
+"ts_code": "688080.SH"
+}
+],
+"b49725a2a690": [
+{
+"text": "亿田智能",
+"type": "listed",
+"ts_code": "300911.SZ"
+},
+{
+"text": "老板电器",
+"type": "listed",
+"ts_code": "002508.SZ"
+},
+{
+"text": "火星人",
+"type": "listed",
+"ts_code": "300894.SZ"
+}
+],
+"042cd547e43a": [
+{
+"text": "浙江自然",
+"type": "listed",
+"ts_code": "605080.SH"
+},
+{
+"text": "稳健医疗",
+"type": "listed",
+"ts_code": "300888.SZ"
+},
+{
+"text": "台华新材",
+"type": "listed",
+"ts_code": "603055.SH"
+},
+{
+"text": "伟星股份",
+"type": "listed",
+"ts_code": "002003.SZ"
+},
+{
+"text": "华利集团",
+"type": "listed",
+"ts_code": "300979.SZ"
+}
+],
+"5077c35bbf98": [
+{
+"text": "信安世纪",
+"type": "listed",
+"ts_code": "688201.SH"
+},
+{
+"text": "天融信",
+"type": "listed",
+"ts_code": "002212.SZ"
+}
+],
+"d4bf60e18e0a": [
+{
+"text": "ST 新梅",
+"type": "listed",
+"ts_code": "600732.SH"
+}
+],
+"c70e576f843d": [],
+"acb3273d9d86": [],
+"63bd4fb634ec": [],
+"529ee673120a": [],
+"863513a9def4": [
+{
+"text": "格力电器",
+"type": "listed",
+"ts_code": "000651.SZ"
+},
+{
+"text": "老板电器",
+"type": "listed",
+"ts_code": "002508.SZ"
+}
+],
+"3a60819bcabb": [],
+"e3b61c594d10": [
+{
+"text": "君实生物",
+"type": "listed",
+"ts_code": "688180.SH"
+},
+{
+"text": "基石药业",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "康宁杰瑞",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"aeb4f5878bea": [
+{
+"text": "新时达",
+"type": "listed",
+"ts_code": "002527.SZ"
+}
+],
+"e52bf6a2e0db": [
+{
+"text": "同和药业",
+"type": "listed",
+"ts_code": "300636.SZ"
+},
+{
+"text": "共同药业",
+"type": "listed",
+"ts_code": "300966.SZ"
+}
+],
+"baf0394a8b7c": [],
+"9d03d6665e2a": [
+{
+"text": "北京海兰信数据科技股份有限公司",
+"type": "listed",
+"ts_code": "300065.SZ"
+},
+{
+"text": "海兰云",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "海南数字丝路科技有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"73e42c2d6fef": [
+{
+"text": "华利集团",
+"type": "listed",
+"ts_code": "300979.SZ"
+},
+{
+"text": "健盛集团",
+"type": "listed",
+"ts_code": "603558.SH"
+},
+{
+"text": "新澳股份",
+"type": "listed",
+"ts_code": "603889.SH"
+},
+{
+"text": "南山智尚",
+"type": "listed",
+"ts_code": "300918.SZ"
+}
+],
+"4f1243c57cc4": [
+{
+"text": "华利集团",
+"type": "listed",
+"ts_code": "300979.SZ"
+},
+{
+"text": "伟星股份",
+"type": "listed",
+"ts_code": "002003.SZ"
+},
+{
+"text": "健盛集团",
+"type": "listed",
+"ts_code": "603558.SH"
+}
+],
+"651964775d15": [
+{
+"text": "京新药业",
+"type": "listed",
+"ts_code": "002020.SZ"
+},
+{
+"text": "亿帆医药",
+"type": "listed",
+"ts_code": "002019.SZ"
+}
+],
+"b642d69aa94b": [
+{
+"text": "上海家化",
+"type": "listed",
+"ts_code": "600315.SH"
+},
+{
+"text": "珀莱雅",
+"type": "listed",
+"ts_code": "603605.SH"
+},
+{
+"text": "丸美股份",
+"type": "listed",
+"ts_code": "603983.SH"
+},
+{
+"text": "贝泰妮",
+"type": "listed",
+"ts_code": "300957.SZ"
+},
+{
+"text": "可靠股份",
+"type": "listed",
+"ts_code": "301009.SZ"
+},
+{
+"text": "豪悦护理",
+"type": "listed",
+"ts_code": "605009.SH"
+},
+{
+"text": "稳健医疗",
+"type": "listed",
+"ts_code": "300888.SZ"
+},
+{
+"text": "百亚股份",
+"type": "listed",
+"ts_code": "003006.SZ"
+}
+],
+"c225ee6b06ce": [
+{
+"text": "当升科技",
+"type": "listed",
+"ts_code": "300073.SZ"
+},
+{
+"text": "中鼎股份",
+"type": "listed",
+"ts_code": "000887.SZ"
+}
+],
+"5fe7483ef234": [
+{
+"text": "特宝生物",
+"type": "listed",
+"ts_code": "688278.SH"
+},
+{
+"text": "艾迪药业",
+"type": "listed",
+"ts_code": "688488.SH"
+},
+{
+"text": "荣昌生物",
+"type": "listed",
+"ts_code": "688331.SH"
+},
+{
+"text": "科济药业",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "康缘药业",
+"type": "listed",
+"ts_code": "600557.SH"
+},
+{
+"text": "健民集团",
+"type": "listed",
+"ts_code": "600976.SH"
+}
+],
+"936b4f3e1db7": [],
+"86c063ae6114": [],
+"934a8ea2b037": [
+{
+"text": "恒润股份",
+"type": "listed",
+"ts_code": "603985.SH"
+},
+{
+"text": "海力风电",
+"type": "listed",
+"ts_code": "301155.SZ"
+},
+{
+"text": "大金重工",
+"type": "listed",
+"ts_code": "002487.SZ"
+},
+{
+"text": "东方电缆",
+"type": "listed",
+"ts_code": "603606.SH"
+}
+],
+"11af7fc7ba22": [],
+"e8623c526cdf": [],
+"624be9ba7ab8": [],
+"4e3a0b9641fc": [
+{
+"text": "中国电建",
+"type": "listed",
+"ts_code": "601669.SH"
+},
+{
+"text": "中国建筑",
+"type": "listed",
+"ts_code": "601668.SH"
+},
+{
+"text": "中国化学",
+"type": "listed",
+"ts_code": "601117.SH"
+},
+{
+"text": "中国中铁",
+"type": "listed",
+"ts_code": "601390.SH"
+},
+{
+"text": "中国交建",
+"type": "listed",
+"ts_code": "601800.SH"
+},
+{
+"text": "中国铁建",
+"type": "listed",
+"ts_code": "601186.SH"
+}
+],
+"38810121aa91": [
+{
+"text": "杭州银行",
+"type": "listed",
+"ts_code": "600926.SH"
+},
+{
+"text": "江苏银行",
+"type": "listed",
+"ts_code": "600919.SH"
+},
+{
+"text": "齐鲁银行",
+"type": "listed",
+"ts_code": "601665.SH"
+},
+{
+"text": "苏州银行",
+"type": "listed",
+"ts_code": "002966.SZ"
+},
+{
+"text": "招商银行",
+"type": "listed",
+"ts_code": "600036.SH"
+},
+{
+"text": "沪农商行",
+"type": "listed",
+"ts_code": "601825.SH"
+}
+],
+"26fa33b5d2e5": [],
+"3fbf93cbb5b0": [],
+"2f213ceb99b4": [],
+"13427eece66e": [
+{
+"text": "中国神华",
+"type": "listed",
+"ts_code": "601088.SH"
+},
+{
+"text": "中煤能源",
+"type": "listed",
+"ts_code": "601898.SH"
+},
+{
+"text": "晋控煤业",
+"type": "listed",
+"ts_code": "601001.SH"
+}
+],
+"eaf112844cb6": [],
+"3014e8ec6a39": [],
+"beb0bcaa8857": [
+{
+"text": "同和药业",
+"type": "listed",
+"ts_code": "300636.SZ"
+},
+{
+"text": "共同药业",
+"type": "listed",
+"ts_code": "300966.SZ"
+}
+],
+"19d5bd55b8d9": [
+{
+"text": "长江电力",
+"type": "listed",
+"ts_code": "600900.SH"
+},
+{
+"text": "华能水电",
+"type": "listed",
+"ts_code": "600025.SH"
+},
+{
+"text": "国投电力",
+"type": "listed",
+"ts_code": "600886.SH"
+},
+{
+"text": "川投能源",
+"type": "listed",
+"ts_code": "600674.SH"
+},
+{
+"text": "中国核电",
+"type": "listed",
+"ts_code": "601985.SH"
+},
+{
+"text": "中国广核",
+"type": "listed",
+"ts_code": "003816.SZ"
+},
+{
+"text": "黔源电力",
+"type": "listed",
+"ts_code": "002039.SZ"
+}
+],
+"44f80d3d424d": [],
+"fda8f603e9da": [
+{
+"text": "芒果超媒",
+"type": "listed",
+"ts_code": "300413.SZ"
+}
+],
+"df833f15caca": [
+{
+"text": "东鹏饮料",
+"type": "listed",
+"ts_code": "605499.SH"
+}
+],
+"9269184e7086": [
+{
+"text": "国家电网",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "南方电网",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "中国联通",
+"type": "listed",
+"ts_code": "600050.SH"
+},
+{
+"text": "西门子",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"4853700d674c": [
+{
+"text": "华新水泥",
+"type": "listed",
+"ts_code": "600801.SH"
+},
+{
+"text": "上峰水泥",
+"type": "listed",
+"ts_code": "000672.SZ"
+}
+],
+"c07403ea6720": [
+{
+"text": "海创药业",
+"type": "listed",
+"ts_code": "688302.SH"
+},
+{
+"text": "祥生医疗",
+"type": "listed",
+"ts_code": "688358.SH"
+},
+{
+"text": "迈得医疗",
+"type": "listed",
+"ts_code": "688310.SH"
+},
+{
+"text": "柳药集团",
+"type": "listed",
+"ts_code": "603368.SH"
+},
+{
+"text": "上海医药",
+"type": "listed",
+"ts_code": "601607.SH"
+},
+{
+"text": "寿仙谷",
+"type": "listed",
+"ts_code": "603896.SH"
+},
+{
+"text": "首药控股-U",
+"type": "listed",
+"ts_code": "688197.SH"
+},
+{
+"text": "盟科药业",
+"type": "listed",
+"ts_code": "688373.SH"
+},
+{
+"text": "太极集团",
+"type": "listed",
+"ts_code": "600129.SH"
+}
+],
+"bdfab112cdcc": [
+{
+"text": "税友股份",
+"type": "listed",
+"ts_code": "603171.SH"
+},
+{
+"text": "金财互联",
+"type": "listed",
+"ts_code": "002530.SZ"
+}
+],
+"5e6b1cdca890": [
+{
+"text": "山东福瑞达生物股份有限公司",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"e6efcd4cd600": [
+{
+"text": "华阳股份",
+"type": "listed",
+"ts_code": "600348.SH"
+},
+{
+"text": "兖煤澳大利亚",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "天地科技",
+"type": "listed",
+"ts_code": "600582.SH"
+},
+{
+"text": "兰花科创",
+"type": "listed",
+"ts_code": "600123.SH"
+},
+{
+"text": "上海能源",
+"type": "listed",
+"ts_code": "600508.SH"
+},
+{
+"text": "天玛智控",
+"type": "listed",
+"ts_code": "688570.SH"
+}
+],
+"e3a40d50504d": [
+{
+"text": "龙蟠科技",
+"type": "listed",
+"ts_code": "603906.SH"
+}
+],
+"4747a03803b2": [],
+"af274d4210b9": [
+{
+"text": "中移动集团",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"18e7409d213a": [],
+"c0e50697c2e9": [
+{
+"text": "长安凯程",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"a2b70019e7db": [
+{
+"text": "紫光国微",
+"type": "listed",
+"ts_code": "002049.SZ"
+}
+],
+"a04759a5baa9": [
+{
+"text": "太极集团",
+"type": "listed",
+"ts_code": "600129.SH"
+},
+{
+"text": "西南药业",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"b86b4c972692": [
+{
+"text": "博众精工",
+"type": "listed",
+"ts_code": "688097.SH"
+},
+{
+"text": "赛腾股份",
+"type": "listed",
+"ts_code": "603283.SH"
+},
+{
+"text": "鼎泰高科",
+"type": "listed",
+"ts_code": "301377.SZ"
+},
+{
+"text": "快克智能",
+"type": "listed",
+"ts_code": "603203.SH"
+}
+],
+"9f762724bd9e": [
+{
+"text": "禾元生物",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"f0edea77c23f": [],
+"5c1962a7beec": [],
+"52369275e1aa": [
+{
+"text": "中自科技",
+"type": "listed",
+"ts_code": "688737.SH"
+},
+{
+"text": "百合花",
+"type": "listed",
+"ts_code": "603823.SH"
+},
+{
+"text": "元力股份",
+"type": "listed",
+"ts_code": "300174.SZ"
+},
+{
+"text": "七彩化学",
+"type": "listed",
+"ts_code": "300758.SZ"
+}
+],
+"8346b94963e1": [
+{
+"text": "山西焦煤集团",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"b74890dd5ecd": [],
+"94885cb904ac": [
+{
+"text": "天赐材料",
+"type": "listed",
+"ts_code": "002709.SZ"
+},
+{
+"text": "宁德时代",
+"type": "listed",
+"ts_code": "300750.SZ"
+}
+],
+"8c1f91f358ca": [
+{
+"text": "世纪天鸿",
+"type": "listed",
+"ts_code": "300654.SZ"
+},
+{
+"text": "南方传媒",
+"type": "listed",
+"ts_code": "601900.SH"
+},
+{
+"text": "皖新传媒",
+"type": "listed",
+"ts_code": "601801.SH"
+},
+{
+"text": "盛通股份",
+"type": "listed",
+"ts_code": "002599.SZ"
+}
+],
+"0b7a4734988e": [
+{
+"text": "能科科技",
+"type": "listed",
+"ts_code": "603859.SH"
+},
+{
+"text": "赛意信息",
+"type": "listed",
+"ts_code": "300687.SZ"
+}
+],
+"8146c2e33731": [],
+"3445856afe45": [
+{
+"text": "运达股份",
+"type": "listed",
+"ts_code": "300772.SZ"
+},
+{
+"text": "明阳智能",
+"type": "listed",
+"ts_code": "601615.SH"
+},
+{
+"text": "东方电缆",
+"type": "listed",
+"ts_code": "603606.SH"
+}
+],
+"17d8d047cb71": [],
+"6098d9d68ba8": [
+{
+"text": "应用材料",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "LAM",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "北方华创",
+"type": "listed",
+"ts_code": "002371.SZ"
+},
+{
+"text": "长江存储",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "合肥长鑫",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"d5beb804bf5b": [
+{
+"text": "大北农",
+"type": "listed",
+"ts_code": "002385.SZ"
+},
+{
+"text": "隆平高科",
+"type": "listed",
+"ts_code": "000998.SZ"
+},
+{
+"text": "先正达",
+"type": "unlisted",
+"ts_code": null
+},
+{
+"text": "登海种业",
+"type": "listed",
+"ts_code": "002041.SZ"
+},
+{
+"text": "荃银高科",
+"type": "listed",
+"ts_code": "300087.SZ"
+}
+],
+"12c852bdecb2": [],
+"ee3d5d9a219b": [
+{
+"text": "极米科技",
+"type": "listed",
+"ts_code": "688696.SH"
+}
+],
+"a1e5e3c5b25b": [
+{
+"text": "星宇股份",
+"type": "listed",
+"ts_code": "601799.SH"
+},
+{
+"text": "福耀玻璃",
+"type": "listed",
+"ts_code": "600660.SH"
+},
+{
+"text": "拓普集团",
+"type": "listed",
+"ts_code": "601689.SH"
+},
+{
+"text": "华阳集团",
+"type": "listed",
+"ts_code": "002906.SZ"
+},
+{
+"text": "伯特利",
+"type": "listed",
+"ts_code": "603596.SH"
+},
+{
+"text": "上声电子",
+"type": "listed",
+"ts_code": "688533.SH"
+},
+{
+"text": "科博达",
+"type": "listed",
+"ts_code": "603786.SH"
+},
+{
+"text": "德赛西威",
+"type": "listed",
+"ts_code": "002920.SZ"
+},
+{
+"text": "玲珑轮胎",
+"type": "listed",
+"ts_code": "601966.SH"
+},
+{
+"text": "泉峰汽车",
+"type": "listed",
+"ts_code": "603982.SH"
+}
+],
+"fe14252ec6de": [],
+"3e3edb83dcdf": [],
+"c12ce7a53d4b": [
+{
+"text": "天舟文化",
+"type": "listed",
+"ts_code": "300148.SZ"
+}
+],
+"3ad628d56af3": [
+{
+"text": "鼎捷数智",
+"type": "listed",
+"ts_code": "300378.SZ"
+},
+{
+"text": "卓易信息",
+"type": "listed",
+"ts_code": "688258.SH"
+},
+{
+"text": "汉得信息",
+"type": "listed",
+"ts_code": "300170.SZ"
+},
+{
+"text": "智微智能",
+"type": "listed",
+"ts_code": "001339.SZ"
+},
+{
+"text": "彩讯股份",
+"type": "listed",
+"ts_code": "300634.SZ"
+},
+{
+"text": "万兴科技",
+"type": "listed",
+"ts_code": "300624.SZ"
+},
+{
+"text": "赛意信息",
+"type": "listed",
+"ts_code": "300687.SZ"
+},
+{
+"text": "中科创达",
+"type": "listed",
+"ts_code": "300496.SZ"
+}
+],
+"b3710b0e43b8": [
+{
+"text": "海螺水泥",
+"type": "listed",
+"ts_code": "600585.SH"
+}
+],
+"cec90719b5a0": [
+{
+"text": "百度",
+"type": "unlisted",
+"ts_code": null
+}
+],
+"0e8e84327112": [
+{
+"text": "隆基股份",
+"type": "listed",
+"ts_code": "601012.SH"
+},
+{
+"text": "晶澳科技",
+"type": "listed",
+"ts_code": "002459.SZ"
+},
+{
+"text": "阳光电源",
+"type": "listed",
+"ts_code": "300274.SZ"
+},
+{
+"text": "锦浪科技",
+"type": "listed",
+"ts_code": "300763.SZ"
+}
+]
+}
