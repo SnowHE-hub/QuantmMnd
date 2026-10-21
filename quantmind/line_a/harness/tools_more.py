@@ -11,6 +11,9 @@ import pyarrow.dataset as ds
 
 from quantmind.line_a.harness.tools_data import DataTools, _clean, _latest, _rows, _ymd
 
+PURCHASED_RC = "events_purchased/xianyu_20261022/report_rc_clean.parquet"   # 相对 lake；见 T-038
+PURCHASED_RC_END = "20260522"
+
 
 @dataclass
 class ResearchTools(DataTools):
@@ -70,15 +73,32 @@ class ResearchTools(DataTools):
     def analyst_revisions(self, ticker: str, lookback_days: int = 180) -> dict:
         """卖方盈利预测（report_rc）：同一机构对同一预测年度最近两次预测的变化（同口径修正）与各年度的中位数。"""
         lo = _ymd(pd.Timestamp(self.as_of) - pd.Timedelta(days=lookback_days))
-        parts = sorted((self.lake / "events/_parts/report_rc").glob("*.parquet"))
-        covered = max((p.stem.split("_")[-1] for p in parts), default="")
-        note = "" if covered >= self.as_of else (
-            f"report_rc 回补只到 {covered or '（无）'}，as_of 附近的预测尚未取得；不能据此推断没有分析师覆盖")
-        sel = [p for p in parts if p.stem.split("_")[-1] > lo and p.stem.split("_")[0] <= self.as_of]
-        if not sel:
-            return {"ticker": ticker, "as_of": self.as_of, "status": "not_covered", "coverage_note": note}
-        df = pd.concat([ds.dataset(str(p), format="parquet").to_table(filter=ds.field("ts_code") == ticker).to_pandas()
-                        for p in sel], ignore_index=True)
+        clean = self.lake / PURCHASED_RC
+        if clean.exists():   # T-038：购买的数据包清洗版（2011-05～2026-05；官方窗口已替换；版本冲突的行排除）
+            t = ds.dataset(str(clean), format="parquet").to_table(
+                filter=(ds.field("ts_code") == ticker) & (ds.field("report_date") > lo)
+                & (ds.field("report_date") <= self.as_of))
+            df = t.to_pandas()
+            n_conflict = int(df["version_conflict"].sum()) if len(df) else 0
+            df = df[~df["version_conflict"]] if len(df) else df
+            covered = PURCHASED_RC_END
+            note = ("来源：第三方转售的 Tushare report_rc 数据包，已与官方重叠窗口逐行核对（T-038）；"
+                    f"同一报告有多个版本的 {n_conflict} 行已排除。")
+            if covered < self.as_of:
+                note += f"数据只到 {covered}，之后的预测尚未取得；不能据此推断没有分析师覆盖。"
+            if not len(df):
+                return {"ticker": ticker, "as_of": self.as_of, "status": "no_records_in_window", "window": [lo, self.as_of],
+                        "coverage_note": note}
+        else:
+            parts = sorted((self.lake / "events/_parts/report_rc").glob("*.parquet"))
+            covered = max((p.stem.split("_")[-1] for p in parts), default="")
+            note = "" if covered >= self.as_of else (
+                f"report_rc 回补只到 {covered or '（无）'}，as_of 附近的预测尚未取得；不能据此推断没有分析师覆盖")
+            sel = [p for p in parts if p.stem.split("_")[-1] > lo and p.stem.split("_")[0] <= self.as_of]
+            if not sel:
+                return {"ticker": ticker, "as_of": self.as_of, "status": "not_covered", "coverage_note": note}
+            df = pd.concat([ds.dataset(str(p), format="parquet").to_table(filter=ds.field("ts_code") == ticker).to_pandas()
+                            for p in sel], ignore_index=True)
         d = df["report_date"].astype(str)
         df = df[(d > lo) & (d <= self.as_of)].sort_values("report_date")
         rev = []
