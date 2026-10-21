@@ -47,9 +47,12 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--budget", type=float, default=8.0)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--seed", type=int, default=SEED, help="v1 开发集 20261021；留出集用别的种子")
+    ap.add_argument("--as-ofs", default=",".join(AS_OFS))
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    cases = sample_cases(a.lake, AS_OFS, per_date=10, seed=SEED)
+    as_ofs = a.as_ofs.split(",")
+    cases = sample_cases(a.lake, as_ofs, per_date=10, seed=a.seed)
     if a.limit:
         cases = cases.head(a.limit)
     llm = LLM(ledger=a.out / "llm_ledger.jsonl", cache_dir=a.out / "_llm_cache", budget_rmb=a.budget)
@@ -81,7 +84,7 @@ def main() -> None:
             "mean_recall": sum(r["recall"] for r in ok) / max(1, len(ok)),
             "mean_verified_share": sum(r["verified_share"] for r in ok) / max(1, len(ok)),
             "mean_problem_share": sum(r["problem_share"] for r in ok) / max(1, len(ok)),
-            "cost_rmb_total": sum(r["cost_rmb"] for r in rows), "seed": SEED, "as_ofs": AS_OFS}
+            "cost_rmb_total": sum(r["cost_rmb"] for r in rows), "seed": a.seed, "as_ofs": as_ofs}
     missed: dict = {}
     for r in ok:
         for m in r.get("missed", []):
