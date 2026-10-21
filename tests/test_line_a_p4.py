@@ -59,6 +59,34 @@ def test_pack_rows_and_eval(tmp_path):
     assert ev["zs__q35-2b"]["macro_test_auc"] == 1.0 and "error" in ev["zs__bad.jsonl"]
 
 
+def test_consistency_compare(tmp_path):
+    from quantmind.line_a.p4.x4_consistency import compare
+    from quantmind.line_a.p4.x4_pack import make_rows
+    cells = [r for r in make_rows(_fake_corpus()) if r["split"] != "train"]
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    (pack / "cells.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in cells), encoding="utf-8")
+    rng = np.random.default_rng(1)
+
+    def rows(noise):
+        out = []
+        for r in cells:
+            m = (2.0 if r["label"] else -2.0) + rng.normal(0, 0.5) + noise * rng.normal()
+            p = 1 / (1 + np.exp(-m))
+            out.append({"cell": r["cell"], "sha": r["sha"], "status": "ok", "p_yes": p,
+                        "lp_yes": float(np.log(p)), "lp_no": float(np.log(1 - p))})
+        return out
+    cloud = rows(0.0)
+    near = [dict(c, lp_yes=c["lp_yes"] + 1e-4, p_yes=c["p_yes"]) for c in cloud]
+    far = rows(3.0)
+    for name, rs in (("cloud", cloud), ("near", near), ("far", far)):
+        (tmp_path / f"{name}.jsonl").write_text("\n".join(json.dumps(r) for r in rs), encoding="utf-8")
+    ok = compare(pack, tmp_path / "cloud.jsonl", tmp_path / "near.jsonl")
+    assert ok["pass"] and ok["flip_rate"] == 0 and ok["n_compared"] == len(cells)
+    bad = compare(pack, tmp_path / "cloud.jsonl", tmp_path / "far.jsonl")
+    assert not bad["pass"] and bad["pearson_margin"] < 0.98
+
+
 def test_cloud_pure_functions(tmp_path):
     import hashlib
     import importlib.util
