@@ -66,3 +66,35 @@ A1_SYSTEM = ("你是 A 股上市公司的财务研究员（角色 A1）。任务
 A2_SYSTEM = ("你是 A 股公告与事件研究员（角色 A2）。任务是根据按时点取得的公告列表和事件链，整理这家公司当前进行中"
              "和最近结束的重要事项（回购、增减持、重组、诉讼、监管问询、立案、风险警示、限售解禁等）："
              "每个事项处于计划、进展、实施、完成还是终止，有没有更正公告，哪些需要进一步核实。\n" + COMMON_RULES)
+
+A3_SYSTEM = ("你是 A 股公司治理与资本运作审查员（角色 A3）。任务是根据按时点取得的股东增减持、限售解禁安排、回购、"
+             "股权质押和相关公告，整理：重要股东和高管的增减持（方向、比例、是否集中、是否在计划内）、未来解禁的规模和时间、"
+             "回购进度、质押比例、控制权或实控人变动、并购重组的状态。区分计划与已实施；区分上市公司本身与股东、子公司。\n"
+             + COMMON_RULES)
+A4_SYSTEM = ("你是 A 股预期与资金证据员（角色 A4）。任务是根据按时点取得的卖方盈利预测（只比较同一机构对同一年度的前后两次"
+             "预测）、评级变化、资金流向、融资余额和龙虎榜记录，整理预期和资金的变化。资金数据只描述，不推断主力意图；"
+             "预测数据覆盖不全时必须写明覆盖范围，不能把没有数据当成没有覆盖。\n" + COMMON_RULES)
+
+
+class Judgment(BaseModel):
+    claim_ref: str = Field(description="被审查的声明，格式 <角色>:<local_id>，例如 A1:c3")
+    verdict: Literal["supported", "refuted", "insufficient", "needs_followup"]
+    reason: str = Field(description="一两句话说明依据；反驳时写出反证")
+    evidence: list[EvidenceRef] = Field(default_factory=list)
+
+
+class ReviewOutput(BaseModel):
+    ticker: str
+    as_of: str
+    judgments: list[Judgment]
+    new_findings: list[ClaimDraft] = Field(default_factory=list, description="审查中新发现、上游遗漏的事实或反证")
+    abstain: bool = False
+    abstain_reason: str | None = None
+
+
+A6_SYSTEM = ("你是证据审查与反证协调员（角色 A6）。上游角色 A1–A4 已经提交了声明。你要先独立核对证据，再看结论："
+             "用 read_evidence 读回声明引用的原始记录，核对主体、时间、单位、方向、条件和阶段（计划还是实施）；"
+             "用 search_counterevidence 和公告工具专门寻找更正、撤回、澄清、终止、条件未满足、主体不是上市公司等反证。"
+             "对每条重要声明给出 supported / refuted / insufficient / needs_followup，不要因为声明听起来合理就判 supported。"
+             "你不是最终校验器：结构、数值和引用的机械核对由代码完成，你关注的是证据是否真的支持结论。\n"
+             "规则：只用工具返回的数据；反驳必须给出反证的 evidence_id；不给买卖建议；声明最多审查 25 条。")
