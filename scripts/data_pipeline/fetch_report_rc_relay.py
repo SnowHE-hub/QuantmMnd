@@ -5,13 +5,16 @@
 - token 只从 ~/.config/quantmind/relay_token 读取（权限 600），不写进代码、日志或提交，也不打印。
 
 数据：
-- 分块与分页沿用 download_events 的 report_rc 规则：15 天窗口，单次上限 5000 行，按 offset 翻页，满页截断时对半拆分；
-- 输出：data/lake/events_relay/report_rc/<窗口>.parquet；检查点 _checkpoint.json；来源说明 _provenance.json。
+- 中转接口的 report_rc 必须带 ts_code、单次区间约一年以内，所以按"股票 × 自然年"分段（--by-ticker）；
+  每段内沿用 download_events 的分页（单次上限 5000 行，按 offset 翻页），区间过大时对半拆分；
+- 输出：data/lake/events_relay/report_rc/by_ticker/part_<序号>.parquet；检查点 by_ticker/_checkpoint.json；
+  来源说明 _provenance.json；校验时按官方窗口切出 <窗口>.parquet 并写 _validation.json。
 
 用法：
   python scripts/data_pipeline/fetch_report_rc_relay.py --data-root <root> --probe     # 小测试
-  python scripts/data_pipeline/fetch_report_rc_relay.py --data-root <root> --start 2018-10-01 --end 2026-10-16
+  python scripts/data_pipeline/fetch_report_rc_relay.py --data-root <root> --by-ticker [--limit N]
   python scripts/data_pipeline/fetch_report_rc_relay.py --data-root <root> --validate  # 与官方已下载窗口逐行比对
+验收规则见 docs/work/tasks/T-038.md。
 """
 from __future__ import annotations
 
