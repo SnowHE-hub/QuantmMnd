@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import re
@@ -145,6 +146,28 @@ def rule_predict(at: AliasTable, dev: pd.DataFrame) -> dict[str, list[dict]]:
     for r in dev.itertuples(index=False):
         out[r.sid] = [{"text": m.text, "ts_code": m.candidates[0] if m.status == "linked" else None,
                        "status": m.status} for m in at.link(r.sentence, r.trade_date)]
+    return out
+
+
+def gliner_predict(at: AliasTable, dev: pd.DataFrame, model_id: str = "fastino/gliner2.5-multi-v1", *,
+                   labels: tuple = ("company",), threshold: float = 0.5, batch_size: int = 16) -> dict[str, list[dict]]:
+    """GLiNER2 只做识别；识别出的片段再用规则链接器（别名表，按研报日期）链接，链接不上的 ts_code 为空。"""
+    from gliner2 import GLiNER2
+    m = GLiNER2.from_pretrained(model_id)
+    with contextlib.suppress(Exception):                     # 没有 GPU 就用 CPU
+        m = m.to("cuda")
+    res = m.batch_extract_entities(dev["sentence"].tolist(), list(labels), batch_size=batch_size, threshold=threshold)
+    out = {}
+    for r, x in zip(dev.itertuples(index=False), res, strict=True):
+        ents = (x.get("entities") or {}) if isinstance(x, dict) else {}
+        spans = [s if isinstance(s, str) else s.get("text", "") for lab in labels for s in ents.get(lab, [])]
+        ms = []
+        for s in dict.fromkeys(spans):                       # 去重、保序
+            if not s or s not in r.sentence:
+                continue
+            lk = [x for x in at.link(s, r.trade_date) if x.text == s and x.status == "linked"]
+            ms.append({"text": s, "ts_code": lk[0].candidates[0] if lk else None})
+        out[r.sid] = ms
     return out
 
 
