@@ -8,7 +8,8 @@
 - computed：公式只允许四则运算、abs 和输入声明的编号；用输入声明的数值重算，相对误差 ≤ 1e-4。
 - inference / counter_evidence：依据的声明必须存在；依据里有未通过的声明时，标为 weak_basis。
 - 正文数字：text 里出现、但在本条 value、引用记录和输入声明里都找不到的数字，记为 unsourced_number。
-状态：verified / mismatch / missing_evidence / unverifiable / weak_basis；任何声明都不会因为校验通过而自动进入组合。
+状态：verified / minor_mismatch（计算值相对误差 ≤ 0.2%）/ mismatch / missing_evidence / unverifiable / weak_basis；
+任何声明都不会因为校验通过而自动进入组合。
 """
 from __future__ import annotations
 
@@ -59,6 +60,7 @@ def _eval(expr: str, env: dict[str, float]) -> float:
 
 
 MONEY = {"元", "万元", "亿元"}
+MINOR_REL = 2e-3          # 计算值相对误差 ≤ 0.2%（截断、多一位舍入）记为 minor_mismatch，与实质性错误分开
 _FORMULA_END = re.compile(r"[，,；;。]|即|其中|=")
 
 
@@ -145,8 +147,9 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 try:
                     val = _eval(_clean_formula(c["formula"]), {k: float(v) for k, v in env.items()})
                     if c.get("value") is None or not _matches(float(c["value"]), 1.0, val):
-                        ck.status = "mismatch"
-                        ck.notes.append(f"recomputed {val:.6g} != stated {c.get('value')}")
+                        rel = abs(float(c["value"]) - val) / max(abs(val), 1e-12) if c.get("value") is not None else 1
+                        ck.status = "minor_mismatch" if rel <= MINOR_REL else "mismatch"
+                        ck.notes.append(f"recomputed {val:.6g} != stated {c.get('value')} (rel {rel:.2g})")
                 except (ValueError, ZeroDivisionError, SyntaxError) as e:
                     ck.status = "unverifiable"
                     ck.notes.append(str(e))
@@ -160,7 +163,7 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
     for cid, c in claims.items():
         ck = checks[cid]
         if c["claim_type"] in ("inference", "counter_evidence") and ck.status == "verified" and \
-                any(checks[i].status != "verified" for i in c.get("inputs", []) if i in checks):
+                any(checks[i].status not in ("verified", "minor_mismatch") for i in c.get("inputs", []) if i in checks):
             ck.status = "weak_basis"
         allowed = set()
         if c.get("value") is not None:

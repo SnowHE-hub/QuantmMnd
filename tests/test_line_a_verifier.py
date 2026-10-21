@@ -85,3 +85,17 @@ def test_multi_field_facts_units_rounding_and_formula_cleanup():
     st = {c.local_id: c.status for c in verify(out, ev)}
     assert st["c1"] == "verified" and st["c2"] == "verified" and st["c3"] == "mismatch"
     assert st["c4"] == "mismatch"                     # 公式能解析（去掉了解释），但 (1476.94-735)/1476.94*100 = 50.2 ≠ 1.9
+
+
+def test_minor_mismatch_for_truncation():
+    out = _out([{"local_id": "a", "claim_type": "reported_fact", "text": "x", "value": 66593247721.09, "unit": "元",
+                 "evidence": [{"evidence_id": "tushare:income:600000.SH:20260630:20260828", "field": "n_income_attr_p",
+                               "value": 2.5e9, "unit": "元"}]},
+                {"local_id": "b", "claim_type": "reported_fact", "text": "y", "value": 2.0e9, "unit": "元",
+                 "evidence": [{"evidence_id": "tushare:income:600000.SH:20250630:20250829", "field": "n_income_attr_p"}]},
+                {"local_id": "c", "claim_type": "computed", "text": "约 1.25 倍", "value": 1.2497, "unit": "倍",
+                 "formula": "a/b", "inputs": ["a", "b"]},
+                {"local_id": "d", "claim_type": "inference", "text": "z", "inputs": ["c"]}])
+    out["claims"][0]["value"] = 2.5e9
+    st = {c.local_id: c.status for c in verify(out, EV)}
+    assert st == {"a": "verified", "b": "verified", "c": "minor_mismatch", "d": "verified"}
