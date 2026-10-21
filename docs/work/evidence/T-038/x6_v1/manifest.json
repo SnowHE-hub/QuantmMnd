@@ -1,0 +1,57 @@
+{
+ "version": "x6-v1",
+ "seed": 20261021,
+ "fact_queries": {
+  "total_revenue": "{y}年营业总收入是多少",
+  "revenue": "{y}年营业收入是多少",
+  "operate_profit": "{y}年营业利润是多少",
+  "n_income": "{y}年净利润是多少",
+  "n_income_attr_p": "{y}年归属于上市公司股东的净利润",
+  "total_assets": "{y}年末总资产是多少",
+  "total_liab": "{y}年末负债合计",
+  "total_hldr_eqy_exc_min_int": "{y}年末归属于上市公司股东的净资产",
+  "total_cur_assets": "{y}年末流动资产合计",
+  "total_cur_liab": "{y}年末流动负债合计",
+  "n_cashflow_act": "{y}年经营活动产生的现金流量净额"
+ },
+ "risk_query": "{y}年度财务报告的审计意见类型是什么",
+ "opinion_patterns": {
+  "标准无保留意见": "标准的?无保留意见",
+  "带强调事项段的无保留意见": "强调事项",
+  "保留意见": "(?<!无)保留意见",
+  "无法表示意见": "无法表示意见",
+  "否定意见": "否定意见"
+ },
+ "splits": {
+  "dev": {
+   "n_docs": 50,
+   "n_queries": 464,
+   "by_kind": {
+    "fact": 416,
+    "audit_std": 39,
+    "risk": 9
+   },
+   "dropped": {
+    "fact_no_match": 2,
+    "risk_no_match": 2
+   },
+   "queries_sha256": "b7a305bcd46ef873dcb45df09b737affaf5ada91e8882ff9977126c0a8b5de5c",
+   "mean_relevant": 3.7047413793103448
+  },
+  "test": {
+   "n_docs": 50,
+   "n_queries": 446,
+   "by_kind": {
+    "fact": 397,
+    "audit_std": 37,
+    "risk": 12
+   },
+   "dropped": {
+    "fact_no_match": 28,
+    "risk_no_match": 1
+   },
+   "queries_sha256": "b422f6ffe3dd776c49e27a2b468875778e10159611b0191cc5c4adb68447ad74",
+   "mean_relevant": 3.7466367713004485
+  }
+ }
+}
