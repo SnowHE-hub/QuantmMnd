@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -96,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start", default=RELAY_START)
     ap.add_argument("--end", default="2026-10-16")
     ap.add_argument("--min-interval", type=float, default=3.0)
+    # 2026-10-21 23:50 实测：中转的请求本身要 6–20 秒，单线程约 50 秒一段；4 线程每分钟成功约 7 段，没有触发频率限制
+    ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--validate", action="store_true")
     ap.add_argument("--limit", type=int, default=0, help="只拉前 N 段（试跑）")
@@ -124,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "api": "report_rc",
             "layout": "by_ticker: one request series per (ts_code, calendar year); see by_ticker/_checkpoint.json",
             "rule": "use only after row-level validation against official windows (docs/work/tasks/T-038.md)"}, indent=1))
-    return by_ticker(a, out, call)
+    return by_ticker(a, out)
 
 
 # 拉取顺序（2026-10-21：中转的 report_rc 有一半请求要重试，按现在的速度 7 天拉不完全部 4 万段）：
@@ -198,7 +201,7 @@ def _order(segs: list[tuple[str, str, str]], lake: Path, official: Path, lo: str
     return first + rest, val
 
 
-def by_ticker(a, out: Path, call) -> int:
+def by_ticker(a, out: Path) -> int:
     """逐只股票、逐年分段拉取，顺序见 _order。
     每 100 段合并写一个分片 by_ticker/part_<序号>.parquet，同时写检查点（"股票:起始日" → 状态），两者一起落盘。"""
     lake = a.data_root / "data/lake"
@@ -224,43 +227,99 @@ def by_ticker(a, out: Path, call) -> int:
     spec = SPECS["report_rc"]
     buf, t0 = [], time.time()
     part = len(list(d.glob("part_*.parquet")))
+    lock = threading.Lock()
+    it = iter(todo)
+    n_done = [0]
+    calls = [make_call(a.min_interval) for _ in range(a.workers)]   # 每个线程一个连接，各自限速
 
     def flush():
         nonlocal buf, part
         if buf:
-            pd.concat(buf, ignore_index=True).to_parquet(d / f"part_{part:05d}.parquet")
+            df = _normalize(pd.concat(buf, ignore_index=True))
+            df.to_parquet(d / f"part_{part:05d}.parquet")      # 先写数据、再写检查点：写盘失败时不会把段记成已完成
             part += 1
             buf = []
         tmp = ck_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(ck))
         tmp.replace(ck_path)
-    for i, (t, s, e) in enumerate(todo, 1):
-        key = f"{t}:{s}"
-        try:
-            st, df, pages = _fetch_split(call, spec, {"ts_code": t, "start_date": s, "end_date": e})
-            if len(df):
-                buf.append(df)
-            ck["segments"][key] = {"state": st, "end": e, "rows": int(len(df)), "pages": pages}
-        except Exception as ex:  # noqa: BLE001  单段失败记下来，下次重试
-            ck["segments"][key] = {"state": "failed", "end": e, "error": str(ex)[:160]}
-        if i % 100 == 0 or i == len(todo):
-            flush()
-            sv = ck["segments"].values()
-            n = sum(v.get("rows", 0) for v in sv)
-            nf = sum(v.get("state") == "failed" for v in sv)
-            el = (time.time() - t0) / 60
-            c = call.state
-            print(f"  [{i}/{len(todo)}] {time.strftime('%m-%d %H:%M')} rows so far {n}; failed {nf}; "
-                  f"attempts {c['attempts']} ok {c['ok']} pool {c['pool']} rate {c['rate']} other {c['other']}; "
-                  f"gap {c['gap']:.2f}s; {el:.0f} min, eta {el / i * (len(todo) - i) / 60:.1f} h", flush=True)
+
+    def report():
+        sv = ck["segments"].values()
+        n = sum(v.get("rows", 0) for v in sv)
+        nf = sum(v.get("state") == "failed" for v in sv)
+        el = (time.time() - t0) / 60
+        c = {k: sum(x.state[k] for x in calls) for k in ("attempts", "ok", "pool", "rate", "other")}
+        i = n_done[0]
+        print(f"  [{i}/{len(todo)}] {time.strftime('%m-%d %H:%M')} rows so far {n}; failed {nf}; "
+              f"attempts {c['attempts']} ok {c['ok']} pool {c['pool']} rate {c['rate']} other {c['other']}; "
+              f"{el:.0f} min, eta {el / max(1, i) * (len(todo) - i) / 60:.1f} h", flush=True)
+
+    def work(call):
+        while True:
+            with lock:
+                x = next(it, None)
+            if x is None:
+                return
+            t, s, e = x
+            try:
+                st, df, pages = _fetch_split(call, spec, {"ts_code": t, "start_date": s, "end_date": e})
+                rec = {"state": st, "end": e, "rows": int(len(df)), "pages": pages}
+            except Exception as ex:  # noqa: BLE001  单段失败记下来，下次重试
+                df, rec = None, {"state": "failed", "end": e, "error": str(ex)[:160]}
+            with lock:
+                if df is not None and len(df):
+                    buf.append(df)
+                ck["segments"][f"{t}:{s}"] = rec
+                n_done[0] += 1
+                if n_done[0] % 100 == 0:
+                    flush()
+                    report()
+    threads = [threading.Thread(target=work, args=(c,), daemon=True) for c in calls]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
     flush()
+    report()
     return 0
+
+
+NUMERIC = ("op_rt", "op_pr", "tp", "np", "eps", "pe", "rd", "roe", "ev_ebitda", "max_price", "min_price")
+
+
+def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+    """列类型与官方一致：数值列转 float（中转在整段为空时返回 object 列，拼起来会混型导致写 parquet 失败），其余转字符串。
+    数值列里如果有转不了的非空值，原样另存一列 <列>__raw，不丢信息。"""
+    df = df.copy()
+    for c in df.columns:
+        if c in NUMERIC:
+            v = pd.to_numeric(df[c], errors="coerce")
+            bad = df[c].notna() & v.isna() & (df[c].astype(str).str.strip() != "")
+            if bad.any():
+                df[f"{c}__raw"] = df[c].where(bad).astype("string")
+            df[c] = v.astype("float64")
+        else:
+            df[c] = df[c].astype("string")
+    return df
+
+
+def _canon(df: pd.DataFrame) -> pd.DataFrame:
+    df = _normalize(df)
+    out = pd.DataFrame(index=df.index)
+    for c in df.columns:
+        if c in NUMERIC:
+            out[c] = df[c].map(lambda x: "" if pd.isna(x) else repr(float(x)))
+        else:
+            out[c] = df[c].fillna("").astype(str)
+    return out
 
 
 def validate(relay: Path, official: Path) -> int:
     """与官方已下载的窗口逐行比对（验收规则见 T-038）。
     - 只比完全落在中转起始日之后的官方窗口（2019-01-14 起的 6 个窗口），只比 2019 段已拉完的股票；
-    - 所有共同列转成字符串后整行比对；不一致时再按 KEY 对齐，统计每一列有多少行取值不同，便于判断是格式还是数据的差异。"""
+    - 两边先按同一规则转成规范字符串（_canon：空值一律为空串，数值列用 float 的 repr），再整行比对；
+      不一致时按 KEY 对齐，统计每一列有多少行取值不同，便于判断是格式还是数据的差异。
+      （规范化规则在做任何比对之前定下：中转对整段为空的数值列返回 object 类型，官方是 float，直接转字符串会造成假差异。）"""
     bt = relay / "by_ticker"
     segs = json.loads((bt / "_checkpoint.json").read_text())["segments"]
     y0 = RELAY_START.replace("-", "")
@@ -280,8 +339,8 @@ def validate(relay: Path, official: Path) -> int:
         b = allr[(allr["report_date"].astype(str) >= s) & (allr["report_date"].astype(str) <= e)]
         b.to_parquet(vdir / f.name)
         cols = [c for c in a.columns if c in b.columns]
-        ka = a[cols].astype(str).drop_duplicates()
-        kb = b[cols].astype(str).drop_duplicates()
+        ka = _canon(a[cols]).drop_duplicates()
+        kb = _canon(b[cols]).drop_duplicates()
         m = ka.merge(kb, on=cols, how="outer", indicator=True)
         res["windows"].append({"window": f.stem, "official_rows": int(len(a)), "relay_rows": int(len(b)),
                                "both": int((m["_merge"] == "both").sum()),
