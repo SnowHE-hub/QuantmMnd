@@ -72,13 +72,15 @@ def run_dump():
     print("[dump] done ->", QLIB_DIR)
 
 
-def g1_selfcheck(ref: pd.DataFrame) -> dict:
+def g1_selfcheck(ref: pd.DataFrame, insts: list[str] | None = None) -> dict:
+    """insts：自检用的 instrument；默认（不传）与原来一样取排序后的前 3 个。"""
     import qlib
     from qlib.data import D
     qlib.init(provider_uri=str(QLIB_DIR), region="cn", expression_cache=None, dataset_cache=None)
     res = {}
     # 取 3 个有数据的 instrument
-    insts = sorted({p.stem.upper() for p in CSV_DIR.glob("*.csv")})[:3]
+    insts = insts or sorted({p.stem.upper() for p in CSV_DIR.glob("*.csv")})[:3]
+    res["insts"] = insts
     feat = D.features(insts, ["$close", "$open", "$volume", "$vwap"],
                       freq="day").dropna()
     res["features_rows"] = int(len(feat))

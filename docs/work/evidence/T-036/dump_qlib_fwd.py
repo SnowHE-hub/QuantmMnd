@@ -25,7 +25,9 @@ for old in ("qlib_cn_daily", "qlib_cn_daily_v6", "qlib_cn_daily_v6_1"):
 
 info = d.prepare_csvs()
 d.run_dump()
-g1 = d.g1_selfcheck(info["ref"])
+# 自检取沪深的前 3 个（2026-10-22）：价格面板里有了北交所，排序后前 3 个是 BJ 开头，它们在自检窗口（2023 年一季度）
+# 没有数据，Alpha158/360 拿到空表报错，并不是数据问题
+g1 = d.g1_selfcheck(info["ref"], insts=sorted(p.stem.upper() for p in d.CSV_DIR.glob("S[HZ]*.csv"))[:3])
 out = repo / f"docs/work/evidence/T-036/qlib_fwd_{end}_g1.json"
 out.write_text(json.dumps(g1, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 cal = (d.QLIB_DIR / "calendars/day.txt").read_text().split()
