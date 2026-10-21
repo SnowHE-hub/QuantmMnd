@@ -93,11 +93,12 @@ def role_spec(role: str, dt: ResearchTools, subject: str, *, thinking: str | Non
                        ("query",))]
         return RoleSpec("A5", A5_SYSTEM, tools, RoleOutput, **big)
     if role == "A6":
-        tools = [_tool("read_evidence", "读回上游角色引用的原始证据记录", dt.read_evidence,
-                       {"evidence_id": {"type": "string"}}, ("evidence_id",)),
+        tools = [_tool("read_evidence", "一次读回多条（最多 20 条）上游角色引用的原始证据记录", dt.read_evidence,
+                       {"evidence_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 20}},
+                       ("evidence_ids",)),
                  _tool("search_counterevidence", "在公告标题和已解析的公告段落里检索可能的反证（更正、撤回、澄清、终止）",
                        dt.search_counterevidence, {"query": {"type": "string"}, **_LB}, ("query",)), *ann]
-        return RoleSpec("A6", A6_SYSTEM, tools, ReviewOutput, **big)
+        return RoleSpec("A6", A6_SYSTEM, tools, ReviewOutput, **{**big, "max_tool_calls": 12, "max_steps": 10})
     raise ValueError(role)
 
 
@@ -110,7 +111,8 @@ def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Pat
               extra: str = "") -> dict:
     spec = role_spec(role, dt, ticker)
     rec = run_role(llm, spec, _task(ticker, dt.as_of, extra), meta={"ticker": ticker, "as_of": dt.as_of})
-    checks = [asdict(c) for c in verify(rec.output, rec.evidence)] if rec.output and "claims" in rec.output else []
+    rec.evidence.update(getattr(dt, "side_evidence", {}))     # 公告全文与逐段记录（覆盖工具里截短的版本）
+    checks =[asdict(c) for c in verify(rec.output, rec.evidence)] if rec.output and "claims" in rec.output else []
     res = {"ticker": ticker, "as_of": dt.as_of, "role": role, "status": rec.status, "output": rec.output,
            "checks": checks, "steps": rec.steps, "errors": rec.errors, "cost_rmb": rec.cost_rmb,
            "evidence": rec.evidence, "model": llm.model}

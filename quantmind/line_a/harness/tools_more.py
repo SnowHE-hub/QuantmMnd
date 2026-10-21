@@ -137,12 +137,17 @@ class ResearchTools(DataTools):
         return {"ticker": ticker, "as_of": self.as_of, "window": [lo, self.as_of], "records": recs}
 
     # ------------------------------------------------------------------ A6 证据审查
-    def read_evidence(self, ticker: str, evidence_id: str) -> dict:
-        rec = self.registry.get(evidence_id)
-        if rec is None:
-            return {"evidence_id": evidence_id, "status": "not_in_registry",
-                    "note": "这条证据不在上游角色本次实际取得的记录里"}
-        return rec
+    def read_evidence(self, ticker: str, evidence_ids: list[str]) -> dict:
+        """一次读回多条（最多 20 条）上游证据；长文本截到 600 字，逐字核对由代码校验器做。"""
+        out = {}
+        for e in list(evidence_ids)[:20]:
+            rec = self.registry.get(e)
+            if rec is None:
+                out[e] = {"evidence_id": e, "status": "not_in_registry",
+                          "note": "这条证据不在上游角色本次实际取得的记录里"}
+                continue
+            out[e] = {k: (v[:600] + "…" if isinstance(v, str) and len(v) > 600 else v) for k, v in rec.items()}
+        return {"records": out, "n": len(out)}
 
     def search_counterevidence(self, ticker: str, query: str, lookback_days: int = 365) -> dict:
         """在研究对象的公告标题（以及本次已解析的公告段落）里做 BM25，用来找更正、撤回、澄清、条件未满足等反证。"""

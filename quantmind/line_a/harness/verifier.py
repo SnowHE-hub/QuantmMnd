@@ -82,6 +82,17 @@ def _clean_formula(f: str) -> str:
     return (f[:m.start()] if m else f).strip()
 
 
+def _value_in_quote(v: float, unit: str | None, quote: str) -> bool:
+    """引文里的数字（去掉千分位和数字间的空格）是否有一个等于声明值；允许引文与声明用不同的万 / 亿单位。"""
+    q = re.sub(r"(?<=\d)[,，\s](?=\d)", "", quote)
+    nums = [float(x) for x in _NUM.findall(q)]
+    for n in nums:
+        for s in (1.0, 1e4, 1e8, 1e-4, 1e-8):
+            if _matches(v, s, n):
+                return True
+    return False
+
+
 def _record_numbers(rec: dict) -> list[float]:
     out = []
     for v in rec.values():
@@ -111,18 +122,31 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                     ck.notes.append(f"evidence {r['evidence_id']} was not returned by any tool in this run")
                     continue
                 q = r.get("quote")
+                quote_ok = None
                 if q:
                     texts = "".join(str(x) for x in rec.values() if isinstance(x, str))
-                    if re.sub(r"\s+", "", q) not in re.sub(r"\s+", "", texts):
+                    quote_ok = re.sub(r"\s+", "", q) in re.sub(r"\s+", "", texts)
+                    if not quote_ok:
                         ck.status = "mismatch"
                         ck.notes.append("quote not found in the cited record")
                 f = r.get("field")
                 own = r.get("value")                     # 多值声明：每条证据自己的数值
                 v = own if own is not None else claim_v
+                raw = rec.get(f) if f else None
+                numeric = isinstance(raw, (int, float)) and not isinstance(raw, bool)
+                if v is not None and not numeric and q and quote_ok:
+                    # 文档证据：数值从已核对的引文里找（千分位、空格、单位写法不同都允许）
+                    ok = _value_in_quote(float(v), r.get("unit") if own is not None else c.get("unit"), q)
+                    if own is not None and not ok:
+                        ck.status = "mismatch"
+                        ck.notes.append(f"value {v} not found in the quote")
+                    if own is None:
+                        claim_tried += 1
+                        claim_hits += ok
+                    continue
                 if not (f and v is not None):
                     continue
-                raw = rec.get(f)
-                if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+                if not numeric:
                     ck.status = "unverifiable"
                     ck.notes.append(f"field {f} not numeric in record")
                     continue

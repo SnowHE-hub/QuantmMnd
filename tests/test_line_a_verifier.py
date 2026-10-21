@@ -125,3 +125,26 @@ def test_tls_interception_is_not_retried(monkeypatch):
     x._key = "dummy"
     with _pt.raises(m.TLSInterceptionError):
         x.chat([{"role": "user", "content": "公开问题"}])
+
+
+def test_document_quote_values():
+    ev = {"doc:1219506496": {"evidence_id": "doc:1219506496",
+                             "full_text": "公司拟向全体股东每10 股派发现金红利308.76 元（含税）。截至2023 年12 月31 日，公司总股本1,256,197,800 股。"}}
+    out = _out([
+        {"local_id": "a", "claim_type": "reported_fact", "text": "每 10 股派 308.76 元", "value": 308.76, "unit": "元",
+         "evidence": [{"evidence_id": "doc:1219506496", "field": "现金红利", "quote": "每10 股派发现金红利308.76 元"}]},
+        {"local_id": "b", "claim_type": "reported_fact", "text": "总股本 125,619.78 万股", "value": 125619.78, "unit": "万股",
+         "evidence": [{"evidence_id": "doc:1219506496", "quote": "公司总股本1,256,197,800 股"}]},
+        {"local_id": "c", "claim_type": "reported_fact", "text": "每 10 股派 300 元", "value": 300, "unit": "元",
+         "evidence": [{"evidence_id": "doc:1219506496", "field": "现金红利", "quote": "每10 股派发现金红利308.76 元"}]},
+        {"local_id": "d", "claim_type": "reported_fact", "text": "x", "value": 1, "unit": "元",
+         "evidence": [{"evidence_id": "doc:1219506496", "quote": "每10股派发现金红利500元"}]}])
+    st = {c.local_id: c.status for c in verify(out, ev)}
+    assert st == {"a": "verified", "b": "verified", "c": "mismatch", "d": "mismatch"}
+
+
+def test_a6_batch_read_evidence(tmp_path):
+    from quantmind.line_a.harness.tools_more import ResearchTools
+    t = ResearchTools(tmp_path, "20240410", registry={"e1": {"evidence_id": "e1", "text": "x" * 900}})
+    r = t.read_evidence("600519.SH", ["e1", "e2"])
+    assert r["n"] == 2 and r["records"]["e1"]["text"].endswith("…") and r["records"]["e2"]["status"] == "not_in_registry"

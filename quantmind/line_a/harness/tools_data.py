@@ -221,8 +221,19 @@ class DataTools:
         if ann_id not in cache:
             pdf_dir = self.pdf_dir or (self.lake / "text/cninfo_pdf")
             f = fetch_pdf(ann_id, row["adjunctUrl"], pdf_dir)
-            cache[ann_id] = (parse_pdf(Path(f["path"]), f"doc:{ann_id}"), f)
+            doc = parse_pdf(Path(f["path"]), f"doc:{ann_id}")
+            cache[ann_id] = (doc, f)
             self._docs = cache
+            # 旁路证据：全文与逐段记录只登记给校验器（引文逐字核对），不发给模型、不占上下文
+            side = getattr(self, "side_evidence", {})
+            side[f"doc:{ann_id}"] = {"evidence_id": f"doc:{ann_id}", "title": row["title"],
+                                     "available_at": row["available_at"], "file_sha256": f["sha256"],
+                                     "full_text": "\n".join(p.text for p in doc.paras)}
+            for p in doc.paras:
+                side[f"doc:{ann_id}:p{p.page}:{p.idx}"] = {"evidence_id": f"doc:{ann_id}:p{p.page}:{p.idx}",
+                                                           "page": p.page, "para": p.idx, "text": p.text,
+                                                           "text_sha256": p.sha256}
+            self.side_evidence = side
         return cache[ann_id]
 
     def read_document(self, ticker: str, ann_id: str) -> dict:
