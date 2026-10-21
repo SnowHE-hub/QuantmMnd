@@ -34,7 +34,8 @@ def main() -> int:
     clean = clean[clean["report_date"] <= PACK_LAST].drop(columns=["version_conflict"])
     rdir = lake / "events_relay/report_rc/by_ticker"
     ck = json.loads((rdir / "_checkpoint.json").read_text())["segments"]
-    seg = {k.split(":")[0]: v for k, v in ck.items() if k.split(":")[1] == "20260501"}
+    # 缺口段从 2026-05-01 开始；之后才上市的股票，段的起始日是上市日（也算缺口段）
+    seg = {k.split(":")[0]: v for k, v in ck.items() if k.split(":")[1] >= "20260501"}
     ok = {t for t, v in seg.items() if v.get("state") in ("done", "empty")}
     rel = pd.concat([pd.read_parquet(p) for p in sorted(rdir.glob("part_*.parquet"))], ignore_index=True)
     rel = rel[rel["ts_code"].isin(ok) & (rel["report_date"] > PACK_LAST)]
