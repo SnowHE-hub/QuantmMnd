@@ -13,6 +13,8 @@ from quantmind.line_a.harness.tools_data import DataTools, _clean, _latest, _row
 
 PURCHASED_RC = "events_purchased/xianyu_20261022/report_rc_clean.parquet"   # 相对 lake；见 T-038
 PURCHASED_RC_END = "20260522"
+EXTENDED_RC = "events_purchased/xianyu_20261022/report_rc_extended.parquet"   # 数据包 + 中转补的 2026-05-22 之后
+EXTENDED_RC_END = "20261016"
 
 
 @dataclass
@@ -73,17 +75,19 @@ class ResearchTools(DataTools):
     def analyst_revisions(self, ticker: str, lookback_days: int = 180) -> dict:
         """卖方盈利预测（report_rc）：同一机构对同一预测年度最近两次预测的变化（同口径修正）与各年度的中位数。"""
         lo = _ymd(pd.Timestamp(self.as_of) - pd.Timedelta(days=lookback_days))
-        clean = self.lake / PURCHASED_RC
-        if clean.exists():   # T-038：购买的数据包清洗版（2011-05～2026-05；官方窗口已替换；版本冲突的行排除）
+        ext = self.lake / EXTENDED_RC
+        clean = ext if ext.exists() else self.lake / PURCHASED_RC
+        if clean.exists():   # T-038：购买的数据包清洗版（2011-05～2026-05；官方窗口已替换；版本冲突的行排除），有拼接表时用拼接表
             t = ds.dataset(str(clean), format="parquet").to_table(
                 filter=(ds.field("ts_code") == ticker) & (ds.field("report_date") > lo)
                 & (ds.field("report_date") <= self.as_of))
             df = t.to_pandas()
             n_conflict = int(df["version_conflict"].sum()) if len(df) else 0
             df = df[~df["version_conflict"]] if len(df) else df
-            covered = PURCHASED_RC_END
-            note = ("来源：第三方转售的 Tushare report_rc 数据包，已与官方重叠窗口逐行核对（T-038）；"
-                    f"同一报告有多个版本的 {n_conflict} 行已排除。")
+            covered = EXTENDED_RC_END if clean == ext else PURCHASED_RC_END
+            note = ("来源：第三方转售的 Tushare report_rc 数据包，已与官方重叠窗口逐行核对（T-038）"
+                    + ("；2026-05-22 之后来自第三方中转接口，已与数据包的 5 月数据交叉核对" if clean == ext else "")
+                    + f"；同一报告有多个版本的 {n_conflict} 行已排除。")
             if covered < self.as_of:
                 note += f"数据只到 {covered}，之后的预测尚未取得；不能据此推断没有分析师覆盖。"
             if not len(df):
