@@ -30,49 +30,60 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from scripts.data_pipeline.download_events import SPECS, chunks_for, fetch_adaptive  # noqa: E402
+from scripts.data_pipeline.download_events import SPECS, fetch_adaptive  # noqa: E402
 
 RELAY_URL = "http://tus.sxdata.top/tu_share/"
 TOKEN_FILE = Path.home() / ".config/quantmind/relay_token"
 KEY = ["ts_code", "report_date", "org_name", "author_name", "quarter", "report_title"]
+RELAY_START = "2019-01-01"
 
 
 class RangeTooLargeError(RuntimeError):
     pass
 
 
-def make_call(min_interval: float):
-    """带自适应限速的调用：频率超限时等 35 秒并把间隔加 0.5 秒（最多 10 秒），连续成功 50 次后减 0.25 秒。
+def make_call(min_interval: float, max_attempts: int = 15):
+    """带自适应限速的调用。错误分三类处理：
+    - "上游账号池暂时用完"（upstream_pool_exhausted）：2026-10-21 实测 report_rc 有 30–70% 的请求这样失败，
+      同一时间 daily 全部成功，而且成功和失败交替出现，所以只等 4 秒就重试；
+    - 频率超限（rate_limited / ip_rate_limited）：等 35 秒，并把间隔加 0.5 秒（最多 10 秒），连续成功 50 次后减 0.25 秒；
+    - 其他错误（超时、连接断开）：等 30 秒。
     "区间过大"抛 RangeTooLargeError 交给上层拆分；"参数不合法"直接抛出，不重试。"""
     from tushare.pro.client import DataApi
     api = DataApi(token=TOKEN_FILE.read_text().strip(), timeout=60)
     api._DataApi__http_url = RELAY_URL
-    st = {"last": 0.0, "gap": min_interval, "ok": 0}
+    st = {"last": 0.0, "gap": min_interval, "ok": 0, "attempts": 0, "pool": 0, "rate": 0, "other": 0}
 
     def call(name: str, **kw):
-        for attempt in range(6):
+        for attempt in range(max_attempts):
             wait = st["gap"] - (time.time() - st["last"])
             if wait > 0:
                 time.sleep(wait)
             try:
                 st["last"] = time.time()
+                st["attempts"] += 1
                 df = api.query(name, **kw)
                 st["ok"] += 1
                 if st["ok"] % 50 == 0 and st["gap"] > min_interval:
                     st["gap"] = max(min_interval, st["gap"] - 0.25)
                 return df
-            except Exception as e:  # noqa: BLE001  超时或频率超限：等待后重试（中转方建议的补偿机制）
+            except Exception as e:  # noqa: BLE001  按错误类型等待后重试（中转方建议的补偿机制）
                 msg = str(e)[:160]
                 if "date_range_too_large" in msg:
                     raise RangeTooLargeError(msg) from None
-                if "invalid_params" in msg or attempt == 5:
+                if "invalid_params" in msg or attempt == max_attempts - 1:
                     raise
-                if "rate_limited" in msg:
+                if "upstream_pool_exhausted" in msg:
+                    st["pool"] += 1
+                    time.sleep(4)
+                elif "rate_limited" in msg:
+                    st["rate"] += 1
                     st["gap"] = min(10.0, st["gap"] + 0.5)
                     time.sleep(35)
                 else:
+                    st["other"] += 1
                     print(f"    retry {attempt + 1} after error: {msg}", flush=True)
-                    time.sleep(60)
+                    time.sleep(30)
         return None
     call.state = st
     return call
@@ -81,14 +92,15 @@ def make_call(min_interval: float):
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-root", type=Path, required=True)
-    ap.add_argument("--start", default="2018-10-01")
+    # 官方已有 2018-10-01～2019-04-13，所以中转从 2019 年开始；2019 年 1–4 月与官方重叠，用来校验
+    ap.add_argument("--start", default=RELAY_START)
     ap.add_argument("--end", default="2026-10-16")
     ap.add_argument("--min-interval", type=float, default=3.0)
     ap.add_argument("--probe", action="store_true")
     ap.add_argument("--validate", action="store_true")
-    ap.add_argument("--limit", type=int, default=0, help="只拉前 N 只（试跑）")
+    ap.add_argument("--limit", type=int, default=0, help="只拉前 N 段（试跑）")
     ap.add_argument("--by-ticker", action="store_true",
-                    help="中转接口的 report_rc 必须带 ts_code：按股票逐只拉 [start, end] 的全部记录")
+                    help="中转接口的 report_rc 必须带 ts_code：按股票 × 自然年分段拉取")
     a = ap.parse_args(argv)
     out = a.data_root / "data/lake/events_relay/report_rc"
     out.mkdir(parents=True, exist_ok=True)
@@ -98,39 +110,30 @@ def main(argv: list[str] | None = None) -> int:
     call = make_call(a.min_interval)
     if a.probe:
         t0 = time.time()
-        cal = call("trade_cal", exchange="SSE", start_date="20261001", end_date="20261021")
-        print("trade_cal rows", 0 if cal is None else len(cal), f"{time.time() - t0:.1f}s", flush=True)
-        # 官方规格里每页之后等 65 秒（官方每分钟 1 次）；中转接口的间隔由 call() 自己控制，这里不再额外等待
-        st, df, pages = fetch_adaptive(call, "report_rc", {"start_date": "20181001", "end_date": "20181015"},
-                                       SPECS["report_rc"], sleep=lambda s: None)
-        print("report_rc 20181001-20181015:", st, len(df), "rows,", pages, "pages", flush=True)
-        df.to_parquet(out / "_probe_20181001_20181015.parquet")
+        st, df, pages = fetch_adaptive(call, "report_rc", {"ts_code": "600519.SH", "start_date": "20190101",
+                                                           "end_date": "20191231"}, SPECS["report_rc"], sleep=lambda s: None)
+        print("report_rc 600519.SH 2019:", st, len(df), "rows,", pages, "pages", f"{time.time() - t0:.1f}s", flush=True)
         return 0
-    if a.by_ticker:
-        return by_ticker(a, out, call)
-    spec = SPECS["report_rc"]
-    ck_path = out / "_checkpoint.json"
-    ck = json.loads(ck_path.read_text()) if ck_path.exists() else {"chunks": {}}
-    (out / "_provenance.json").write_text(json.dumps({
-        "source": "third-party relay purchased by the user (not official Tushare)", "url": RELAY_URL,
-        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "api": "report_rc",
-        "rule": "use only after row-level validation against official windows (see --validate)"}, indent=1))
-    todo = [(k, p) for k, p in chunks_for(spec, a.start, a.end) if ck["chunks"].get(k, {}).get("state") != "done"]
-    print(f"[relay report_rc] {len(todo)} windows to fetch", flush=True)
-    t0 = time.time()
-    for i, (k, p) in enumerate(todo, 1):
-        st, df, pages = fetch_adaptive(call, "report_rc", p, spec, sleep=lambda s: None)
-        if len(df):
-            df.to_parquet(out / f"{k}.parquet")
-        ck["chunks"][k] = {"state": st, "rows": int(len(df)), "pages": pages}
-        tmp = ck_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(ck))
-        tmp.replace(ck_path)
-        print(f"  [{i}/{len(todo)}] {k} {st} rows={len(df)} pages={pages} ({time.time() - t0:.0f}s)", flush=True)
-    return 0
+    if not a.by_ticker:
+        print("中转接口的 report_rc 必须带 ts_code，只支持 --by-ticker", flush=True)
+        return 2
+    prov = out / "_provenance.json"
+    if not prov.exists():
+        prov.write_text(json.dumps({
+            "source": "third-party relay purchased by the user (not official Tushare)", "url": RELAY_URL,
+            "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "api": "report_rc",
+            "layout": "by_ticker: one request series per (ts_code, calendar year); see by_ticker/_checkpoint.json",
+            "rule": "use only after row-level validation against official windows (docs/work/tasks/T-038.md)"}, indent=1))
+    return by_ticker(a, out, call)
 
 
-VALIDATION_TICKERS = 300          # 先拉这些股票的 2018–2019 段，尽早与官方窗口比对
+# 拉取顺序（2026-10-21：中转的 report_rc 有一半请求要重试，按现在的速度 7 天拉不完全部 4 万段）：
+# 1. 校验集：官方 2019 年窗口里有记录的股票抽 200 只，没有记录的抽 50 只，先拉它们的 2019 段；
+# 2. 其余按"层"拉：每年按年初总市值排名（年内上市的按上市后第一个交易日），1–1500 名为第一层，
+#    1501–3000 名为第二层，其余第三层；每层内按年份从近到远。
+#    这样中途停下时，已拉到的范围是"每年市值前 N 名"，各年口径一致，便于在下游说明覆盖范围。
+VAL_COVERED, VAL_UNCOVERED, VAL_SEED = 200, 50, 20261021
+TIERS = (1500, 3000)
 
 
 def _segments(t: str, list_d: str, delist_d: str, lo: str, hi: str) -> list[tuple[str, str]]:
@@ -160,9 +163,44 @@ def _fetch_split(call, spec, params: dict, depth: int = 0):
         return st, pd.concat([r1[1], r2[1]], ignore_index=True), r1[2] + r2[2]
 
 
+def _mv_rank(lake: Path, lo: str) -> pd.DataFrame:
+    """每只股票每年第一个交易日（年内上市的就是上市后第一个交易日）的总市值在当年的排名。只用于决定拉取顺序。"""
+    import pyarrow.dataset as ds
+    t = ds.dataset(lake / "daily_basic.parquet").to_table(
+        columns=["ts_code", "trade_date", "total_mv"], filter=ds.field("trade_date") >= pd.Timestamp(lo))
+    mv = t.to_pandas(strings_to_categorical=True)
+    mv["year"] = mv["trade_date"].dt.year.astype(str)
+    first = mv.sort_values("trade_date").drop_duplicates(["ts_code", "year"]).astype({"ts_code": str})
+    first["rank"] = first.groupby("year")["total_mv"].rank(ascending=False, method="first")
+    return first[["ts_code", "year", "rank"]]
+
+
+def _order(segs: list[tuple[str, str, str]], lake: Path, official: Path, lo: str) -> tuple[list, set]:
+    """返回 (拉取顺序, 校验集股票)。顺序规则见上方注释。"""
+    import random
+    covered = set()
+    for f in sorted(official.glob("*.parquet")):
+        if f.stem.split("_")[0] >= "20190101":
+            covered |= set(pd.read_parquet(f, columns=["ts_code"])["ts_code"].astype(str))
+    in2019 = sorted({t for t, s, _ in segs if s[:4] == "2019" and s <= "20190114"})   # 2019 年初就已上市
+    rng = random.Random(VAL_SEED)
+    cov = sorted(set(in2019) & covered)
+    unc = sorted(set(in2019) - covered)
+    val = set(rng.sample(cov, min(VAL_COVERED, len(cov)))) | set(rng.sample(unc, min(VAL_UNCOVERED, len(unc))))
+    first = sorted(x for x in segs if x[0] in val and x[1][:4] == "2019")
+    rk = _mv_rank(lake, lo).set_index(["ts_code", "year"])["rank"].to_dict()
+
+    def tier(x):
+        r = rk.get((x[0], x[1][:4]), float("inf"))
+        return 0 if r <= TIERS[0] else (1 if r <= TIERS[1] else 2)
+    fs = set(first)
+    rest = sorted((x for x in segs if x not in fs), key=lambda x: (tier(x), -int(x[1][:4]), x[0]))
+    return first + rest, val
+
+
 def by_ticker(a, out: Path, call) -> int:
-    """逐只股票、逐年分段拉取。顺序：先 VALIDATION_TICKERS 只股票的 2018–2019 段（用于校验），再按年份从近到远。
-    每 200 段合并写一个分片 by_ticker/part_<序号>.parquet；检查点按 "股票:起始日" 记录状态。"""
+    """逐只股票、逐年分段拉取，顺序见 _order。
+    每 100 段合并写一个分片 by_ticker/part_<序号>.parquet，同时写检查点（"股票:起始日" → 状态），两者一起落盘。"""
     lake = a.data_root / "data/lake"
     sb = pd.read_parquet(sorted(lake.glob("stock_basic_full_merged_2*.parquet"))[-1],
                          columns=["ts_code", "list_date", "delist_date"])
@@ -172,17 +210,17 @@ def by_ticker(a, out: Path, call) -> int:
     sb = sb[(sb["delist_date"] == "") | (sb["delist_date"] >= lo)].drop_duplicates("ts_code").sort_values("ts_code")
     segs = [(t, s, e) for t, ld, dd in sb[["ts_code", "list_date", "delist_date"]].itertuples(index=False)
             for s, e in _segments(t, ld, dd, lo, hi)]
-    val = set(sb["ts_code"].head(VALIDATION_TICKERS))
-    first = [x for x in segs if x[0] in val and x[1] < "20200101"]
-    rest = sorted((x for x in segs if x not in set(first)), key=lambda x: (x[1][:4], x[0]), reverse=True)
+    order, val = _order(segs, lake, a.data_root / "data/lake/events/_parts/report_rc", lo)
     d = out / "by_ticker"
     d.mkdir(exist_ok=True)
+    (d / "_validation_tickers.json").write_text(json.dumps({"seed": VAL_SEED, "tickers": sorted(val)}))
     ck_path = d / "_checkpoint.json"
     ck = json.loads(ck_path.read_text()) if ck_path.exists() else {"segments": {}}
-    todo = [x for x in first + rest if ck["segments"].get(f"{x[0]}:{x[1]}", {}).get("state") not in ("done", "empty")]
+    todo = [x for x in order if ck["segments"].get(f"{x[0]}:{x[1]}", {}).get("state") not in ("done", "empty")]
     if a.limit:
         todo = todo[: a.limit]
-    print(f"[relay report_rc by ticker] {len(sb)} tickers, {len(segs)} segments, {len(todo)} to fetch", flush=True)
+    print(f"[relay report_rc by ticker] {len(sb)} tickers, {len(segs)} segments, {len(todo)} to fetch "
+          f"(validation tickers {len(val)})", flush=True)
     spec = SPECS["report_rc"]
     buf, t0 = [], time.time()
     part = len(list(d.glob("part_*.parquet")))
@@ -200,58 +238,62 @@ def by_ticker(a, out: Path, call) -> int:
         key = f"{t}:{s}"
         try:
             st, df, pages = _fetch_split(call, spec, {"ts_code": t, "start_date": s, "end_date": e})
+            if len(df):
+                buf.append(df)
+            ck["segments"][key] = {"state": st, "end": e, "rows": int(len(df)), "pages": pages}
         except Exception as ex:  # noqa: BLE001  单段失败记下来，下次重试
             ck["segments"][key] = {"state": "failed", "end": e, "error": str(ex)[:160]}
-            continue
-        if len(df):
-            buf.append(df)
-        ck["segments"][key] = {"state": st, "end": e, "rows": int(len(df)), "pages": pages}
-        if i % 200 == 0 or i == len(todo):
+        if i % 100 == 0 or i == len(todo):
             flush()
-            n = sum(v.get("rows", 0) for v in ck["segments"].values())
+            sv = ck["segments"].values()
+            n = sum(v.get("rows", 0) for v in sv)
+            nf = sum(v.get("state") == "failed" for v in sv)
             el = (time.time() - t0) / 60
-            print(f"  [{i}/{len(todo)}] rows so far {n}; gap {call.state['gap']:.2f}s; {el:.0f} min, "
-                  f"eta {el / i * (len(todo) - i) / 60:.1f} h", flush=True)
+            c = call.state
+            print(f"  [{i}/{len(todo)}] {time.strftime('%m-%d %H:%M')} rows so far {n}; failed {nf}; "
+                  f"attempts {c['attempts']} ok {c['ok']} pool {c['pool']} rate {c['rate']} other {c['other']}; "
+                  f"gap {c['gap']:.2f}s; {el:.0f} min, eta {el / i * (len(todo) - i) / 60:.1f} h", flush=True)
     flush()
     return 0
 
 
 def validate(relay: Path, official: Path) -> int:
-    """与官方已下载的窗口逐行比对。按股票拉取的数据先按 report_date 切到官方窗口的日期范围再比。"""
+    """与官方已下载的窗口逐行比对（验收规则见 T-038）。
+    - 只比完全落在中转起始日之后的官方窗口（2019-01-14 起的 6 个窗口），只比 2019 段已拉完的股票；
+    - 所有共同列转成字符串后整行比对；不一致时再按 KEY 对齐，统计每一列有多少行取值不同，便于判断是格式还是数据的差异。"""
     bt = relay / "by_ticker"
-    if bt.exists() and list(bt.glob("part_*.parquet")):
-        allr = pd.concat([pd.read_parquet(p) for p in sorted(bt.glob("part_*.parquet"))], ignore_index=True)
-        for f in sorted(official.glob("*.parquet")):
-            s, e = f.stem.split("_")
-            sub = allr[(allr["report_date"].astype(str) >= s) & (allr["report_date"].astype(str) <= e)]
-            sub.to_parquet(relay / f.name)
-    res = {"windows": []}
-    fetched = None
-    if (bt / "_checkpoint.json").exists():
-        segs = json.loads((bt / "_checkpoint.json").read_text())["segments"]
-        early: dict[str, list[str]] = {}
-        for k, v in segs.items():                  # 只看覆盖官方窗口（2018-10～2019-04）的分段
-            t, s = k.split(":")
-            if s < "20200101":
-                early.setdefault(t, []).append(v.get("state"))
-        fetched = {t for t, sts in early.items() if all(x in ("done", "empty") for x in sts)}
-        res["n_tickers_fetched"] = len(fetched)
+    segs = json.loads((bt / "_checkpoint.json").read_text())["segments"]
+    y0 = RELAY_START.replace("-", "")
+    fetched = {k.split(":")[0] for k, v in segs.items()
+               if k.split(":")[1][:4] == y0[:4] and v.get("state") in ("done", "empty")}
+    allr = pd.concat([pd.read_parquet(p) for p in sorted(bt.glob("part_*.parquet"))], ignore_index=True)
+    allr = allr[allr["ts_code"].astype(str).isin(fetched)]
+    vdir = relay / "_validation_windows"
+    vdir.mkdir(exist_ok=True)
+    res = {"n_tickers_compared": len(fetched), "windows": [], "column_diffs": {}}
     for f in sorted(official.glob("*.parquet")):
-        r = relay / f.name
-        if not r.exists():
+        s, e = f.stem.split("_")
+        if s < y0:
             continue
-        a, b = pd.read_parquet(f), pd.read_parquet(r)
-        if fetched is not None:                  # 只比较中转接口已经拉过的股票
-            a = a[a["ts_code"].astype(str).isin(fetched)]
+        a = pd.read_parquet(f)
+        a = a[a["ts_code"].astype(str).isin(fetched)]
+        b = allr[(allr["report_date"].astype(str) >= s) & (allr["report_date"].astype(str) <= e)]
+        b.to_parquet(vdir / f.name)
         cols = [c for c in a.columns if c in b.columns]
         ka = a[cols].astype(str).drop_duplicates()
         kb = b[cols].astype(str).drop_duplicates()
         m = ka.merge(kb, on=cols, how="outer", indicator=True)
         res["windows"].append({"window": f.stem, "official_rows": int(len(a)), "relay_rows": int(len(b)),
-                               "both": int((m["_merge"] == "both").sum()), "only_official": int((m["_merge"] == "left_only").sum()),
+                               "both": int((m["_merge"] == "both").sum()),
+                               "only_official": int((m["_merge"] == "left_only").sum()),
                                "only_relay": int((m["_merge"] == "right_only").sum())})
+        j = ka.drop_duplicates(KEY).merge(kb.drop_duplicates(KEY), on=KEY, suffixes=("_o", "_r"))
+        for c in cols:
+            if c not in KEY:
+                res["column_diffs"][c] = res["column_diffs"].get(c, 0) + int((j[f"{c}_o"] != j[f"{c}_r"]).sum())
     w = res["windows"]
     res["identical"] = bool(w) and all(x["only_official"] == 0 and x["only_relay"] == 0 for x in w)
+    res["column_diffs"] = {c: n for c, n in res["column_diffs"].items() if n}
     (relay / "_validation.json").write_text(json.dumps(res, indent=1))
     print(json.dumps(res, ensure_ascii=False))
     return 0 if res["identical"] else 3
