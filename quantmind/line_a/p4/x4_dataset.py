@@ -41,6 +41,18 @@ TYPES = {
     "control_change": ("控股股东或实际控制人变更、控制权变更", None),
 }
 TRAIN_END, CALIB_END = "20230630", "20231231"
+# 宽松关键词：结构化表在同一天有记录、规则却判为别的类型时，只有标题里出现这些词才算"冲突"（否则按负例）。
+# 年报、分红方案常常同一天发布，不加这一条会让同日的所有公告都变成"不确定"（v1 草稿里分红有 82.8 万条）。
+TYPE_KEYWORDS = {"performance_forecast": r"业绩|预增|预减|预亏|预盈|扭亏", "performance_express": r"快报",
+                 "repurchase": r"回购", "holder_reduction": r"减持", "holder_increase": r"增持", "unlock": r"限售|解禁|流通",
+                 "dividend": r"分配|分派|分红|派息|派发", "st_change": r"风险警示|ST",
+                 "investigation": r"立案|调查", "penalty": r"处罚|禁入|处分|谴责", "regulatory_letter": r"函",
+                 "litigation": r"诉讼|仲裁", "restructuring": r"重组|购买资产|吸收合并", "control_change": r"控制|控股股东"}
+CODE_SHARE, CODE_MIN = 0.30, 30
+# 没有结构化表、类别代码又太笼统的类型：严格的标题模式作为单一来源的正例（pos_rule，低一级置信，报告里单列）
+STRICT = {"investigation": r"立案告知书|立案调查", "penalty": r"行政处罚决定书|市场禁入决定书|纪律处分决定|公开谴责",
+          "regulatory_letter": r"问询函|关注函|监管函|警示函|监管工作函", "control_change": r"控制权.{0,6}变更|实际控制人.{0,6}变更",
+          "litigation": r"诉讼|仲裁", "restructuring": r"重大资产重组|发行股份(?:及支付现金)?购买资产"}
 
 
 def load_corpus(lake: Path) -> pd.DataFrame:
@@ -180,6 +192,9 @@ def build_chunked(lake: Path, out_dir: Path) -> pd.DataFrame:
     by_code: dict[str, Counter] = {}
     for (code, t), n in cnt.items():
         by_code.setdefault(code, Counter())[t] = n
+    # 每个类型的"相关代码"：该代码下该类型的占比 ≥ CODE_SHARE 且条数 ≥ CODE_MIN（比"多数类型"更适合稀有类型）
+    assoc = {t: {code for code, c in by_code.items() if c[t] >= CODE_MIN and c[t] / sum(c.values()) >= CODE_SHARE}
+             for t in TYPES}
     major = {code: c.most_common(1)[0][0] for code, c in by_code.items()}
     # 第二遍：逐年打标签、模板去重（按时间顺序，模板只留在第一次出现的切分）
     first_split: dict[str, str] = {}
@@ -191,10 +206,18 @@ def build_chunked(lake: Path, out_dir: Path) -> pd.DataFrame:
         c["code_major"] = codes.map(lambda cs: ",".join(sorted({major.get(x, "") for x in cs} - {""})))
         for t, (_, api) in TYPES.items():
             rule_t = c["rule_type"] == t
-            agree = c[f"struct_{t}"] if api is not None else c["code_major"].str.split(",").map(lambda m, tt=t: tt in m)
+            kw = c["title"].str.contains(TYPE_KEYWORDS[t], regex=True)
+            if api is not None:
+                agree = c[f"struct_{t}"]
+                conflict = (rule_t & ~agree) | (~rule_t & agree & kw)
+            else:
+                agree = codes.map(lambda cs, a=assoc[t]: any(x in a for x in cs))
+                strict = c["title"].str.contains(STRICT[t], regex=True) if t in STRICT else pd.Series(False, index=c.index)
+                conflict = (rule_t & ~agree & ~strict) | (~rule_t & agree & kw)
             lab = pd.Series("neg", index=c.index)
+            if api is None:
+                lab[rule_t & strict & ~agree] = "pos_rule"
             lab[rule_t & agree] = "pos_strong"
-            conflict = (rule_t & ~agree) | (~rule_t & c[f"struct_{t}"]) if api is not None else (rule_t & ~agree)
             lab[conflict] = "uncertain"
             c[f"label_{t}"] = lab
         c = c.sort_values("date")
@@ -206,7 +229,7 @@ def build_chunked(lake: Path, out_dir: Path) -> pd.DataFrame:
         rows.append(summary(c).assign(year=y))
         print(f"  {y}: {len(c)} announcements, kept {int(c['keep'].sum())}", flush=True)
     s = pd.concat(rows, ignore_index=True)
-    return s.groupby(["type", "split"], as_index=False)[["pos_strong", "uncertain", "neg"]].sum()
+    return s.groupby(["type", "split"], as_index=False)[["pos_strong", "pos_rule", "uncertain", "neg"]].sum()
 
 
 def summary(c: pd.DataFrame) -> pd.DataFrame:
@@ -216,7 +239,8 @@ def summary(c: pd.DataFrame) -> pd.DataFrame:
         for s in ("train", "calib", "test"):
             v = k.loc[k["split"] == s, f"label_{t}"].value_counts()
             rows.append({"type": t, "split": s, "pos_strong": int(v.get("pos_strong", 0)),
-                         "uncertain": int(v.get("uncertain", 0)), "neg": int(v.get("neg", 0))})
+                         "pos_rule": int(v.get("pos_rule", 0)), "uncertain": int(v.get("uncertain", 0)),
+                         "neg": int(v.get("neg", 0))})
     return pd.DataFrame(rows)
 
 
@@ -225,7 +249,7 @@ def gold_sample(c: pd.DataFrame, per_type: int = 40, seed: int = 20261021) -> pd
     k = c[c["keep"] & (c["split"] == "test")]
     picks = []
     for i, t in enumerate(TYPES):
-        for lab, n in (("pos_strong", per_type // 2), ("uncertain", per_type // 4)):
+        for lab, n in (("pos_strong", per_type // 2), ("pos_rule", per_type // 4), ("uncertain", per_type // 4)):
             g = k[k[f"label_{t}"] == lab]
             picks.append(g.sample(min(n, len(g)), random_state=seed + i).assign(gold_for=t, stratum=lab))
         kw = TYPES[t][0][:2]

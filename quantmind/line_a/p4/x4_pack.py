@@ -8,7 +8,7 @@
 
 每题一行：{cell, ann_id, type, split, stratum, label, user, sha}，其中 sha = sha256(user)。
 抽样（每个类型 T，只用 keep = True 的公告）：
-- 正例：label_T = pos_strong；
+- 正例：label_T = pos_strong（两个来源一致），或 pos_rule（只有严格标题规则；稀有类型），来源记在 label_source；
 - 负例：一半是"难负例"（标题含 T 的关键词但 label_T = neg），一半随机；
 - 数量：训练 ≤ 1000 + 1000，校准 ≤ 150 + 150，测试 ≤ 300 + 300；
 - uncertain 不进入任何集合，单独留给人工金标准。
@@ -54,7 +54,7 @@ def make_rows(df: pd.DataFrame) -> list[dict]:
         for split, q in QUOTA.items():
             ks = k[k["split"] == split]
             ls = lab[ks.index]
-            pos = ks[ls == "pos_strong"]
+            pos = ks[ls.isin(["pos_strong", "pos_rule"])]
             neg = ks[ls == "neg"]
             hard = neg[neg["title"].str.contains(KEYWORDS[t], regex=False)]
             rest = neg.drop(hard.index)
@@ -64,11 +64,13 @@ def make_rows(df: pd.DataFrame) -> list[dict]:
             h = hard.sample(nh, random_state=SEED + 100 + i) if len(hard) > nh else hard
             r = rest.sample(min(len(rest), n - len(h) if n > len(h) else n // 2), random_state=SEED + 200 + i)
             for stratum, part, y in (("pos", p, 1), ("hard_neg", h, 0), ("rand_neg", r, 0)):
-                for _, row in part.iterrows():
+                for idx, row in part.iterrows():
                     user = message(t, row["title"])
                     cell = _sha(f"{row['announcementId']}:{t}")[:16]
+                    src = ls[idx] if y == 1 else "neg"
                     rows.append({"cell": cell, "ann_id": str(row["announcementId"]), "type": t, "split": split,
-                                 "stratum": stratum, "label": y, "date": row["date"], "user": user, "sha": _sha(user)})
+                                 "stratum": stratum, "label": y, "label_source": src, "date": row["date"],
+                                 "user": user, "sha": _sha(user)})
     return rows
 
 
