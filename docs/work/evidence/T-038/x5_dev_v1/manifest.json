@@ -1,0 +1,19 @@
+{
+ "version": "x5-dev-v1",
+ "seed": 20261022,
+ "pool_reports": 6000,
+ "pool_sentences": 134846,
+ "strata": {
+  "multi": 100,
+  "other": 75,
+  "miss": 75,
+  "code": 50
+ },
+ "candidates": {
+  "code": 977,
+  "multi": 6996,
+  "other": 1441,
+  "miss": 12884
+ },
+ "sentences_sha256": "61d250324e9d11badcc305617906a7490a303bba64267eaf62e844c775610110"
+}
