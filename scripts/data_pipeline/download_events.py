@@ -355,8 +355,14 @@ def _coerce(df: pd.DataFrame, numeric_cols: set[str]) -> pd.DataFrame:
 
 def compact(api: str, events_dir: Path, end: str, spec: Spec) -> dict:
     out = events_dir / f"{api}_{end.replace('-', '')}.parquet"
+    man_path = out.with_suffix(".manifest.json")
+    if out.exists() and man_path.exists():
+        # 断点续跑（2026-10-22：合并中途被 OOM 杀掉后重跑）：manifest 在 parquet 写完之后才写，两者都在就是完整的
+        return json.loads(man_path.read_text(encoding="utf-8")) | {"resumed": True}
     if out.exists():
-        raise FileExistsError(f"refuse to overwrite {out}")
+        q = events_dir / f"_quarantine_{time.strftime('%Y%m%d_%H%M%S')}_partial_compact"
+        q.mkdir(parents=True, exist_ok=True)
+        os.replace(out, q / out.name)                   # 没有 manifest：上次没写完，隔离后重做（不删除）
     ck = load_ckpt(events_dir / "_checkpoints" / f"{api}.json")
     files = sorted((events_dir / "_parts" / api).glob("*.parquet"))
     frames, numeric = [], set()
