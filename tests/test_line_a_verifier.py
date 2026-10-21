@@ -148,3 +148,25 @@ def test_a6_batch_read_evidence(tmp_path):
     t = ResearchTools(tmp_path, "20240410", registry={"e1": {"evidence_id": "e1", "text": "x" * 900}})
     r = t.read_evidence("600519.SH", ["e1", "e2"])
     assert r["n"] == 2 and r["records"]["e1"]["text"].endswith("…") and r["records"]["e2"]["status"] == "not_in_registry"
+
+
+def test_a3_holders_and_managers_point_in_time(tmp_path):
+    import pandas as pd
+
+    from quantmind.line_a.harness.tools_more import ResearchTools
+    ev = tmp_path / "events"
+    ev.mkdir()
+    pd.DataFrame({"ts_code": ["X"] * 5, "ann_date": ["20231028", "20231028", "20240403", "20240403", "20240420"],
+                  "end_date": ["20230930", "20230930", "20231231", "20231231", "20231231"],
+                  "holder_name": ["甲", "乙", "甲", "丙", "丁"], "holder_type": ["一般企业"] * 5,
+                  "hold_amount": [10.0, 5.0, 10.0, 6.0, 9.0], "hold_float_ratio": [1.0] * 5,
+                  "hold_change": [0.0] * 5}).to_parquet(ev / "top10_floatholders_20261020.parquet")
+    pd.DataFrame({"ts_code": ["X"] * 3, "ann_date": ["20200101", "20200101", "20240501"], "name": ["张", "李", "王"],
+                  "title": ["董事长", "董事", "总经理"], "begin_date": ["20200101", "20200101", "20240501"],
+                  "end_date": [None, "20230601", None]}).to_parquet(ev / "stk_managers_20261020.parquet")
+    t = ResearchTools(tmp_path, "20240410")
+    h = t.top_float_holders("X")
+    assert h["end_date"] == "20231231" and [x["holder_name"] for x in h["holders"]] == ["甲", "丙"]   # 04-20 的更正还没公告
+    assert h["new_entrants"] == ["丙"] and h["exited"] == ["乙"]
+    m = t.current_managers("X")
+    assert [x["name"] for x in m["managers"]] == ["张"]                                         # 李已离任，王尚未任职

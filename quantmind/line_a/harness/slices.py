@@ -76,7 +76,10 @@ def role_spec(role: str, dt: ResearchTools, subject: str, *, thinking: str | Non
                  _tool("share_float_schedule", "已公告的限售股解禁安排（过去 90 天到未来 180 天）", dt.share_float_schedule,
                        {"ahead_days": {"type": "integer", "minimum": 30, "maximum": 365}}),
                  _tool("repurchase_records", "回购的各阶段记录（预案、实施、完成、停止）", dt.repurchase_records, _LB),
-                 _tool("audit_and_pledge", "审计意见与股权质押统计", dt.audit_and_pledge), *ann, docs[1]]
+                 _tool("audit_and_pledge", "审计意见与股权质押统计", dt.audit_and_pledge),
+                 _tool("top_float_holders", "最近一期已公告的十大流通股东，以及与上一期相比新进、退出的股东", dt.top_float_holders),
+                 _tool("current_managers", "as_of 当天在任的董监高（姓名、职务、任职开始日）", dt.current_managers),
+                 *ann, docs[1]]
         return RoleSpec("A3", A3_SYSTEM, tools, RoleOutput, **big)
     if role == "A4":
         tools = [_tool("analyst_revisions", "卖方盈利预测：同机构同年度的前后修正、各年度中位数与覆盖说明",

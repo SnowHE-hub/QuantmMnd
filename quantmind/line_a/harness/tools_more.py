@@ -59,6 +59,50 @@ class ResearchTools(DataTools):
         return {"ticker": ticker, "as_of": self.as_of, "window": [lo, hi], "records": recs,
                 "note": "只列出 as_of 当天或之前已经公告的解禁安排"}
 
+    def top_float_holders(self, ticker: str) -> dict:
+        """十大流通股东：as_of 当天或之前已公告的最近一期，以及与上一期相比新进和退出的股东。
+        同一报告期有多次公告（更正）时，取 as_of 之前最后一次公告的版本。"""
+        p = _latest(self.lake, "top10_floatholders")
+        df = _rows(p, ticker) if p is not None else pd.DataFrame()
+        if df.empty:
+            return {"ticker": ticker, "as_of": self.as_of, "status": "not_covered"}
+        ann = df["ann_date"].astype(str).str.replace("-", "").str.slice(0, 8)
+        df = df[ann <= self.as_of].assign(_ann=ann)
+        if df.empty:
+            return {"ticker": ticker, "as_of": self.as_of, "status": "no_disclosure_before_as_of"}
+        df = df[df["_ann"] == df.groupby("end_date")["_ann"].transform("max")]
+        periods = sorted(df["end_date"].astype(str).unique(), reverse=True)
+        cur = df[df["end_date"].astype(str) == periods[0]]
+        prev = df[df["end_date"].astype(str) == periods[1]] if len(periods) > 1 else df.iloc[0:0]
+        recs = [{"evidence_id": f"tushare:top10_floatholders:{ticker}:{periods[0]}:{r['holder_name']}",
+                 "end_date": periods[0], "ann_date": r["_ann"], "holder_name": _clean(r.get("holder_name")),
+                 "holder_type": _clean(r.get("holder_type")), "hold_amount": _clean(r.get("hold_amount")),
+                 "hold_float_ratio": _clean(r.get("hold_float_ratio")), "hold_change": _clean(r.get("hold_change")),
+                 "_units": {"hold_amount": "股", "hold_float_ratio": "%", "hold_change": "股"}}
+                for _, r in cur.sort_values("hold_amount", ascending=False).iterrows()]
+        cn, pn = set(cur["holder_name"]), set(prev["holder_name"])
+        return {"ticker": ticker, "as_of": self.as_of, "end_date": periods[0],
+                "prev_end_date": periods[1] if len(periods) > 1 else None, "holders": recs,
+                "new_entrants": sorted(cn - pn) if len(prev) else None, "exited": sorted(pn - cn) if len(prev) else None,
+                "note": "只用 as_of 当天或之前已公告的报告期；hold_change 是数据源给出的较上期持股变化"}
+
+    def current_managers(self, ticker: str) -> dict:
+        """as_of 当天在任的董监高（任职开始日 ≤ as_of，离任日为空或晚于 as_of，且公告日 ≤ as_of）。只给姓名、职务和任期。"""
+        p = _latest(self.lake, "stk_managers")
+        df = _rows(p, ticker, ["ts_code", "ann_date", "name", "title", "begin_date", "end_date"]) if p is not None \
+            else pd.DataFrame()
+        if df.empty:
+            return {"ticker": ticker, "as_of": self.as_of, "status": "not_covered"}
+        f = {c: df[c].astype(str).str.replace("-", "").str.slice(0, 8).where(df[c].notna(), "")
+             for c in ("ann_date", "begin_date", "end_date")}
+        on = (f["ann_date"] <= self.as_of) & (f["begin_date"] <= self.as_of) & (f["begin_date"] != "") \
+            & ((f["end_date"] == "") | (f["end_date"] > self.as_of))
+        cur = df[on].assign(_b=f["begin_date"][on]).sort_values("_b").drop_duplicates(["name", "title"], keep="last")
+        recs = [{"evidence_id": f"tushare:stk_managers:{ticker}:{r['name']}:{r['title']}:{r['_b']}",
+                 "name": _clean(r.get("name")), "title": _clean(r.get("title")), "begin_date": r["_b"]}
+                for _, r in cur.iterrows()]
+        return {"ticker": ticker, "as_of": self.as_of, "n": len(recs), "managers": recs[:60]}
+
     def repurchase_records(self, ticker: str, lookback_days: int = 365) -> dict:
         lo = _ymd(pd.Timestamp(self.as_of) - pd.Timedelta(days=lookback_days))
         df = self._event_rows("repurchase", ticker, "ann_date", lo, self.as_of)
