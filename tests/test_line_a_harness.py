@@ -150,3 +150,30 @@ def test_document_tools_scope_and_locate(tmp_path, monkeypatch):
     assert r["n_pages"] == 1 and r["paragraphs"]
     h = dt.locate_section("600519.SH", "1219592683", "资金来源")["hits"]
     assert h and "自有资金" in h[0]["text"] and h[0]["evidence_id"].startswith("doc:1219592683:p1:")
+
+
+def _case():
+    return {"A1": {"output": {"claims": [
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "2023 年归母净利润 747.34 亿元", "value": 74734071550.75,
+         "unit": "元", "evidence": []},
+        {"local_id": "c2", "claim_type": "computed", "text": "同比增长 19.16%", "value": 19.16, "unit": "%", "evidence": []},
+        {"local_id": "c3", "claim_type": "open_question", "text": "现金流波动原因未知", "evidence": []}]},
+        "checks": [{"local_id": "c1", "status": "verified"}, {"local_id": "c2", "status": "verified"},
+                   {"local_id": "c3", "status": "verified"}]}}
+
+
+def test_rewrite_checks_numbers_and_falls_back():
+    from quantmind.line_a.harness.rewrite import rewrite, skeleton
+    sk = skeleton(_case(), {"judgments": [{"claim_ref": "A1:c2", "verdict": "supported"}]})
+    assert sk["columns"]["facts"] == ["A1:c1", "A1:c2"] and sk["columns"]["to_verify"] == ["A1:c3"]
+    good = json.dumps({"facts": "2023 年归母净利润为 {{c:A1:c1}}，同比增长 {{c:A1:c2}}。", "inferences": "",
+                       "counter_and_limits": "", "to_verify": "现金流波动的原因尚待核实。"}, ensure_ascii=False)
+    r = rewrite(LLM(transport=lambda *a: _resp(good)), sk)
+    assert r["mode"] == "model" and "747.34 亿元" in r["sections"]["facts"] and "19.16%" in r["sections"]["facts"]
+    bad = json.dumps({"facts": "净利润 747 亿元，同比 {{c:A1:c2}}。", "inferences": "", "counter_and_limits": "",
+                      "to_verify": ""}, ensure_ascii=False)
+    r = rewrite(LLM(transport=lambda *a: _resp(bad)), sk)
+    assert r["mode"] == "template" and any("bare number 747" in e for e in r["errors"])
+    unk = json.dumps({"facts": "{{c:A1:c1}} {{c:A1:c2}} {{c:A9:x}}", "inferences": "", "counter_and_limits": "",
+                      "to_verify": ""}, ensure_ascii=False)
+    assert rewrite(LLM(transport=lambda *a: _resp(unk)), sk)["mode"] == "template"
