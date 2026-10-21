@@ -224,6 +224,31 @@ def market_lines(m: dict) -> list[str]:
     return L
 
 
+def books_lines(out_root: Path, as_of: str) -> list[str]:
+    """最近一次（as_of 当天或之前）运行的前瞻账本；账本在日任务之后运行，所以日报里通常是前一个交易日的账本。"""
+    ds = sorted(p.parent for p in (out_root / "books").glob("*/books_summary.json") if p.parent.name <= as_of)
+    if not ds:
+        return ["## 4d 账本（F8）", "", "尚无前瞻账本。", ""]
+    d = ds[-1]
+    s = json.loads((d / "books_summary.json").read_text(encoding="utf-8"))
+    rows = []
+    for k, v in sorted(s["books"].items()):
+        rows.append({"账本": k, "起止": f"{v['period']['start']}～{v['period']['end']}",
+                     "净值": round(v["nav"]["final_net"], 4), "基准": round(v["nav"]["final_bench"], 4),
+                     "成交笔数": v["execution"]["n_trades_filled"],
+                     "未成交订单": v["execution"]["n_distinct_rejected_orders"]})
+    cap = []
+    for f in sorted(d.glob("*__capacity.parquet")):
+        c = pd.read_parquet(f)
+        last = c[c["as_of"] == c["as_of"].max()]
+        for _, r in last.iterrows():
+            cap.append({"账本": f.name.replace("__capacity.parquet", ""), "规模（元）": f"{r['aum']:,.0f}",
+                        "买不起一手": int(r["n_unbuyable_one_lot"]), "现金残留": f"{r['cash_residual_share']:.0%}"})
+    return ["## 4d 账本（F8，截至 " + s["as_of"] + "）", "",
+            f"前瞻网格日：{', '.join(s['grid'])}。样本很短时净值只作记录，不作比较。", "", _md_table(pd.DataFrame(rows)), "",
+            "容量情景（最近一次调仓的目标持仓）：", "", _md_table(pd.DataFrame(cap)), ""]
+
+
 def report(ctx: Ctx, res: dict) -> str:
     o = res["outputs"]
     snap = res["snapshot"]
@@ -291,6 +316,7 @@ def report(ctx: Ctx, res: dict) -> str:
         L += ["## 4c 风险与执行卡（F5c，代码计算，只是事实，不扣分）", "",
               f"覆盖 {len(rc)} 只（宽候选 + 持仓）。异常波动阈值与基准指数映射为\"待核实\"。", "",
               _md_table(pd.DataFrame([flags])), ""]
+    L += books_lines(ctx.out_root, ctx.as_of)
     L += ["## 5 已知限制", "",
           "- 北向资金字段 2024-08-19 起口径改变（T-035）：ENS 的树模型使用该市场级特征，Ridge 截面排序不受影响。",
           "- 北交所不在股票基础表与财报里，模型没有北交所输入：全开通线目前与除北交所线相同。",
