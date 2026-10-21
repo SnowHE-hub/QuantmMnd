@@ -12,7 +12,7 @@ P=/home/lenovo/miniforge3/envs/quantmind/bin/python
 KEEP=3
 exec 9> /tmp/qm_daily_shadow.lock
 flock -n 9 || { echo "$(date '+%F %T') already running" >> $D/cron.log; exit 0; }
-END=$(TZ=Asia/Shanghai date +%F)
+END=${END_OVERRIDE:-$(TZ=Asia/Shanghai date +%F)}   # END_OVERRIDE：手动补跑某一天（例如被 OOM 杀掉之后）
 LAST=$(cat $D/last_end 2>/dev/null || echo 2026-10-20)
 cd $W || exit 1
 OPEN=$(PYTHONPATH=. $P - <<PY 2>>$D/cron.log
