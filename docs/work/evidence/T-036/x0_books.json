@@ -1,0 +1,30 @@
+{
+ "config": {
+  "ridge_native_20d": {
+   "equal": true,
+   "contract": "NavConfig(horizon_td=20, rebalance_step=4, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)",
+   "eval_primary": "NavConfig(horizon_td=20, rebalance_step=4, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)"
+  },
+  "ens_native_20d": {
+   "equal": true,
+   "contract": "NavConfig(horizon_td=20, rebalance_step=4, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)",
+   "eval_primary": "NavConfig(horizon_td=20, rebalance_step=4, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)"
+  },
+  "ridge_native_63d": {
+   "equal": true,
+   "contract": "NavConfig(horizon_td=63, rebalance_step=13, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)",
+   "eval_primary": "NavConfig(horizon_td=63, rebalance_step=13, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)"
+  },
+  "ens_native_63d": {
+   "equal": true,
+   "contract": "NavConfig(horizon_td=63, rebalance_step=13, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)",
+   "eval_primary": "NavConfig(horizon_td=63, rebalance_step=13, top_n=300, universe_size=1500, commission_bp=3.0, transfer_bp=0.2, tiers=SlippageTiers(large_bp=5.0, mid_bp=15.0, small_bp=30.0, q_large=0.3333333333333333, q_small=0.6666666666666666), initial_nav=1.0, delist_writeoff_td=20, min_recent_bar_td=10, adv20_min_periods=10)"
+  }
+ },
+ "run_ridge_20d": {
+  "rebalances": 15,
+  "targets_identical": true,
+  "nav_max_abs_diff": 0.0
+ },
+ "pass": true
+}
