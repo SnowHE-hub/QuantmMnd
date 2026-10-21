@@ -1,0 +1,18 @@
+{
+ "version": "x13-dev-v1",
+ "seed": 20261021,
+ "years": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023
+ ],
+ "per_board_year": 2,
+ "n_cases": 40,
+ "est_download_mb": 170.2,
+ "n_gold": 440,
+ "n_gold_usable": 418,
+ "cases_sha256": "3fc8a3a643990fbee5d7fb49858d82c06636d83cad59e82ec31251198b4ece54",
+ "gold_sha256": "e22a4dde148510aecbf9c3e00888294379ff240483724dc034e3ec26f802796d"
+}
