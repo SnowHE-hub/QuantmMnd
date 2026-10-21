@@ -1,0 +1,14 @@
+{
+ "rows": 2689037,
+ "by_source": {
+  "pack": 2536713,
+  "official": 102163,
+  "relay": 50161
+ },
+ "report_date_min": "20110524",
+ "report_date_max": "20261016",
+ "pack_last": "20260521",
+ "relay_tickers_done": 5239,
+ "relay_tickers_not_done": 0,
+ "version_conflict_rows": 25791
+}
