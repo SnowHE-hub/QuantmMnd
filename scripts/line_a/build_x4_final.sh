@@ -5,7 +5,8 @@
 # - --wait：每 10 分钟查一次，完整后再开始；不带 --wait 时不完整就退出 2；
 # - 构建时拿住巨潮下载的文件锁，并等每日影子运行（qm-daily-*）结束，避免两边同时占内存；
 # - 产物：data/line_a_v2/p4/x4_v1/（按年数据、标签汇总、金标准样本、build_record.json），
-#   以及 D:/MCS_26S2课程资料/quantmind_colab_upload/ 下的 pack_x4_v1.zip 和运行本。
+#   以及 D:/MCS_26S2课程资料/quantmind_colab_upload/ 下的 pack_x4_v1.zip 和运行本；
+# - 然后在本机 GPU 上训练 MacBERT 基线并评估（results_local/、eval_local.json）。
 set -u
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 DATA=${QM_DATA_ROOT:-/home/lenovo/projects/quantmind}
@@ -66,4 +67,12 @@ rec = {"built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "git": o
 (out / "build_record.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8")
 print("RECORD", json.dumps(rec, ensure_ascii=False), flush=True)
 P
-echo "=== $(date '+%F %T %z') exit $?"
+rc=$?
+echo "=== $(date '+%F %T %z') build exit $rc"
+exec 9>&-                 # 构建完就放开巨潮下载的锁
+[ $rc -eq 0 ] || exit $rc
+# 本机 MacBERT 基线（方案第 9.1 节的便宜候选），结果与 Colab 同一格式；随后用 x4_eval 评估（银标签，只作描述）
+PACK=$QM_X4_UP/pack_x4_v1
+RES=$QM_X4_OUT/results_local
+PYTHONPATH=. python -u -m quantmind.line_a.p4.x4_macbert "$PACK" "$RES" &&   PYTHONPATH=. python -u -m quantmind.line_a.p4.x4_eval "$PACK" "$RES" "$QM_X4_OUT/eval_local.json"
+echo "=== $(date '+%F %T %z') macbert + eval exit $?"
