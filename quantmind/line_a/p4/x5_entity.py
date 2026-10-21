@@ -17,7 +17,6 @@
 """
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
 import re
@@ -160,10 +159,11 @@ def rule_predict(at: AliasTable, dev: pd.DataFrame) -> dict[str, list[dict]]:
 def gliner_predict(at: AliasTable, dev: pd.DataFrame, model_id: str = "fastino/gliner2.5-multi-v1", *,
                    labels: tuple = ("company",), threshold: float = 0.5, batch_size: int = 16) -> dict[str, list[dict]]:
     """GLiNER2 只做识别；识别出的片段再用规则链接器（别名表，按研报日期）链接，链接不上的 ts_code 为空。"""
-    from gliner2 import GLiNER2
-    m = GLiNER2.from_pretrained(model_id)
-    with contextlib.suppress(Exception):                     # 没有 GPU 就用 CPU
-        m = m.to("cuda")
+    import torch
+    from gliner2 import (
+        AutoExtractor,  # GLiNER2.5 是 boundary 结构，必须用 AutoExtractor 加载（模型说明）
+    )
+    m = AutoExtractor.from_pretrained(model_id, map_location="cuda" if torch.cuda.is_available() else "cpu")
     res = m.batch_extract_entities(dev["sentence"].tolist(), list(labels), batch_size=batch_size, threshold=threshold)
     out = {}
     for r, x in zip(dev.itertuples(index=False), res, strict=True):
