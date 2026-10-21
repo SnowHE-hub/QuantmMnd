@@ -41,7 +41,8 @@ export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
 if [ -S "$XDG_RUNTIME_DIR/bus" ]; then
   systemctl --user reset-failed "qm-daily-$TAG" 2>/dev/null
-  systemd-run --user --wait --collect --unit="qm-daily-$TAG" -q -p MemoryMax=6G -p MemorySwapMax=0 \
+  # DAILY_MEM：临时调高上限（2026-10-22 事件表合并在 6 GB 时被杀；省内存的合并写法做好之前用 7G）
+  systemd-run --user --wait --collect --unit="qm-daily-$TAG" -q -p MemoryMax=${DAILY_MEM:-7G} -p MemorySwapMax=0 \
     --working-directory=$W /bin/bash $W/scripts/line_a/daily_shadow.sh "$END" "$LAST" >> $D/cron.log 2>&1
 else
   echo "$(date '+%F %T') no user bus; running without cgroup cap" >> $D/cron.log
