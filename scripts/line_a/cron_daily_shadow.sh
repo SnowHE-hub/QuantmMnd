@@ -41,8 +41,9 @@ export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
 if [ -S "$XDG_RUNTIME_DIR/bus" ]; then
   systemctl --user reset-failed "qm-daily-$TAG" 2>/dev/null
-  # DAILY_MEM：临时调高上限（2026-10-22 事件表合并在 6 GB 时被杀；省内存的合并写法做好之前用 7G）
-  systemd-run --user --wait --collect --unit="qm-daily-$TAG" -q -p MemoryMax=${DAILY_MEM:-7G} -p MemorySwapMax=0 \
+  # DAILY_MEM / DAILY_SWAP（2026-10-22）：WSL 从 12 GB 改成 8 GB 之后，价格面板和冻结构建器装不下；
+  # WSL 有 8 GB 交换（D:\WSL\swap.vhdx），允许本任务用到 6 GB 交换，宁可慢也不被杀
+  systemd-run --user --wait --collect --unit="qm-daily-$TAG" -q -p MemoryMax=${DAILY_MEM:-7G} -p MemorySwapMax=${DAILY_SWAP:-6G} \
     --working-directory=$W /bin/bash $W/scripts/line_a/daily_shadow.sh "$END" "$LAST" >> $D/cron.log 2>&1
 else
   echo "$(date '+%F %T') no user bus; running without cgroup cap" >> $D/cron.log
