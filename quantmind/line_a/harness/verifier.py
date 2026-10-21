@@ -21,6 +21,10 @@ UNIT = {"元": 1.0, "万元": 1e4, "亿元": 1e8, "%": 1.0, "股": 1.0, "万股"
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
         ast.USub: operator.neg, ast.UAdd: operator.pos}
 _NUM = re.compile(r"-?\d+(?:\.\d+)?")
+# 正文数字溯源前先去掉日期、规则编号与证券代码这类"标识"，它们不是需要出处的数值（第一次真实切片里的误报）
+_DATE = re.compile(r"(?:19|20)\d{2}\s*年(?:\s*\d{1,2}\s*月(?:\s*\d{1,2}\s*日)?)?|\d{1,2}\s*月\s*\d{1,2}\s*日"
+                   r"|(?:19|20)\d{2}-\d{1,2}-\d{1,2}|(?:19|20)\d{6}")
+_IDTOK = re.compile(r"[A-Za-z_]+[:\-]?\d+|\d{6}\.(?:SH|SZ|BJ)")
 
 
 @dataclass
@@ -132,7 +136,11 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
         for i in c.get("inputs", []):
             if i in claims and claims[i].get("value") is not None:
                 allowed.add(float(claims[i]["value"]))
-        for x in _NUM.findall(c.get("text", "")):
+        ids = " ".join(r["evidence_id"] for r in c.get("evidence") or [])
+        body = _IDTOK.sub(" ", _DATE.sub(" ", c.get("text", "")))
+        for x in _NUM.findall(body):
+            if x in ids:
+                continue
             xv = float(x)
             is_date = re.fullmatch(r"(19|20)\d{2}(\d{4})?", x)          # 年份、报告期这类日期数字不算
             if abs(xv) >= 10 and not is_date and xv not in allowed and \

@@ -55,3 +55,11 @@ def test_missing_evidence_wrong_value_quote_and_unsourced_numbers():
     assert ch["c3"].status == "verified" and ch["c4"].status == "mismatch"
     assert any("unsourced_number 3000" in n for n in ch["c5"].notes)
     assert ch["c6"].status in ("unverifiable", "mismatch")
+
+
+def test_dates_and_ids_are_not_unsourced_numbers():
+    out = _out([{"local_id": "c1", "claim_type": "reported_fact",
+                 "text": "2023年11月21日披露方案（规则 T22/S08），事件链 600519.SH:dividend:1，回购 3000 万元",
+                 "evidence": [{"evidence_id": "cninfo:ann:1"}]}])
+    notes = verify(out, EV)[0].notes
+    assert notes == ["unsourced_number 3000"]

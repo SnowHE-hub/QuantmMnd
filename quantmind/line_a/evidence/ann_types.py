@@ -83,3 +83,28 @@ def classify_title(title: str) -> TitleClass:
     if stage in ("terminated", "withdrawn") and imp == "routine":
         imp = "watch"
     return TitleClass(etype, stage, imp, trule, srule, bool(re.search(NOT_EVENT, t)))
+
+
+_PERIOD = re.compile(r"(20\d{2})\s*(年度|年半年度|半年度|年第[一二三四1-4]季度|年前三季度|年一季度|年三季度|年)")
+# 只对标题里通常写明期间的事件类型生效；回购、增减持等标题常不带年份，强行区分会把一条链切碎
+SUBJECT_TYPES = {"dividend", "periodic_report", "performance_forecast", "performance_express", "equity_incentive"}
+
+
+def subject_tag(title: str, event_type: str) -> str:
+    """事项标识：同一类事件里区分不同事项（例如 2023年度分红 与 特别分红、两期回购）。只对 SUBJECT_TYPES 生效。"""
+    if event_type not in SUBJECT_TYPES:
+        return ""
+    t = title or ""
+    tags = []
+    if "特别" in t:
+        tags.append("特别")
+    t2 = re.sub(r"(20\d{2})\s*年\s*年度", r"\g<1>年度", t)          # "2022年年度" → "2022年度"
+    m = _PERIOD.search(t2)
+    if m:
+        g = m.group(2)
+        tags.append(m.group(1) + ("" if g == "年" else g if g == "年度" else g.lstrip("年")))
+    if event_type == "equity_incentive":
+        k = re.search(r"(20\d{2})\s*年.*?(限制性股票|股票期权|员工持股)", t)
+        if k:
+            tags = [k.group(1) + k.group(2)]
+    return "-".join(tags)

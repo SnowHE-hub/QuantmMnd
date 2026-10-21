@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 import pyarrow.dataset as ds
 
-from quantmind.line_a.evidence.ann_types import classify_title
+from quantmind.line_a.evidence.ann_types import classify_title, subject_tag
 from quantmind.line_a.evidence.event_chain import Ann, state_as_of
 
 FIN_FIELDS = {
@@ -142,19 +142,33 @@ class DataTools:
         df["available_at"] = df["publish_ts_bj"].astype(str)
         return df[df["available_at"].str.slice(0, 10).str.replace("-", "") <= self.as_of]
 
-    def list_announcements(self, ticker: str, lookback_days: int = 180, limit: int = 60) -> dict:
+    def list_announcements(self, ticker: str, lookback_days: int = 180, limit: int = 120,
+                           event_types: list[str] | None = None, min_importance: str = "routine") -> dict:
+        """按时点列出公告。可按事件类型和最低重要性过滤；结果超过 limit 时明确标出截断和总数。"""
         df = self._announcements(ticker, lookback_days)
+        lo = _ymd(pd.Timestamp(self.as_of) - pd.Timedelta(days=lookback_days))
+        meta = {"ticker": ticker, "as_of": self.as_of, "window": [lo, self.as_of]}
         if df.empty:
-            return {"ticker": ticker, "as_of": self.as_of, "announcements": [], "coverage_note":
+            return {**meta, "announcements": [], "total": 0, "truncated": False, "coverage_note":
                     "巨潮元数据在该区间没有记录（可能是采集尚未覆盖，不能据此推断没有公告）"}
-        df = df.sort_values("available_at", ascending=False).head(limit)
-        out = []
-        for _, r in df.iterrows():
+        rank = {"routine": 0, "watch": 1, "major": 2}
+        rows = []
+        for _, r in df.sort_values("available_at", ascending=False).iterrows():
             c = classify_title(r["announcementTitle"])
+            if event_types and c.event_type not in event_types:
+                continue
+            if rank.get(c.importance, 0) < rank.get(min_importance, 0):
+                continue
+            rows.append((r, c))
+        total = len(rows)
+        out = []
+        for r, c in rows[:limit]:
             out.append({"evidence_id": f"cninfo:ann:{r['announcementId']}", "title": r["announcementTitle"],
                         "available_at": r["available_at"], "event_type": c.event_type, "stage": c.stage,
                         "importance": c.importance, "rule": f"{c.type_rule}/{c.stage_rule}"})
-        return {"ticker": ticker, "as_of": self.as_of, "announcements": out}
+        return {**meta, "announcements": out, "total": total, "truncated": total > limit,
+                "note": (f"只返回最近的 {limit} 条，共 {total} 条；更早的请缩小 lookback_days 或按 event_types 过滤"
+                         if total > limit else "")}
 
     def event_chains(self, ticker: str, lookback_days: int = 365) -> dict:
         df = self._announcements(ticker, lookback_days)
@@ -163,10 +177,11 @@ class DataTools:
             c = classify_title(r["announcementTitle"])
             if c.event_type != "other" and not c.is_summary_or_meta:
                 anns.append(Ann(str(r["announcementId"]), ticker, c.event_type, c.stage, r["available_at"],
-                                r["announcementTitle"]))
+                                r["announcementTitle"], subject_tag(r["announcementTitle"], c.event_type)))
         chains = state_as_of(anns, self.as_of + "T23:59:59")
         return {"ticker": ticker, "as_of": self.as_of, "chains": [
-            {"chain_id": c.chain_id, "event_type": c.event_type, "state": c.state, "open": not c.closed,
+            {"evidence_id": f"chain:{c.chain_id}", "chain_id": c.chain_id, "event_type": c.event_type,
+             "subject": c.subject, "state": c.state, "open": not c.closed,
              "opened_at": c.opened_at, "updated_at": c.updated_at,
              "evidence_ids": [f"cninfo:ann:{i}" for i in c.ann_ids],
              "corrections": [f"cninfo:ann:{a}" for a, _ in c.corrections], "anomalies": c.anomalies}

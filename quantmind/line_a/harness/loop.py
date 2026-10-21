@@ -137,8 +137,10 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
                 rec.status = "abstain"
                 return rec
             repaired = True
-            msgs.append({"role": "user", "content": "上一条回答不符合 Schema，错误如下。请只输出修正后的 JSON 对象：\n"
-                                                    + str(e)[:1500]})
+            hint = ("上一条回答因为长度上限被截断。请减少声明数量、缩短每条文字，只输出完整的 JSON 对象。"
+                    if res.finish_reason == "length" else
+                    "上一条回答不符合 Schema，错误如下。请只输出修正后的 JSON 对象：\n" + str(e)[:1500])
+            msgs.append({"role": "user", "content": hint})
     rec.status = "abstain"
     rec.errors.append("max_steps reached")
     return rec

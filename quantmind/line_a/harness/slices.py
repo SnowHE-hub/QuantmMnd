@@ -44,13 +44,17 @@ def role_spec(role: str, dt: DataTools, subject: str, *, thinking: str | None = 
                  _tool("disclosure_schedule", "财报预约披露日与实际披露日（as_of 之后的实际日期不可见）",
                        dt.disclosure_schedule),
                  _tool("audit_and_pledge", "审计意见与股权质押统计", dt.audit_and_pledge)]
-        return RoleSpec("A1", A1_SYSTEM, tools, RoleOutput, max_steps=8, thinking=thinking)
+        return RoleSpec("A1", A1_SYSTEM, tools, RoleOutput, max_steps=8, thinking=thinking, max_tokens=32000)
     if role == "A2":
         tools = [_tool("list_announcements", "按时点列出公告标题、发布时间、规则分类（类型 / 阶段 / 重要性）",
-                       dt.list_announcements, {"lookback_days": {"type": "integer", "minimum": 7, "maximum": 730}}),
+                       dt.list_announcements, {"lookback_days": {"type": "integer", "minimum": 7, "maximum": 730},
+                                               "limit": {"type": "integer", "minimum": 10, "maximum": 200},
+                                               "event_types": {"type": "array", "items": {"type": "string"}},
+                                               "min_importance": {"type": "string",
+                                                                  "enum": ["routine", "watch", "major"]}}),
                  _tool("event_chains", "同类公告串成的事件链与当前状态（计划 / 进展 / 实施 / 完成 / 终止 / 撤回 / 解除）",
                        dt.event_chains, {"lookback_days": {"type": "integer", "minimum": 30, "maximum": 730}})]
-        return RoleSpec("A2", A2_SYSTEM, tools, RoleOutput, max_steps=8, thinking=thinking)
+        return RoleSpec("A2", A2_SYSTEM, tools, RoleOutput, max_steps=8, thinking=thinking, max_tokens=32000)
     raise ValueError(role)
 
 

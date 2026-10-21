@@ -7,7 +7,9 @@
    其余行最大差 ≤ 1e-6。
 3. 两项都通过才把重建的最后一折存档到 data/line_a_v2/refs/ridge_<期限>_lastfold.npz（日常打分只读存档），
    并核对读回存档后的打分与内存模型逐行相同（最大差 = 0）。
-用法：python x0_ridge.py <data_root> <fwd_main_root> <out.json>
+用法：python x0_ridge.py <data_root> <fwd_main_root> <out.json> [期限 …]
+（2026-10-21 补充，判定不变：可只跑指定期限，两个期限在同一进程里会超出 6.5 GB 内存上限；
+ 另报告全部行的分数差与秩相关，只作参考；存档已存在时不重写，只核对读回后的打分与内存模型相同。）
 """
 from __future__ import annotations
 
@@ -34,7 +36,8 @@ def main() -> None:
     )
     real, shadow, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     res = {}
-    for h in ("20d", "63d"):
+    import gc
+    for h in (sys.argv[4:] or ["20d", "63d"]):
         ref = fit_reference(real, h)
         fz = pd.read_parquet(real / FROZEN[h])
         fz["as_of"] = pd.to_datetime(fz["as_of"])
@@ -55,13 +58,19 @@ def main() -> None:
         same_k = pd.Series(same, index=Xs.index).reindex(k).to_numpy()
         fwd = {"days": [str(x.date()) for x in days], "rows": int(len(k)), "rows_features_changed": int((~same_k).sum()),
                "rows_frozen_not_scored": int(len(fz[fz.index.get_level_values("as_of").isin(days)]) - len(k)),
-               "max_abs_diff_unchanged": float(d[same_k].max()) if same_k.any() else None}
+               "max_abs_diff_unchanged": float(d[same_k].max()) if same_k.any() else None,
+               "info_max_abs_diff_all": float(np.nanmax(d)) if len(d) else None,
+               "info_spearman_all": float(s.reindex(k).corr(fz.reindex(k), method="spearman")) if len(k) else None}
         fwd["pass"] = (fwd["rows_frozen_not_scored"] == 0 and fwd["max_abs_diff_unchanged"] is not None
                        and fwd["max_abs_diff_unchanged"] <= 1e-6)
         saved = None
         if train_ok["pass"] and fwd["pass"]:
             ref_path = real / f"data/line_a_v2/refs/ridge_{h}_lastfold.npz"
-            sha = save_ref(ref, ref_path)
+            if ref_path.exists():
+                from quantmind.line_a.atomic import sha256_file
+                sha = sha256_file(ref_path)
+            else:
+                sha = save_ref(ref, ref_path)
             rt2 = score(load_ref(ref_path), Xs)
             saved = {"path": str(ref_path.relative_to(real)), "sha256": sha,
                      "roundtrip_max_abs_diff": float((rt2 - s).abs().max())}
@@ -70,6 +79,8 @@ def main() -> None:
                   "n_features": len(ref.feats), "train_reproduction": train_ok, "forward_features": fwd,
                   "pass": bool(train_ok["pass"] and fwd["pass"])}
         print(h, json.dumps({"train": train_ok, "forward": {k2: v for k2, v in fwd.items() if k2 != "days"}}))
+        del ref, Xs, Xr, a, b, s, fz, rt, j
+        gc.collect()
     res["pass"] = all(v["pass"] for v in res.values() if isinstance(v, dict))
     out.write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print("OVERALL", "PASS" if res["pass"] else "FAIL")

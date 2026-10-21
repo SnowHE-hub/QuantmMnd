@@ -86,3 +86,35 @@ def test_pdf_parse_and_quote_check(tmp_path):
     hit = [x for x in d.paras if "1000000" in x.text]
     assert hit and verify_quote(d, hit[0].page, hit[0].idx, "已回购股份 1000000股")
     assert not verify_quote(d, hit[0].page, hit[0].idx, "已回购股份2000000股")
+
+
+def test_subject_tag_separates_concurrent_dividends():
+    from quantmind.line_a.evidence.ann_types import subject_tag
+    assert subject_tag("2023年度回报股东特别分红方案公告", "dividend") == "特别-2023年度"
+    assert subject_tag("2023年度利润分配方案公告", "dividend") == "2023年度"
+    assert subject_tag("2022年年度权益分派实施公告", "dividend") == "2022年度"
+    assert subject_tag("关于回购股份的进展公告", "repurchase") == ""
+    a = [Ann("1", "600519.SH", "dividend", "plan", "20231121", subject="特别-2023年度"),
+         Ann("2", "600519.SH", "dividend", "implemented", "20231214", subject="特别-2023年度"),
+         Ann("3", "600519.SH", "dividend", "plan", "20240403", subject="2023年度")]
+    ch = build_chains(a)
+    assert [(c.subject, c.state) for c in ch] == [("特别-2023年度", "implemented"), ("2023年度", "plan")]
+    assert not any(c.anomalies for c in ch) and ch[0].chain_id == "600519.SH:dividend:特别-2023年度:1"
+
+
+def test_list_announcements_truncation_and_chain_ids(tmp_path):
+    from quantmind.line_a.harness.tools_data import DataTools
+    parts = tmp_path / "text/cninfo/_parts"
+    parts.mkdir(parents=True)
+    rows = [{"announcementId": str(i), "secCode": "600519", "announcementTitle": t, "publish_ts_bj": f"2024-04-0{d}T00:00:00+08:00"}
+            for i, (t, d) in enumerate([("2023年度利润分配方案公告", 3), ("关于回购股份的进展公告", 2),
+                                        ("关于收到问询函的公告", 1)])]
+    pd.DataFrame(rows).to_parquet(parts / "20240403.parquet")
+    dt = DataTools(tmp_path, "20240410")
+    r = dt.list_announcements("600519.SH", lookback_days=30, limit=2)
+    assert r["total"] == 3 and r["truncated"] and len(r["announcements"]) == 2 and "共 3 条" in r["note"]
+    r = dt.list_announcements("600519.SH", lookback_days=30, min_importance="watch")
+    assert [a["event_type"] for a in r["announcements"]] == ["regulatory_letter"]
+    ch = dt.event_chains("600519.SH", lookback_days=30)["chains"]
+    assert all(c["evidence_id"].startswith("chain:") for c in ch)
+    assert {c["subject"] for c in ch if c["event_type"] == "dividend"} == {"2023年度"}
