@@ -67,6 +67,27 @@ class AliasTable:
                 al.append(Alias(str(r.name), r.ts_code, "former_name", st, en))
         return cls(al)
 
+    @classmethod
+    def from_lake(cls, lake, *, full_history: bool = True) -> AliasTable:
+        """从 lake 构建：沪深股票基础表 + 北交所基础表 + 名称变更。
+        默认用按股票拉的名称变更全历史（namechange_full_*.parquet；T-038 X5 测试集上链接正确率 95.2% → 97.4%），
+        没有全历史文件时退回 lake 的 namechange 快照。"""
+        from pathlib import Path
+
+        import pandas as pd
+        lake = Path(lake)
+        sb = pd.read_parquet(sorted(lake.glob("stock_basic_full_merged_2*.parquet"))[-1],
+                             columns=["ts_code", "name", "fullname"])
+        bse = sorted((lake / "bse").glob("stock_basic_bse_*.parquet"))
+        if bse:
+            b = pd.read_parquet(bse[-1])
+            b = b.assign(fullname=b.get("fullname", None))[["ts_code", "name", "fullname"]]
+            sb = pd.concat([sb, b], ignore_index=True).drop_duplicates("ts_code")
+        full = sorted((lake / "events").glob("namechange_full_2*.parquet")) if full_history else []
+        ncs = full or sorted((lake / "events").glob("namechange_2*.parquet"))
+        nc = pd.read_parquet(ncs[-1], columns=["ts_code", "name", "start_date", "end_date"]) if ncs else None
+        return cls.from_frames(sb, nc)
+
     def link(self, text: str, as_of: str) -> list[Mention]:
         out: list[Mention] = []
         for m in _CODE.finditer(text):
