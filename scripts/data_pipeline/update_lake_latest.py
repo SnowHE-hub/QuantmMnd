@@ -128,6 +128,42 @@ def backup_once(series: str, backup_dir: Path) -> None:
         print(f"  [backup] {src.name} → {dst}")
 
 
+def write_append_arrow(series: str, df: pd.DataFrame, path: Path | None = None) -> int:
+    """只追加新日期时的省内存写法（2026-10-22：daily_basic 约 900 万行，lake.write_lake 用 pandas 整表读入、合并、
+    去重、排序，峰值超过 6 GB，每日影子运行被 cgroup 杀掉）。结果与 write_lake 相同：
+    - 新数据先在自身内部按主键去重（keep="last"）；
+    - 新日期与表里已有日期有重叠时，退回 lake.write_lake（那时才需要整表去重）；
+    - 合并后按主键排序，原子写（临时文件 + os.replace），保留原文件的 schema 元数据。"""
+    import os
+
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+    p = Path(path) if path else lake.lake_path(series)
+    key = lake.lake_key(series)
+    if not p.exists() or "trade_date" not in key:
+        return lake.write_lake(series, df)
+    new = df.copy()
+    new["trade_date"] = pd.to_datetime(new["trade_date"])
+    new = new.drop_duplicates(subset=key, keep="last")
+    old = pq.read_table(p)
+    old_dates = pd.to_datetime(pc.unique(old["trade_date"]).to_pandas())
+    if pd.Series(new["trade_date"].unique()).isin(old_dates).any():
+        del old
+        return lake.write_lake(series, df)
+    nt = pa.Table.from_pandas(new[old.schema.names], schema=old.schema, preserve_index=False)
+    merged = pa.concat_tables([old, nt]).sort_by([(k, "ascending") for k in key])
+    del old, nt
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")
+    try:
+        pq.write_table(merged, tmp)
+        os.replace(tmp, p)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+    return merged.num_rows
+
+
 def update_by_date(tp, series: str, api: str, todo: list[pd.Timestamp], backup_dir: Path,
                    flush_every: int) -> dict:
     report = {"series": series, "todo": len(todo), "filled": [], "empty": [], "failed": [], "rows": 0}
@@ -136,7 +172,7 @@ def update_by_date(tp, series: str, api: str, todo: list[pd.Timestamp], backup_d
     def flush():
         if buf:
             backup_once(series, backup_dir)
-            total = lake.write_lake(series, pd.concat(buf, ignore_index=True))
+            total = write_append_arrow(series, pd.concat(buf, ignore_index=True))
             print(f"  [{series}] flush → lake 行数 {total:,}", flush=True)
             buf.clear()
 
