@@ -1,0 +1,48 @@
+{
+ "built_utc": "2026-10-22T00:51:11Z",
+ "git": "d799693e4bcacc7749867f488f28333ba514b601",
+ "cninfo_checkpoint_sha256": "780168a369b2d85e22d004410a36c8d5ef2bde560e9965d6f511f42d764e3f14",
+ "zip": "/mnt/d/MCS_26S2课程资料/quantmind_colab_upload/pack_x4_v1.zip",
+ "zip_sha256": "fb2a71fd3a213eb85a3a0ffe6ee5863cea17ee12da39939cdefc527b4700c73d",
+ "manifest_files": {
+  "train.jsonl": {
+   "sha256": "8fc2d3a25ed65c4ce15253fe9369510b0ac85b19d31e6bb003e5b13179c2da35"
+  },
+  "cells.jsonl": {
+   "sha256": "8e04b63510faab655aa2b850e25ba90492bc425431d1257fd8cd48985cad7545"
+  },
+  "x4_cloud.py": {
+   "sha256": "444baae97da75a3308b77fa4a1b8ed4690f0be7fc3f43f06ac8d1ea6916f3140"
+  }
+ },
+ "rows": {
+  "train": 25734,
+  "cells": 11531
+ },
+ "gold_rows": 540,
+ "gold_by_stratum": {
+  "hard_neg": 140,
+  "pos_rule": 60,
+  "pos_strong": 200,
+  "uncertain": 140
+ },
+ "years": [
+  "x4_2019",
+  "x4_2020",
+  "x4_2021",
+  "x4_2022",
+  "x4_2023",
+  "x4_2024",
+  "x4_2025",
+  "x4_2026"
+ ],
+ "cninfo_partial_days": {
+  "2020-04-30": {
+   "state": "partial",
+   "total": 17541,
+   "rows": 17540,
+   "gap": 1,
+   "requests": 1454
+  }
+ }
+}

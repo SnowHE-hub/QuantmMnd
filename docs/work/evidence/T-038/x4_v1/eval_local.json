@@ -1,0 +1,135 @@
+{
+ "ft__macbert-base": {
+  "n_scored": 11531,
+  "types": {
+   "control_change": {
+    "test_auc": 1.0,
+    "threshold": 0.5001449031988159,
+    "precision": 1.0,
+    "recall": 0.9966666666666667,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "dividend": {
+    "test_auc": 1.0,
+    "threshold": 0.4993701168859843,
+    "precision": 1.0,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "holder_increase": {
+    "test_auc": 1.0,
+    "threshold": 0.4999570070649497,
+    "precision": 1.0,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "holder_reduction": {
+    "test_auc": 1.0,
+    "threshold": 0.499693904115702,
+    "precision": 1.0,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "investigation": {
+    "test_auc": 1.0,
+    "threshold": 0.4999836689676158,
+    "precision": 1.0,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 590,
+    "n_pos": 295
+   },
+   "litigation": {
+    "test_auc": 0.9999777777777777,
+    "threshold": 0.0069233590038493276,
+    "precision": 0.9966777408637874,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.5,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "penalty": {
+    "test_auc": 0.9999666666666667,
+    "threshold": 0.49932266435644124,
+    "precision": 1.0,
+    "recall": 0.9966666666666667,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "performance_express": {
+    "test_auc": 0.9994,
+    "threshold": 0.49995461459911894,
+    "precision": 1.0,
+    "recall": 0.9966666666666667,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "performance_forecast": {
+    "test_auc": 1.0,
+    "threshold": 0.49996695513254963,
+    "precision": 0.9933774834437086,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.013333333333333334,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "regulatory_letter": {
+    "test_auc": 0.9953611111111111,
+    "threshold": 0.9988918006420135,
+    "precision": 0.9897610921501706,
+    "recall": 0.9666666666666667,
+    "hard_neg_fpr": 0.02,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "repurchase": {
+    "test_auc": 0.9998833333333333,
+    "threshold": 0.9972804188728333,
+    "precision": 1.0,
+    "recall": 0.9766666666666667,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "restructuring": {
+    "test_auc": 0.9976,
+    "threshold": 0.9991108179092407,
+    "precision": 0.9966777408637874,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   },
+   "st_change": {
+    "test_auc": 1.0,
+    "threshold": 0.020176045943517237,
+    "precision": 1.0,
+    "recall": 1.0,
+    "hard_neg_fpr": 0.0,
+    "n_test": 272,
+    "n_pos": 136
+   },
+   "unlock": {
+    "test_auc": 0.9986277777777778,
+    "threshold": 0.4995694643293973,
+    "precision": 1.0,
+    "recall": 0.99,
+    "hard_neg_fpr": 0.0,
+    "n_test": 600,
+    "n_pos": 300
+   }
+  },
+  "macro_test_auc": 0.9993440476190475,
+  "macro_hard_neg_fpr": 0.03809523809523809
+ }
+}
