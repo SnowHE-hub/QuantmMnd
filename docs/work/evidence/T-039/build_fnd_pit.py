@@ -11,10 +11,15 @@
         - fina_indicator：每行的可用日 = 与同期三大表对账（debt_to_assets ↔ 100·负债/资产，netprofit_margin ↔
           100·净利润/营收，容差 0.01）对上的报表行里最早的 f_ann_date，对不上用 ann_date；可用日 ≤ as_of 的行里，
           同一期按 (ann_date, 整行内容) 排序取第一行。
-输出 <data_root>/data/research/pit_audit/fnd_evaldates/<mode>/<YYYY-MM>.parquet（index as_of × ticker，列同冻结面板）；
-已存在的月份跳过，从不覆盖。
+  pit 的两个版本（T-039 敏感性分析登记）：
+        v1a（主）：fina 另补冻结 lake 里 (ts_code, end_date, ann_date) 在新表找不到的行（6 月还在、之后被 Tushare
+                   换成带新 ann_date 的行），同样走对账；
+        v1（次要）：规则 v1 原样，只用新拉的表。
+输出 <data_root>/data/research/pit_audit/fnd_evaldates/{lake,pit,pit_v1}/<YYYY-MM>.parquet（index as_of × ticker，
+列同冻结面板）；已存在的月份跳过，从不覆盖。
 
-用法：PYTHONPATH=. python docs/work/evidence/T-039/build_fnd_pit.py <data_root> --mode lake|pit [--workers 2] [--months 2022-02,...]
+用法：PYTHONPATH=. python docs/work/evidence/T-039/build_fnd_pit.py <data_root> --mode lake|pit [--variant v1a|v1]
+          [--workers 2] [--months 2022-02,...]
 """
 from __future__ import annotations
 
@@ -73,7 +78,8 @@ def fina_avail(fi: pd.DataFrame, inc: pd.DataFrame, bs: pd.DataFrame) -> pd.Seri
     return fi["ann_date"].where(~later, borrowed)
 
 
-def setup(root: Path, mode: str) -> None:
+def setup(root: Path, mode: str, variant: str = "v1a") -> None:
+    G["variant"] = variant
     db_path = root / FROZEN_DB
     td = pd.DatetimeIndex(np.unique(pq.read_table(db_path, columns=["trade_date"]).column(0).to_numpy()))
     dates = pd.DatetimeIndex(sorted(pd.read_parquet(EVAL_ROWS, columns=["as_of"]).as_of.unique()))
@@ -110,6 +116,16 @@ def setup(root: Path, mode: str) -> None:
         d["report_date"] = d["end_date"]
         G[STMT[name]] = d
     fi = pd.read_parquet(pit / "fina_indicator.parquet")
+    if G["variant"] == "v1a":
+        # 冻结 lake 里 (ts_code, end_date, ann_date) 在新拉的表里找不到的行：6 月拉取时还在、之后被 Tushare 换成了
+        # 带新 ann_date 的行（追溯调整），原始行已删。补回来，和其他行一样走对账定可用日。
+        lk = pd.read_parquet(root / FROZEN_FIN / "fina_indicator_full.parquet")
+        lk = lk[lk["ann_date"].notna()]
+        have = set(zip(fi.ts_code, fi.end_date, fi.ann_date))
+        add = lk[[k not in have for k in zip(lk.ts_code, lk.end_date, lk.ann_date)]].copy()
+        add["update_flag"], add["_row"], add["_fetched_at"] = None, -1, "lake_backup_20261019"
+        G["fina_supplement_rows"] = int(len(add))
+        fi = pd.concat([fi, add[fi.columns]], ignore_index=True)
     fi = fi[fi["ann_date"].notna()].reset_index(drop=True)
     fi["_key"] = content_key(fi, _fields(fi))
     fi["_avail"] = fina_avail(fi, raw["income"], raw["balancesheet"])
@@ -172,20 +188,25 @@ def main() -> None:
     ap.add_argument("--mode", choices=["lake", "pit"], required=True)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--months", default="", help="只算这些月份（逗号分隔），试跑用")
+    ap.add_argument("--variant", choices=["v1a", "v1"], default="v1a",
+                    help="pit 模式：v1a = 规则 v1 + 补回冻结 lake 里新表找不到的 fina 行（主）；v1 = 规则 v1 原样（次要）")
     a = ap.parse_args()
     t0 = time.time()
-    setup(a.root, a.mode)
-    out_dir = a.root / "data/research/pit_audit/fnd_evaldates" / a.mode
+    setup(a.root, a.mode, a.variant)
+    sub = a.mode if a.mode == "lake" or a.variant == "v1a" else "pit_v1"
+    out_dir = a.root / "data/research/pit_audit/fnd_evaldates" / sub
+    if "fina_supplement_rows" in G:
+        print(f"[fnd_{sub}] fina 补回 {G['fina_supplement_rows']} 行", flush=True)
     out_dir.mkdir(parents=True, exist_ok=True)
     months = sorted({d.strftime("%Y-%m") for d in G["dates"]})
     if a.months:
         months = [m for m in months if m in set(a.months.split(","))]
     todo = [m for m in months if not (out_dir / f"{m}.parquet").exists()]
-    print(f"[fnd_{a.mode}] setup {time.time() - t0:.0f}s; {len(G['dates'])} 个评估日，{len(todo)} 个月待算", flush=True)
+    print(f"[fnd_{sub}] setup {time.time() - t0:.0f}s; {len(G['dates'])} 个评估日，{len(todo)} 个月待算", flush=True)
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
         for msg in ex.map(do_month, [(m, str(out_dir)) for m in todo]):
             print(f"  {msg} (total {time.time() - t0:.0f}s)", flush=True)
-    print(f"[fnd_{a.mode}] done {time.time() - t0:.0f}s", flush=True)
+    print(f"[fnd_{sub}] done {time.time() - t0:.0f}s", flush=True)
 
 
 if __name__ == "__main__":

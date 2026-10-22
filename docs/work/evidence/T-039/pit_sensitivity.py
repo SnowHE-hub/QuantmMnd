@@ -115,6 +115,7 @@ def main() -> int:
     ap.add_argument("out", type=Path)
     ap.add_argument("--no-factor-nav", action="store_true")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--pit-subdir", default="pit", help="fnd_evaldates 下的时点版目录：pit（v1a，主）或 pit_v1（次要）")
     a = ap.parse_args()
     D = a.root / "data"
     ycol, ev_file, nav_cfg = H[a.horizon]
@@ -127,14 +128,15 @@ def main() -> int:
     meta = meta[meta.as_of.isin(set(dates))].set_index(["as_of", "ticker"]).sort_index()
     fz = panel(D / "gpu_v1/panel/fnd", dates)
     cols = list(fz.columns)
-    pt = fz.copy() if a.self_test else panel(D / "research/pit_audit/fnd_evaldates/pit", dates, cols)
+    pt = fz.copy() if a.self_test else panel(D / "research/pit_audit/fnd_evaldates" / a.pit_subdir, dates, cols)
     U = meta.index
     fz, pt = fz.reindex(U), pt.reindex(U)
     y = meta[ycol].reindex(ev)
     if a.self_test:   # 标签按日打乱：自测不接触真实 IC
         rng = np.random.default_rng(0)
         y = y.groupby(level="as_of").transform(lambda s: pd.Series(rng.permutation(s.to_numpy()), index=s.index))
-    res = {"horizon": a.horizon, "self_test": a.self_test, "n_dates": len(dates), "n_eval_rows": int(len(ev)),
+    res = {"horizon": a.horizon, "self_test": a.self_test, "pit_subdir": a.pit_subdir, "n_dates": len(dates),
+           "n_eval_rows": int(len(ev)),
            "n_meta_rows": int(len(U)), "factors": {}, "composites": {}}
 
     sign = {}
