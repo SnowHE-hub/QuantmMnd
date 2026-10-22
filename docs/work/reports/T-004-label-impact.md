@@ -10,7 +10,8 @@
 1. **README / HANDOVER 里的 LGBM v6 ICIR = 0.380，基本是标签污染加事后选方向造成的。** 用同样的代码和参数复现出 0.3803，只把评估标签换成 v4_1 就降到 0.097，训练和评估都换成 v4_1 是 0.004（有效 IC 均值 0.0002）。
 2. **卡里的假设「meta-learner 的 2024-Q3 AUC 0.24、2024-Q4 AUC 0.50 由标签污染造成」不成立，被证伪。** `hit` 不是 `actual_return_63d > panel_return_63d`，而是 `actual_rank <= predicted_rank`，和 v4 标签没有关系。用 v4 和 v4_1 各跑一遍，AUC 逐位相同。
 3. 顺序验证（`run_sequential_validation.py`）的 8 轮里，换成 v4_1 后 IC 全变了，champion 从 Round 4 变成 Round 6。被晋升成 `lgbm_v6_alpha` 的正是 Round 4，它的早停验证集和方向判断用的恰好是两个被污染的截面。
-4. 另外发现两件卡外的事（见第 5 节）：被污染的截面不止 2 个；HANDOVER 里 meta-learner 的 CV AUC 0.6025 现在复现不出来（得到 0.50）。
+4. 板块模型（main / gem / star）在 v4 上逐位复现；换成 v4_1 后 main、gem 的 IC 约减半，star 的数字大幅变化但样本太小不可信（§2.2）。
+5. 另外发现两件卡外的事：被污染的截面不止 2 个；HANDOVER 里 meta-learner 的 CV AUC 0.6025 现在复现不出来（得到 0.50）。
 
 ## 1. 被污染的到底是哪些截面
 `[实测]` `data/research/t004/label_diff_by_date.csv`（v4 与 v4_1 逐截面比较，63d 标签共 28 个截面、24,168 行）：
@@ -34,7 +35,7 @@
 `[代码]` 逐个读 `models/*.meta.json` 的 `panel_path` 和 `label_col`：
 - **直接用 v4 面板训练：只有 `lgbm_v6_alpha`**（63d，2019-03 到 2026-06，20 折）。
 - `lgbm_v3_*`、`lgbm_v5_*`、`lgbm_regime_*` 用的是 v2 / v3 面板，这些面板的标签没有被 T-003 审计，**我没有检查它们是否有同类问题**，所以不能说它们没事。
-- 板块模型 `lgbm_v6_main / gem / star`（`board_model_results.json`，ICIR 0.384 / 0.155 / 0.007）由 `train_board_models.py` 在 v4 面板上训练，**同样受影响，但我没有重算**。
+- 板块模型 `lgbm_v6_main / gem / star`（`board_model_results.json`，ICIR 0.384 / 0.155 / 0.007）由 `train_board_models.py` 在 v4 面板上训练，**同样受影响，已重算，见 §2.2**。
 - 其他读 v4 面板的脚本和模块：`champion_challenger.py`、`run_sequential_validation.py`、`train_meta_learner.py`、`track_realized_pnl.py`、`backfill_recommendations.py`、`daily_scorer.py`、`factor_cnn.py`、`dynamic_weights.py`（其中 IC 数字来自「alpha_panel_v4 28 季」）。读标签的只有训练、验证和 `track_realized_pnl` 的交叉核对；`daily_scorer`、`backfill_recommendations` 从注释和 grep 命中看只读因子列（`[推断]`，没有逐行读代码）；因子列 v4 与 v4_1 逐位相同（`[实测]`，73 列、29,406 行），所以它们若只读因子列就不受影响。
 - T-010 已经用 v4_1 做过一次同类对比，同样的 42 特征在 v4_1 标签上 RankIC −0.009 / ICIR −0.17（`auto_flip=False`），方向与本文一致。
 
@@ -54,6 +55,30 @@
 - 训练标签的影响同样大（v4 训练比 v4_1 训练，几乎每折的 IC 都不同，例如 2023-09-30 是 +0.143 对 −0.065）。除两个严重截面外，前面提到的各年一季度截面也在训练窗里。`[实测]`
 - 因此 0.380 不能当作模型有预测力的证据。`[推断]`
 - 另外，0.380 是 20 折 walk-forward 评估的汇总，而线上的 `lgbm_v6_alpha.pkl` 是顺序验证 Round 4 的单次训练（`model_lineage.json`）。它的 meta 把两者拼在一起：`effective_ic_ir` 0.3803 来自 walk-forward，`ic_mean` 0.030841 来自晋升时的评估（序贯验证里 Round 4 的 IC 是 0.033779，两者也不相等，原因没有查）。`[实测]`
+
+### 2.2 板块模型（main / gem / star）
+`[实测]` 直接运行原脚本 `scripts/train_board_models.py`（只改 `--panel` 和 `--out-dir`，模型和结果都写到 `data/research/t004/board_{v4,v4_1}/`，没有写 `models/`）。混训基准仍是线上的 `lgbm_v6_alpha.pkl`。
+**在 v4 上重跑与已存的 `models/board_model_results.json` 三个板块全部逐位一致**（IC、ICIR、胜率、折数）。
+
+| 板块（股票数 / 折数） | 指标 | v4（已发布） | v4_1 |
+|---|---|---:|---:|
+| main（1,186 / 22） | 专用模型 IC | 0.0384 | 0.0207 |
+| | ICIR | 0.384 | 0.299 |
+| | 胜率 | 0.40 | 0.60 |
+| | 混训基准 IC | 0.0653 | 0.0646 |
+| gem（135 / 22） | 专用模型 IC | 0.0242 | 0.0114 |
+| | ICIR | 0.155 | 0.082 |
+| | 胜率 | 0.35 | 0.40 |
+| | 混训基准 IC | 0.0754 | 0.0406 |
+| star（97 / 18） | 专用模型 IC | 0.0020 | 0.0961 |
+| | ICIR | 0.007 | 0.413 |
+| | 胜率 | 0.50 | 0.31 |
+| | 混训基准 IC | −0.0358 | −0.0417 |
+
+- main、gem 在修正标签后专用模型的 IC 约减半，ICIR 下降（0.384 → 0.299，0.155 → 0.082）；两者在两种标签下都低于混训基准的 IC，「专用模型更好」的说法本来就没有被支持。
+- star 反过来：IC 和 ICIR 变大（0.007 → 0.413）。但 star 只有 97 只股票、18 折，胜率只有 31%，一两个截面就能决定均值，我不把它当作有效改进，只当作「数字不稳」的又一个例子。`[推断]`
+- 脚本的「方向对齐」逻辑把板块模型的 direction 强制设成混训模型的方向（+1），且 `production_ready` 在三个板块两种标签下都是 True，门禁没有起到区分作用。`[代码 + 实测]`
+- 与 §2.1 一样，v4 上的结果可复现，说明差异来自标签而不是脚本或环境。
 
 ## 3. 问题 2：meta-learner 的假设
 卡里的假设：`hit = actual_return_63d > panel_return_63d`，所以 2024-Q3 AUC 0.24、2024-Q4 AUC 0.50 可能由标签污染造成。
@@ -96,11 +121,11 @@
 | README.md:259；HANDOVER.md:19、146、524、560 | LGBM v6 ICIR = 0.380 | 注明：基于 v4 标签；v4_1 上全部修正后约 0.004；0.380 含 auto_flip 事后取反。见本报告 §2.1 |
 | HANDOVER.md §五.五 | meta-learner CV AUC = 0.6025、逐季 0.24 / 0.50 | 注明：与 v4 标签无关；当前代码复现为 0.50，数字待查 |
 | HANDOVER.md 序贯验证 Round 4 champion | 「champion = Round 4」 | 注明：v4 污染下的结果，v4_1 下不成立 |
-| `board_model_results.json` 的 ICIR | 0.384 / 0.155 / 0.007 | 注明：v4 标签，未重算 |
+| `board_model_results.json` 的 ICIR | 0.384 / 0.155 / 0.007 | 注明：v4 标签；v4_1 上为 0.299 / 0.082 / 0.413（star 样本太小，不可信），见 §2.2 |
 | `dynamic_weights.py` 注释里的「alpha_panel_v4 28 季 IC」 | 因子 IC | 注明：用了 v4 标签，未重算 |
 
 ## 6. 没做的事和限制
-- 板块模型（main / gem / star）和 `dynamic_weights` 的因子 IC 没有用 v4_1 重算。可以套用同一套脚本，需要先读 `train_board_models.py` 的折设计。
+- `dynamic_weights` 注释里的「alpha_panel_v4 28 季」因子 IC 没有用 v4_1 重算。
 - v2 / v3 面板的标签没有审计。
 - HANDOVER 里 meta-learner AUC 0.6025 的来历没查清。
 - 我没有重训、替换或晋升任何模型，`models/` 没动。
@@ -112,6 +137,10 @@
 ~/c3_scratch/capped.sh t004v6 4G 'conda activate quantmind; PYTHONDONTWRITEBYTECODE=1 python -u docs/work/evidence/T-004/t004_v6_replay.py'
 ~/c3_scratch/capped.sh t004meta 3G 'conda activate quantmind; PYTHONDONTWRITEBYTECODE=1 python -u docs/work/evidence/T-004/t004_meta_replay.py'
 ```
+```bash
+# 板块模型：原脚本，只改 --panel 和 --out-dir（对 v4 和 v4_1 各跑一次）
+~/c3_scratch/capped.sh t004board 4G 'conda activate quantmind; export PYTHONDONTWRITEBYTECODE=1; for n in v4 v4_1; do python -u /home/lenovo/projects/quantmind/scripts/train_board_models.py --panel /home/lenovo/projects/quantmind/data/panel/alpha_panel_$n.parquet --out-dir /home/lenovo/projects/quantmind/data/research/t004/board_$n; done'
+```
 每个约 10–60 秒。输出在 `data/research/t004/`（共约 0.8 MB），sha256 前 16 位：
 
 | 文件 | sha256（前 16 位） |
@@ -122,3 +151,5 @@
 | seqval_v4/round_summary.json | 950e794de2749a98 |
 | seqval_v4_1/round_summary.json | 8d45054cce3a8e1d |
 | seqval_v4_2/round_summary.json | 819bdf9426c93bcd |
+| board_v4/board_model_results.json | 683dfffead225573 |
+| board_v4_1/board_model_results.json | eecac653e9a7ab31 |
