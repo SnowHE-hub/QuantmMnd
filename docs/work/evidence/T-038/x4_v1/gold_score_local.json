@@ -1,0 +1,120 @@
+{
+ "n_gold": 540,
+ "label_pos": 362,
+ "by_source": {
+  "deepseek=rule": 287,
+  "claude_review": 253
+ },
+ "review_agreement": {
+  "DeepSeek 与规则不一致": {
+   "n": 41,
+   "claude_eq_ds": 27,
+   "claude_eq_rule": 14,
+   "rule_undetermined": 0
+  },
+  "规则不确定": {
+   "n": 140,
+   "claude_eq_ds": 130,
+   "claude_eq_rule": 0,
+   "rule_undetermined": 140
+  },
+  "随机抽查": {
+   "n": 72,
+   "claude_eq_ds": 72,
+   "claude_eq_rule": 72,
+   "rule_undetermined": 0
+  }
+ },
+ "spot_check_flips": [],
+ "by_type_pos": {
+  "control_change": "16/30",
+  "dividend": "29/40",
+  "holder_increase": "29/40",
+  "holder_reduction": "28/40",
+  "investigation": "17/30",
+  "litigation": "40/50",
+  "penalty": "19/30",
+  "performance_express": "28/40",
+  "performance_forecast": "25/40",
+  "regulatory_letter": "8/30",
+  "repurchase": "16/40",
+  "restructuring": "40/50",
+  "st_change": "30/40",
+  "unlock": "37/40"
+ },
+ "by_stratum_pos": {
+  "hard_neg": "11/140",
+  "pos_rule": "57/60",
+  "pos_strong": "187/200",
+  "uncertain": "107/140"
+ },
+ "sheet_backup": "/mnt/d/MCS_26S2课程资料/quantmind_labeling/x4_gold_review.before_claude_20261022_121124.csv",
+ "score": {
+  "rule": {
+   "all": {
+    "n": 540,
+    "n_pos": 362,
+    "precision": 0.8852459016393442,
+    "recall": 0.8950276243093923,
+    "f1": 0.8901098901098902
+   },
+   "macro_f1": 0.8754575222086254,
+   "severe": {
+    "n": 210,
+    "n_pos": 130,
+    "precision": 0.852112676056338,
+    "recall": 0.9307692307692308,
+    "f1": 0.8897058823529411
+   },
+   "by_type_f1": {
+    "control_change": 0.889,
+    "dividend": 0.983,
+    "holder_increase": 0.983,
+    "holder_reduction": 0.966,
+    "investigation": 0.919,
+    "litigation": 0.857,
+    "penalty": 0.974,
+    "performance_express": 0.947,
+    "performance_forecast": 0.96,
+    "regulatory_letter": 0.5,
+    "repurchase": 0.696,
+    "restructuring": 0.933,
+    "st_change": 0.947,
+    "unlock": 0.702
+   }
+  },
+  "ft__macbert-base": {
+   "all": {
+    "n": 540,
+    "n_pos": 362,
+    "precision": 0.9277777777777778,
+    "recall": 0.9226519337016574,
+    "f1": 0.9252077562326869
+   },
+   "macro_f1": 0.9122343364874156,
+   "severe": {
+    "n": 210,
+    "n_pos": 130,
+    "precision": 0.944,
+    "recall": 0.9076923076923077,
+    "f1": 0.9254901960784314
+   },
+   "by_type_f1": {
+    "control_change": 0.897,
+    "dividend": 0.983,
+    "holder_increase": 0.983,
+    "holder_reduction": 0.982,
+    "investigation": 0.919,
+    "litigation": 1.0,
+    "penalty": 0.974,
+    "performance_express": 0.947,
+    "performance_forecast": 0.939,
+    "regulatory_letter": 0.778,
+    "repurchase": 0.682,
+    "restructuring": 0.933,
+    "st_change": 0.947,
+    "unlock": 0.806
+   }
+  }
+ }
+}
