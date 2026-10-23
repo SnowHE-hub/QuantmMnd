@@ -15,7 +15,8 @@ from pathlib import Path
 import pandas as pd
 import pyarrow.dataset as ds
 
-from quantmind.line_a.evidence.ann_types import classify_title, subject_tag
+from quantmind.line_a.evidence.ann_classifier import classify_titles
+from quantmind.line_a.evidence.ann_types import subject_tag
 from quantmind.line_a.evidence.event_chain import Ann, state_as_of
 
 FIN_FIELDS = {
@@ -56,11 +57,28 @@ def _clean(v):
     return v
 
 
+def _disp(v, unit: str | None) -> str | None:
+    """金额的可读写法，由代码换算（T-051：小模型自己换算单位常错一个数量级）。"""
+    if v is None or not isinstance(v, int | float) or isinstance(v, bool):
+        return None
+    if unit == "元":
+        return f"{v / 1e8:.2f}亿元" if abs(v) >= 1e8 else (f"{v / 1e4:.2f}万元" if abs(v) >= 1e4 else f"{v:.2f}元")
+    if unit == "万元":
+        return f"{v / 1e4:.2f}亿元" if abs(v) >= 1e4 else f"{v:.2f}万元"
+    return None
+
+
+def _with_display(rec: dict, units: dict) -> dict:
+    d = {k: x for k, u in units.items() if (x := _disp(rec.get(k), u)) is not None}
+    return rec | ({"_display": d} if d else {})
+
+
 @dataclass
 class DataTools:
     lake: Path                       # data/lake
     as_of: str                       # YYYYMMDD；所有工具的时点上限
     pdf_dir: Path | None = None      # 已取得的公告 PDF 缓存目录
+    display_amounts: bool = False    # 金额另附 _display 可读写法（T-051 harness v3；判定之前默认关闭）
 
     # ------------------------------------------------------------------ A1 财务
     def financial_snapshot(self, ticker: str, periods: int = 8) -> dict:
@@ -77,6 +95,8 @@ class DataTools:
                  "end_date": str(r["end_date"]), "ann_date": str(r["ann_date"]),
                  **{f: _clean(r[f]) for f in fields if f in r},
                  "_units": dict.fromkeys(fields, UNITS[table])} for _, r in df.iterrows()]
+            if self.display_amounts:
+                out["tables"][table] = [_with_display(x, x["_units"]) for x in out["tables"][table]]
         return out
 
     def forecasts_and_express(self, ticker: str, lookback_days: int = 400) -> dict:
@@ -96,6 +116,8 @@ class DataTools:
             units = FORECAST_UNITS if api == "forecast" else EXPRESS_UNITS
             res[api] = [{"evidence_id": f"tushare:{api}:{ticker}:{r['end_date']}:{r['ann_date']}",
                          **{c: _clean(r[c]) for c in cols if c in r}, "_units": units} for _, r in df.iterrows()]
+            if self.display_amounts:
+                res[api] = [_with_display(x, units) for x in res[api]]
         return res
 
     def disclosure_schedule(self, ticker: str) -> dict:
@@ -164,9 +186,9 @@ class DataTools:
                     "巨潮元数据在该区间没有记录（可能是采集尚未覆盖，不能据此推断没有公告）"}
         rank = {"routine": 0, "watch": 1, "major": 2}
         rows = []
-        for _, r in df.sort_values("available_at", ascending=False).iterrows():
-            c = classify_title(r["announcementTitle"])
-            if event_types and c.event_type not in event_types:
+        df = df.sort_values("available_at", ascending=False)
+        for (_, r), c in zip(df.iterrows(), classify_titles(df["announcementTitle"].astype(str).tolist()), strict=True):
+            if event_types and not set(c.types) & set(event_types):
                 continue
             if rank.get(c.importance, 0) < rank.get(min_importance, 0):
                 continue
@@ -175,8 +197,9 @@ class DataTools:
         out = []
         for r, c in rows[:limit]:
             out.append({"evidence_id": f"cninfo:ann:{r['announcementId']}", "title": r["announcementTitle"],
-                        "available_at": r["available_at"], "event_type": c.event_type, "stage": c.stage,
-                        "importance": c.importance, "rule": f"{c.type_rule}/{c.stage_rule}"})
+                        "available_at": r["available_at"], "event_type": c.event_type, "event_types": list(c.types),
+                        "stage": c.stage, "importance": c.importance, "classified_by": c.source,
+                        "rule": f"{c.type_rule}/{c.stage_rule}"})
         return {**meta, "announcements": out, "total": total, "truncated": total > limit,
                 "note": (f"只返回最近的 {limit} 条，共 {total} 条；更早的请缩小 lookback_days 或按 event_types 过滤"
                          if total > limit else "")}
@@ -184,8 +207,8 @@ class DataTools:
     def event_chains(self, ticker: str, lookback_days: int = 365) -> dict:
         df = self._announcements(ticker, lookback_days)
         anns = []
-        for _, r in df.iterrows():
-            c = classify_title(r["announcementTitle"])
+        cls = classify_titles(df["announcementTitle"].astype(str).tolist()) if len(df) else []
+        for (_, r), c in zip(df.iterrows(), cls, strict=True):
             if c.event_type != "other" and not c.is_summary_or_meta:
                 anns.append(Ann(str(r["announcementId"]), ticker, c.event_type, c.stage, r["available_at"],
                                 r["announcementTitle"], subject_tag(r["announcementTitle"], c.event_type)))

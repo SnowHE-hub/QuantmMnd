@@ -92,9 +92,9 @@ def _latest_event(lake: Path, api: str) -> Path | None:
 
 
 def cninfo_types(lake: Path, tickers: set[str], lo: str, hi: str) -> dict[str, set[str]]:
-    """(lo, hi] 自然日内的巨潮公告，按标题规则分出 major / watch 的事件类型。"""
+    """(lo, hi] 自然日内的巨潮公告，按公告分类器（T-049 MacBERT；其余类型用标题规则）分出 major / watch 的事件类型。"""
     from quantmind.line_a.event_monitor import cninfo_ts_code
-    from quantmind.line_a.evidence.ann_types import classify_title
+    from quantmind.line_a.evidence.ann_classifier import classify_titles
     out: dict[str, set[str]] = {}
     parts = Path(lake) / "text/cninfo/_parts"
     days = pd.date_range(pd.Timestamp(lo) + pd.Timedelta(days=1), pd.Timestamp(hi), freq="D")
@@ -103,11 +103,9 @@ def cninfo_types(lake: Path, tickers: set[str], lo: str, hi: str) -> dict[str, s
         if not f.exists():
             continue
         df = pd.read_parquet(f, columns=["secCode", "announcementTitle"])
-        for code, title in zip(df["secCode"], df["announcementTitle"], strict=True):
-            t = cninfo_ts_code(code)
-            if t not in tickers:
-                continue
-            c = classify_title(str(title))
+        df["ticker"] = df["secCode"].map(cninfo_ts_code)
+        df = df[df["ticker"].isin(tickers)]
+        for t, c in zip(df["ticker"], classify_titles(df["announcementTitle"].astype(str).tolist()), strict=True):
             if c.importance != "routine" and not c.is_summary_or_meta and c.event_type != "other":
                 out.setdefault(t, set()).add(c.event_type)
     return out

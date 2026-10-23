@@ -3,14 +3,16 @@
 两个来源：
 - Tushare 结构化事件表：取"公告日或交易日 = as_of"的新记录 → 证券身份就是 ts_code → 规则分级 → 事件队列；
 - 巨潮公告元数据（v2，2026-10-23，T-040）：发布日期在 (上一个交易日, as_of] 的公告 → secCode 映射到 ts_code →
-  ann_types 标题规则（X4 的结论：继续用规则，T-038）→ major / watch 进入队列，routine 不进入。
+  公告分类器（v3，2026-10-24：T-049 采用 MacBERT 多标签，14 类由模型判断，其余类型与阶段仍用标题规则）
+  → major / watch 进入队列，routine 不进入。
 - 只提高**研究优先级**，不提高投资排名；不在支持域内的股票只进入研究观察。
 - 每条事件都带证据编号 `tushare:<表>:<主键…>`，规则编号写在 rule 字段里，便于审计。
 分级规则（第一版，阈值都可在这里调整并记录版本）：
 - major：业绩预告首亏 / 预减 / 续亏；业绩快报净利润同比 ≤ −50%；审计意见非标准；名称新增 ST / *ST 或"退"；
   单个股东减持比例 ≥ 1%；未来 20 日解禁比例 ≥ 5%；
 - watch：其余业绩预告与快报；其他减持与增持；回购；龙虎榜；大宗交易折价 ≥ 5%；股东户数；质押比例 ≥ 30%；停牌。
-- 巨潮公告：重要性取标题规则的默认值（立案、处罚、退市风险、风险警示、重组、控制权变更、澄清为 major），规则编号 C:<T 规则号>。
+- 巨潮公告：重要性取各类型的默认值（立案、处罚、退市风险、风险警示、重组、控制权变更、澄清为 major），
+  规则编号 C:M:<模型版本> 或 C:<T 规则号>（类型来自规则时）；模型不可用时整批降级到规则，编号仍是 C:<T 规则号>。
 """
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
-RULE_VERSION = "event_monitor-v2-2026-10-23"
+RULE_VERSION = "event_monitor-v3-2026-10-24"
 NEG_FORECAST = {"首亏", "预减", "续亏", "略减"}
 CNINFO_SUFFIX = (("92", ".BJ"), ("6", ".SH"), ("0", ".SZ"), ("3", ".SZ"), ("4", ".BJ"), ("8", ".BJ"))
 
@@ -150,7 +152,7 @@ def cninfo_window(lake: Path, as_of) -> list[str]:
 
 
 def scan_cninfo(lake: Path, as_of, universe: set[str] | None = None) -> list[Event]:
-    from quantmind.line_a.evidence.ann_types import classify_title
+    from quantmind.line_a.evidence.ann_classifier import classify_titles
     parts = Path(lake) / "text/cninfo/_parts"
     files = [f for f in (parts / f"{ymd}.parquet" for ymd in cninfo_window(lake, as_of)) if f.exists()]
     if not files:
@@ -160,12 +162,13 @@ def scan_cninfo(lake: Path, as_of, universe: set[str] | None = None) -> list[Eve
     if universe is None:
         sb = sorted(Path(lake).glob("stock_basic_full_merged_2*.parquet"))
         universe = set(pd.read_parquet(sb[-1], columns=["ts_code"])["ts_code"]) if sb else None
+    df["ticker"] = df["secCode"].map(cninfo_ts_code)
+    df = df[df["ticker"].notna()]
+    if universe is not None:
+        df = df[df["ticker"].isin(universe)]
     ev: list[Event] = []
-    for aid, code, title in zip(df["announcementId"], df["secCode"], df["announcementTitle"], strict=True):
-        t = cninfo_ts_code(code)
-        if t is None or (universe is not None and t not in universe):
-            continue
-        c = classify_title(str(title))
+    for aid, t, title, c in zip(df["announcementId"], df["ticker"], df["announcementTitle"],
+                                classify_titles(df["announcementTitle"].astype(str).tolist()), strict=True):
         if c.importance == "routine" or c.is_summary_or_meta or c.event_type == "other":
             continue
         ev.append(Event(t, "cninfo", c.event_type, c.importance, f"C:{c.type_rule}", f"cninfo:ann:{aid}",

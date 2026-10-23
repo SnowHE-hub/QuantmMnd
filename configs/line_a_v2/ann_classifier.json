@@ -1,0 +1,167 @@
+{
+ "version": "macbert-x4v2-g2",
+ "task": "T-049",
+ "adopted_at": "2026-10-24",
+ "guide": "g2",
+ "model_dir": "/home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v2/macbert_multilabel_g2",
+ "thresholds": {
+  "performance_forecast": 0.125,
+  "performance_express": 0.1,
+  "repurchase": 0.925,
+  "holder_reduction": 0.5,
+  "holder_increase": 0.95,
+  "unlock": 0.95,
+  "dividend": 0.95,
+  "st_change": 0.625,
+  "investigation": 0.875,
+  "penalty": 0.775,
+  "regulatory_letter": 0.925,
+  "litigation": 0.575,
+  "restructuring": 0.95,
+  "control_change": 0.875
+ },
+ "gold_v2_score": {
+  "R_rule": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 0.8695652173913043,
+    "recall": 0.8843537414965986,
+    "f1": 0.8768971332209107
+   },
+   "macro_f1": 0.8186873872355961,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 0.7241379310344828,
+    "recall": 0.8513513513513513,
+    "f1": 0.782608695652174
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 0.8801498127340824,
+    "recall": 0.8901515151515151,
+    "f1": 0.8851224105461394
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 0.78125,
+    "recall": 0.8333333333333334,
+    "f1": 0.8064516129032259
+   },
+   "by_type_f1": {
+    "performance_forecast": 1.0,
+    "performance_express": 0.958,
+    "repurchase": 0.857,
+    "holder_reduction": 1.0,
+    "holder_increase": 0.967,
+    "unlock": 0.444,
+    "dividend": 0.941,
+    "st_change": 0.667,
+    "investigation": 1.0,
+    "penalty": 1.0,
+    "regulatory_letter": 0.083,
+    "litigation": 1.0,
+    "restructuring": 0.877,
+    "control_change": 0.667
+   }
+  },
+  "D_deepseek": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 1.0,
+    "recall": 0.9625850340136054,
+    "f1": 0.9809358752166377
+   },
+   "macro_f1": 0.9846524414850686,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 1.0,
+    "recall": 0.9696969696969697,
+    "f1": 0.9846153846153847
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 1.0,
+    "recall": 0.9,
+    "f1": 0.9473684210526316
+   },
+   "by_type_f1": {
+    "performance_forecast": 1.0,
+    "performance_express": 1.0,
+    "repurchase": 0.983,
+    "holder_reduction": 1.0,
+    "holder_increase": 1.0,
+    "unlock": 0.833,
+    "dividend": 0.969,
+    "st_change": 1.0,
+    "investigation": 1.0,
+    "penalty": 1.0,
+    "regulatory_letter": 1.0,
+    "litigation": 1.0,
+    "restructuring": 1.0,
+    "control_change": 1.0
+   }
+  },
+  "M_macbert": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 0.9757785467128027,
+    "recall": 0.9591836734693877,
+    "f1": 0.967409948542024
+   },
+   "macro_f1": 0.9692457888603708,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 0.9333333333333333,
+    "recall": 0.9459459459459459,
+    "f1": 0.9395973154362416
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 0.9732824427480916,
+    "recall": 0.9659090909090909,
+    "f1": 0.9695817490494296
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 1.0,
+    "recall": 0.9,
+    "f1": 0.9473684210526316
+   },
+   "by_type_f1": {
+    "performance_forecast": 1.0,
+    "performance_express": 1.0,
+    "repurchase": 0.912,
+    "holder_reduction": 1.0,
+    "holder_increase": 0.983,
+    "unlock": 0.963,
+    "dividend": 0.969,
+    "st_change": 0.857,
+    "investigation": 1.0,
+    "penalty": 0.973,
+    "regulatory_letter": 1.0,
+    "litigation": 1.0,
+    "restructuring": 0.912,
+    "control_change": 1.0
+   }
+  }
+ },
+ "note": "thresholds tuned on calib (F1 per type); 14 X4 types from model, other types and stage from ann_types rules"
+}
