@@ -103,6 +103,30 @@ def _record_numbers(rec: dict) -> list[float]:
     return out
 
 
+def _norm(t: str) -> str:
+    """引文比对的规范化：全角转半角（NFKC）、去掉空白，统一引号。"""
+    import unicodedata
+    t = unicodedata.normalize("NFKC", t)
+    return re.sub(r"\s+", "", t).replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+
+
+def quote_in(q: str, text: str) -> bool:
+    """引文要逐字出现在记录文本里；引文里有省略号时，拆成几段，要求各段按顺序出现（v2，T-050）。"""
+    nt = _norm(text)
+    parts = [x for x in re.split(r"……|…|\.{3,}", _norm(q)) if x]
+    pos = 0
+    for x in parts:
+        i = nt.find(x, pos)
+        if i < 0:
+            return False
+        pos = i + len(x)
+    return bool(parts)
+
+
+def cu_of(r: dict, c: dict, own) -> str | None:
+    return r.get("unit") if own is not None else c.get("unit")
+
+
 def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
     claims = {c["local_id"]: c for c in output.get("claims", [])}
     checks: dict[str, ClaimCheck] = {}
@@ -125,7 +149,7 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 quote_ok = None
                 if q:
                     texts = "".join(str(x) for x in rec.values() if isinstance(x, str))
-                    quote_ok = re.sub(r"\s+", "", q) in re.sub(r"\s+", "", texts)
+                    quote_ok = quote_in(q, texts)
                     if not quote_ok:
                         ck.status = "mismatch"
                         ck.notes.append("quote not found in the cited record")
@@ -147,6 +171,17 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 if not (f and v is not None):
                     continue
                 if not numeric:
+                    # 文档段落没有这个字段（字段名是模型自己起的）：到记录的原文里找这个数（v2，T-050）
+                    body = "".join(str(x) for x in rec.values() if isinstance(x, str))
+                    if body and f not in rec:
+                        ok = _value_in_quote(float(v), cu_of(r, c, own), body)
+                        if own is not None and not ok:
+                            ck.status = "mismatch"
+                            ck.notes.append(f"value {v} not found in the cited record text")
+                        if own is None:
+                            claim_tried += 1
+                            claim_hits += ok
+                        continue
                     ck.status = "unverifiable"
                     ck.notes.append(f"field {f} not numeric in record")
                     continue

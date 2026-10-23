@@ -170,3 +170,20 @@ def test_a3_holders_and_managers_point_in_time(tmp_path):
     assert h["new_entrants"] == ["丙"] and h["exited"] == ["乙"]
     m = t.current_managers("X")
     assert [x["name"] for x in m["managers"]] == ["张"]                                         # 李已离任，王尚未任职
+
+
+def test_verifier_v2_document_text_and_ellipsis_quotes():
+    from quantmind.line_a.harness.verifier import quote_in, verify
+    para = "控股股东计划减持本公司股份不超过1,383.4079万股（即不超过公司总股本的3.00%）。"
+    ev = {"doc:1:p1:3": {"evidence_id": "doc:1:p1:3", "text": para}}
+    out = {"claims": [
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "拟减持不超过1383.4079万股", "value": 1383.4079,
+         "unit": "万股", "evidence": [{"evidence_id": "doc:1:p1:3", "field": "减持上限"}]},
+        {"local_id": "c2", "claim_type": "reported_fact", "text": "拟减持不超过2000万股", "value": 2000, "unit": "万股",
+         "evidence": [{"evidence_id": "doc:1:p1:3", "field": "减持上限"}]},
+        {"local_id": "c3", "claim_type": "reported_fact", "text": "公告原文", "evidence": [
+            {"evidence_id": "doc:1:p1:3", "quote": "控股股东计划减持……不超过公司总股本的3.00%"}]}]}
+    st = {c.local_id: c.status for c in verify(out, ev)}
+    assert st == {"c1": "verified", "c2": "mismatch", "c3": "verified"}      # 原文里找数；数不对仍是不一致
+    assert quote_in("（即不超过公司总股本的3.00%）", "(即不超过公司总股本的3.00%)")       # 全角半角统一
+    assert not quote_in("总股本的5.00%", para)
