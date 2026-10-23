@@ -29,6 +29,33 @@ LABEL_SYSTEM = ("你是 A 股上市公司公告的分类标注员。下面给出
                 "只根据标题判断。类别：\n" + "\n".join(f"- {k}：{v[0]}" for k, v in TYPES.items()))
 
 
+# 指南 v2（2026-10-23 补充登记）：定义 + 排除项，逐条来自 T-038 的复核原则（2026-10-22 写定，早于金标准 v2）
+EXCLUSIONS = {
+    "performance_forecast": "不含：业绩快报、业绩承诺实现情况、未来几年的经营预测、子公司的业绩、对监管函件的回复",
+    "performance_express": "不含：业绩预告、月度产销快报或经营数据快报、子公司（另一上市公司）的快报",
+    "repurchase": "不含：限制性股票回购注销、回购子公司股权、出售或处置已回购股份（含转给员工持股计划）",
+    "holder_reduction": "不含：公司减持已回购的股份、减持可转债或其他债券",
+    "holder_increase": "不含：增持可转债、认购定增免于要约的法律意见",
+    "unlock": "不含：解除限售条件未成就、回购注销不符合解除限售条件的股票、回购股东名单",
+    "dividend": "不含：因分红引起的转股价 / 发行价 / 回购价调整、转债暂停转股、利润分配权等股权交易",
+    "st_change": "只算已被实施或已撤销及其后续进展；不含：可能被实施的风险提示、可能被终止上市的提示、"
+                 "简称带 ST 但内容是其他事项的公告",
+    "investigation": "只算公司、控股股东、实际控制人被立案；不含：高管个人被立案或留置、诉讼执行立案、"
+                     "尽职调查承诺函、反倾销调查、事故调查",
+    "penalty": "算公司、子公司、相关人员、控股股东、实控人收到行政处罚（含事先告知书）、市场禁入、纪律处分、公开谴责；"
+               "不含：最近五年处罚情况说明、行政监管措施、刑事处罚",
+    "regulatory_letter": "只算收到交易所或监管机构的问询函、关注函、监管函、警示函、责令改正等监管措施；"
+                         "不含：对函件的回复或延期回复、发行审核问询函的回复、独立董事或审计委员会的督促函、"
+                         "公司向股东发出的征询函",
+    "litigation": "涉及诉讼或仲裁，主体不限",
+    "restructuring": "不含：控股股东集团层面的重组、子公司之间的吸收合并、一般的对外投资或资产购买、重组完成后的业绩承诺核查",
+    "control_change": "不含：控股股东名称或工商信息变更、表决权委托到期、权益变动触及 1%、未表明控制权变更的股份转让协议",
+}
+GUIDE_V2 = ("你是 A 股上市公司公告的分类标注员。下面给出 14 个事件类别的定义（含排除项）和一批公告标题。"
+            "按定义判断每条标题属于哪些类别：可以属于多个，也可以都不属于（types 为空）。只根据标题判断。类别：\n"
+            + "\n".join(f"- {k}：{v[0]}。{EXCLUSIONS[k]}" for k, v in TYPES.items()))
+
+
 class Item(BaseModel):
     id: int
     types: list[Literal[tuple(TYPE_KEYS)]] = Field(default_factory=list)  # type: ignore[valid-type]
@@ -78,8 +105,13 @@ def sample_sets(x4_dir: Path, out_dir: Path, gold_v1: Path) -> dict:
     return {"train": len(train), "calib": len(calib), "gold_a": len(a), "gold_b": len(b), "excluded_v1": len(used)}
 
 
-def distill(llm, df: pd.DataFrame, out_jsonl: Path, *, batch: int = 20, log=print) -> pd.DataFrame:
-    """每批 20 条标题；已写入 out_jsonl 的公告跳过（断点续跑）。返回 announcementId → types 列表。"""
+def distill(llm, df: pd.DataFrame, out_jsonl: Path, *, batch: int = 20, log=print, system: str = LABEL_SYSTEM,
+            workers: int = 1, llm_factory=None) -> pd.DataFrame:
+    """每批 20 条标题；已写入 out_jsonl 的公告跳过（断点续跑）。返回 announcementId → types 列表。
+    workers > 1 时并行，每个线程用 llm_factory() 建自己的 LLM 对象，写文件加锁。"""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
     from quantmind.line_a.harness.llm import BudgetExceededError, TLSInterceptionError
     from quantmind.line_a.harness.structured import chat_structured
     out_jsonl = Path(out_jsonl)
@@ -91,28 +123,41 @@ def distill(llm, df: pd.DataFrame, out_jsonl: Path, *, batch: int = 20, log=prin
                 done[r["announcementId"]] = r["types"]
     todo = df[~df["announcementId"].isin(done)]
     rows = list(todo[["announcementId", "title"]].itertuples(index=False))
-    with out_jsonl.open("a", encoding="utf-8") as f:
-        for i in range(0, len(rows), batch):
-            chunk = rows[i:i + batch]
-            user = "\n".join(f"{j}. {r.title}" for j, r in enumerate(chunk)) + \
-                '\n输出 JSON：{"items": [{"id": 序号, "types": [类别英文键, ...]}, ...]}，每条标题都要有一项。'
-            try:
-                out, rec = chat_structured(llm, [{"role": "system", "content": LABEL_SYSTEM},
-                                                 {"role": "user", "content": user}], Batch, thinking=None,
-                                           max_tokens=3000, meta={"task": "x4v2_distill"})
-            except (TLSInterceptionError, BudgetExceededError):
-                raise
-            except Exception as e:  # noqa: BLE001  单批失败（重试后仍断网等）：跳过，下一轮续标
-                log(f"  batch {i} failed: {type(e).__name__}: {str(e)[:120]}")
-                continue
-            got = {it["id"]: it["types"] for it in (out or {}).get("items", [])}
+    chunks = [rows[i:i + batch] for i in range(0, len(rows), batch)]
+    lock, local = threading.Lock(), threading.local()
+    stop = {"err": None}
+
+    def one(k_chunk):
+        k, chunk = k_chunk
+        if stop["err"] is not None:
+            return
+        cl = llm if workers == 1 or llm_factory is None else getattr(local, "llm", None)
+        if cl is None:
+            cl = local.llm = llm_factory()
+        user = "\n".join(f"{j}. {r.title}" for j, r in enumerate(chunk)) + \
+            '\n输出 JSON：{"items": [{"id": 序号, "types": [类别英文键, ...]}, ...]}，每条标题都要有一项。'
+        try:
+            out, _ = chat_structured(cl, [{"role": "system", "content": system}, {"role": "user", "content": user}], Batch,
+                                     thinking=None, max_tokens=3000, meta={"task": "x4v2_distill"})
+        except (TLSInterceptionError, BudgetExceededError) as e:
+            stop["err"] = e
+            return
+        except Exception as e:  # noqa: BLE001  单批失败（重试后仍断网等）：跳过，下一轮续标
+            log(f"  batch {k} failed: {type(e).__name__}: {str(e)[:120]}")
+            return
+        got = {it["id"]: it["types"] for it in (out or {}).get("items", [])}
+        with lock:
             for j, r in enumerate(chunk):
                 if j in got:                                  # 缺的那条留到下次续跑时重标
                     f.write(json.dumps({"announcementId": r.announcementId, "types": got[j]}, ensure_ascii=False) + "\n")
                     done[r.announcementId] = got[j]
             f.flush()
-            if (i // batch) % 50 == 0:
-                log(f"  distill {i + len(chunk)}/{len(rows)}")
+            if k % 50 == 0:
+                log(f"  distill batch {k}/{len(chunks)}")
+    with out_jsonl.open("a", encoding="utf-8") as f, ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+        list(ex.map(one, enumerate(chunks)))
+    if stop["err"] is not None:
+        raise stop["err"]
     return pd.Series(done, name="types")
 
 
