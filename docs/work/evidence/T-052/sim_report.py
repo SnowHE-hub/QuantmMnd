@@ -25,31 +25,40 @@ def pct(x) -> str:
 
 def main() -> None:
     g = pd.read_parquet(OUT / "grid_summary.parquet")
+    g["buffer"] = g["buffer"].fillna(0.0)
+    # 事后补充的描述性指标（登记里没有）：普跌行情里现金本身就有"超额"，按平均仓位扣掉基准的贡献
+    g["excess_exposure_adj"] = g["total_return"] - (1 - g["avg_cash_share"]) * g["bench_pool_ew_return"]
     prim = json.loads((OUT / "primary.json").read_text(encoding="utf-8"))
     lines = ["## 主配置（事先指定，每档资金一个）", "",
-             "| 窗口 | 资金 | 持股 | 权限 | 账户收益 | 前 1500 等权 | 超额 | 超额 95% 区间 | 中证 1000 | 最大回撤 | 费用占本金 | 换手（倍） | 平均现金 |",
-             "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+             "| 窗口 | 资金 | 持股 | 权限 | 账户收益 | 前 1500 等权 | 超额 | 超额 95% 区间 | 按仓位调整的超额* | 中证 1000 | 最大回撤 | 费用占本金 | 换手（倍） | 平均现金 |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for k, v in sorted(prim.items(), key=lambda kv: (kv[1]["config"]["window"], kv[1]["config"]["aum"],
                                                      kv[1]["config"]["boards"])):
         s, c = v["summary"], v["config"]
         ci = v["vs_pool_ew"]["ci95"]
         lines.append(f"| {c['window']} | {AUM_NAME[int(c['aum'])]} | {c['n']} | {c['boards']} | {pct(s['total_return'])} | "
                      f"{pct(s['bench_pool_ew_return'])} | {pct(v['vs_pool_ew']['excess_compound'])} | "
-                     f"[{pct(ci[0])}, {pct(ci[1])}] | {pct(s.get('ret_中证1000'))} | {pct(s['max_drawdown'])} | "
+                     f"[{pct(ci[0])}, {pct(ci[1])}] | "
+                     f"{pct(s['total_return'] - (1 - s['avg_cash_share']) * s['bench_pool_ew_return'])} | "
+                     f"{pct(s.get('ret_中证1000'))} | {pct(s['max_drawdown'])} | "
                      f"{s['cost_share_of_aum'] * 100:.2f}% | {s['turnover_x']:.1f} | {s['avg_cash_share'] * 100:.1f}% |")
     lines += ["", "## 网格分布（全部组合；按信号 × 资金 × 窗口，账户收益的中位数与四分位）", "",
-              "| 窗口 | 信号 | 资金 | 组合数 | 中位数 | 25% | 75% | 最好 | 最差 | 中位超额（对前 1500 等权） |", "|---|---|---|---|---|---|---|---|---|---|"]
+              "| 窗口 | 信号 | 资金 | 组合数 | 中位数 | 25% | 75% | 最好 | 最差 | 中位超额（对前 1500 等权） | 中位按仓位调整的超额* | 中位平均现金 |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     gg = g[g["boards"] != "main_only"]
     for (w, sig, aum), x in gg.groupby(["window", "signal", "aum"]):
         r = x["total_return"]
         lines.append(f"| {w} | {sig} | {AUM_NAME[int(aum)]} | {len(x)} | {pct(r.median())} | {pct(r.quantile(.25))} | "
-                     f"{pct(r.quantile(.75))} | {pct(r.max())} | {pct(r.min())} | {pct(x['excess_vs_pool'].median())} |")
-    lines += ["", "## 单个维度的影响（W6，其余维度取全部组合的中位数）", ""]
+                     f"{pct(r.quantile(.75))} | {pct(r.max())} | {pct(r.min())} | {pct(x['excess_vs_pool'].median())} | "
+                     f"{pct(x['excess_exposure_adj'].median())} | {x['avg_cash_share'].median() * 100:.0f}% |")
+    lines += ["", "## 单个维度的影响（W6，按仓位调整的超额*，其余维度取全部组合的中位数）", ""]
     for dim in ("n", "step", "buffer", "exec"):
-        t = gg[gg["window"] == "W6"].groupby([dim, "aum"])["total_return"].median().unstack()
+        t = gg[gg["window"] == "W6"].groupby([dim, "aum"])["excess_exposure_adj"].median().unstack()
         lines.append(f"**{dim}**：" + "；".join(f"{i}: " + " / ".join(pct(t.loc[i, a]) for a in t.columns)
                                                for i in t.index) + "（10 万 / 100 万 / 1000 万）")
         lines.append("")
+    lines += ["", "\\* 按仓位调整的超额 = 账户收益 − (1 − 平均现金占比) × 前 1500 等权收益。事后补充的描述性指标，不在登记里；"
+              "用来扣掉普跌行情里现金本身带来的“超额”。"]
     (OUT / "report.md").write_text("\n".join(lines), encoding="utf-8")
     # 净值图：主配置，三档资金分面，W6
     from matplotlib import font_manager
