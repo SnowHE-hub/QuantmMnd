@@ -372,7 +372,8 @@ def report(res: dict, names: dict[str, str] | None = None, rewrite_llm=None) -> 
         for k, title in titles.items():
             L += [f"**{title}**", "", tt.get(k) or "（无）", ""]
         summaries.append({"ticker": r.ticker, "n_points": len(sm["points"]), "n_dropped": len(sm["dropped"]),
-                          "dropped": sm["dropped"], "mode": sm["mode"], "errors": sm["errors"]})
+                          "dropped": sm["dropped"], "mode": sm["mode"], "errors": sm["errors"],
+                          "first_pass": sm.get("first_pass", [])})
         fl = res["flags"][res["flags"]["ticker"] == r.ticker]
         if len(fl):
             L += ["**风险事实（只是事实或待确认项，不扣分）**", ""] + [f"- {f}（{ro}）" for ro, f in zip(fl["role"], fl["flag"],

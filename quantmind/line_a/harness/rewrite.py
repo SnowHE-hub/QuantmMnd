@@ -255,8 +255,8 @@ def summarize(llm: LLM | None, sk: dict, *, max_points: int = 8, max_claims: int
     except Exception as e:  # noqa: BLE001  网络或预算问题：只给模板
         return {"mode": "none", "points": [], "dropped": [], "errors": [f"model error: {type(e).__name__}"]}
     pts = (out or {}).get("points", [])[:max_points]
-    bad = {i: check_point(sk, p) for i, p in enumerate(pts)}
-    bad = {i: e for i, e in bad.items() if e}
+    first = [p | {"errors": check_point(sk, p)} for p in pts]     # 第一轮的逐条核对结果（X11 用来估计误报）
+    bad = {i: p["errors"] for i, p in enumerate(first) if p["errors"]}
     if bad:                                              # 把具体错误发回，修一次
         fix = msgs + [{"role": "assistant", "content": json.dumps({"points": pts}, ensure_ascii=False)},
                       {"role": "user", "content": "下面这些要点没有通过核对，请只修改这些条目，其余照抄，输出完整的 JSON：\n"
@@ -272,4 +272,4 @@ def summarize(llm: LLM | None, sk: dict, *, max_points: int = 8, max_claims: int
         (dropped if e else kept).append(p | ({"errors": e[:6]} if e else {}))
     filled = [PH.sub(lambda m: _fmt(sk["claims"][f"{m.group(1)}:{m.group(2)}"]), p["text"]) +
               "（" + "，".join(p.get("refs") or []) + "）" for p in kept]
-    return {"mode": "model", "points": filled, "dropped": dropped, "errors": []}
+    return {"mode": "model", "points": filled, "dropped": dropped, "errors": [], "first_pass": first}
