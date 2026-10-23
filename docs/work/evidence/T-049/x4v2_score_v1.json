@@ -1,0 +1,200 @@
+{
+ "guide": "v1",
+ "n_train": 29962,
+ "n_calib": 2919,
+ "train_pos_rate": {
+  "performance_forecast": 0.024900000542402267,
+  "performance_express": 0.03739999979734421,
+  "repurchase": 0.026399999856948853,
+  "holder_reduction": 0.04670000076293945,
+  "holder_increase": 0.03590000048279762,
+  "unlock": 0.036400001496076584,
+  "dividend": 0.04100000113248825,
+  "st_change": 0.017999999225139618,
+  "investigation": 0.026900000870227814,
+  "penalty": 0.01360000018030405,
+  "regulatory_letter": 0.041099999099969864,
+  "litigation": 0.03790000081062317,
+  "restructuring": 0.04919999837875366,
+  "control_change": 0.002899999963119626
+ },
+ "thresholds": {
+  "performance_forecast": 0.8,
+  "performance_express": 0.15,
+  "repurchase": 0.925,
+  "holder_reduction": 0.95,
+  "holder_increase": 0.95,
+  "unlock": 0.9,
+  "dividend": 0.65,
+  "st_change": 0.875,
+  "investigation": 0.8,
+  "penalty": 0.875,
+  "regulatory_letter": 0.875,
+  "litigation": 0.925,
+  "restructuring": 0.95,
+  "control_change": 0.65
+ },
+ "d_coverage": 1.0,
+ "score": {
+  "R_rule": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 0.8695652173913043,
+    "recall": 0.8843537414965986,
+    "f1": 0.8768971332209107
+   },
+   "macro_f1": 0.8186873872355961,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 0.7241379310344828,
+    "recall": 0.8513513513513513,
+    "f1": 0.782608695652174
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 0.8801498127340824,
+    "recall": 0.8901515151515151,
+    "f1": 0.8851224105461394
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 0.78125,
+    "recall": 0.8333333333333334,
+    "f1": 0.8064516129032259
+   },
+   "by_type_f1": {
+    "performance_forecast": 1.0,
+    "performance_express": 0.958,
+    "repurchase": 0.857,
+    "holder_reduction": 1.0,
+    "holder_increase": 0.967,
+    "unlock": 0.444,
+    "dividend": 0.941,
+    "st_change": 0.667,
+    "investigation": 1.0,
+    "penalty": 1.0,
+    "regulatory_letter": 0.083,
+    "litigation": 1.0,
+    "restructuring": 0.877,
+    "control_change": 0.667
+   }
+  },
+  "D_deepseek": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 0.8546511627906976,
+    "recall": 1.0,
+    "f1": 0.9216300940438871
+   },
+   "macro_f1": 0.8759060912543432,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 0.6666666666666666,
+    "recall": 1.0,
+    "f1": 0.8
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 0.8599348534201955,
+    "recall": 1.0,
+    "f1": 0.9246935201401052
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 0.8108108108108109,
+    "recall": 1.0,
+    "f1": 0.8955223880597014
+   },
+   "by_type_f1": {
+    "performance_forecast": 0.963,
+    "performance_express": 1.0,
+    "repurchase": 0.984,
+    "holder_reduction": 1.0,
+    "holder_increase": 0.967,
+    "unlock": 0.966,
+    "dividend": 0.904,
+    "st_change": 0.769,
+    "investigation": 0.929,
+    "penalty": 0.973,
+    "regulatory_letter": 0.207,
+    "litigation": 1.0,
+    "restructuring": 0.935,
+    "control_change": 0.667
+   }
+  },
+  "M_macbert": {
+   "all": {
+    "n": 3220,
+    "n_pos": 294,
+    "precision": 0.8123249299719888,
+    "recall": 0.9863945578231292,
+    "f1": 0.890937019969278
+   },
+   "macro_f1": 0.8241507716338549,
+   "severe": {
+    "n": 1380,
+    "n_pos": 74,
+    "precision": 0.5887096774193549,
+    "recall": 0.9864864864864865,
+    "f1": 0.7373737373737375
+   },
+   "part_A": {
+    "n": 420,
+    "n_pos": 264,
+    "precision": 0.8213166144200627,
+    "recall": 0.9924242424242424,
+    "f1": 0.8987993138936535
+   },
+   "part_B": {
+    "n": 2800,
+    "n_pos": 30,
+    "precision": 0.7368421052631579,
+    "recall": 0.9333333333333333,
+    "f1": 0.8235294117647058
+   },
+   "by_type_f1": {
+    "performance_forecast": 0.929,
+    "performance_express": 1.0,
+    "repurchase": 0.885,
+    "holder_reduction": 1.0,
+    "holder_increase": 0.967,
+    "unlock": 0.982,
+    "dividend": 0.904,
+    "st_change": 0.72,
+    "investigation": 0.929,
+    "penalty": 0.783,
+    "regulatory_letter": 0.188,
+    "litigation": 1.0,
+    "restructuring": 0.967,
+    "control_change": 0.286
+   }
+  }
+ },
+ "verdict": {
+  "D_deepseek": {
+   "f1": 0.9216,
+   "gain": 0.0447,
+   "severe_recall": 1.0,
+   "cond1": false,
+   "cond2": true
+  },
+  "M_macbert": {
+   "f1": 0.8909,
+   "gain": 0.014,
+   "severe_recall": 0.9865,
+   "cond1": false,
+   "cond2": true
+  }
+ },
+ "adopted": null,
+ "rule_f1": 0.8769,
+ "rule_severe_recall": 0.8514
+}
