@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "quantmind-research": {
+      "command": "wsl.exe",
+      "args": ["-d", "Ubuntu", "--", "/home/lenovo/miniforge3/envs/qm-gpu/bin/python",
+               "/home/lenovo/projects/qm-t035/quantmind/line_a/mcp_server.py"],
+      "env": {}
+    }
+  }
+}
