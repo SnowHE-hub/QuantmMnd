@@ -59,6 +59,20 @@ def test_forward_report_rc_overlap_dedupe_and_gap(tmp_path):
     assert forward_report_rc(lake, "600001.SH", "20261016", "20261019")[1] == "20261019"
 
 
+def test_rewrite_binding_checks_v2():
+    from quantmind.line_a.harness.rewrite import check_bindings, check_rewrite
+    sk = {"columns": {"facts": ["A1:c1", "A3:c2"], "inferences": [], "counter_and_limits": [], "to_verify": []},
+          "claims": {"A1:c1": {"text": "2025年归母净利润同比下降 30%", "value": -30, "period": "20251231"},
+                     "A3:c2": {"text": "子公司拟回购股份 100 万股", "value": 1e6, "period": None}}}
+    ok = {"facts": "2025年归母净利润同比下降{{c:A1:c1}}；子公司拟回购{{c:A3:c2}}。"}
+    assert check_rewrite(sk, ok) == [] and check_bindings(sk, ok) == []
+    bad = {"facts": "2026年归母净利润同比增长{{c:A1:c1}}；公司已回购股份{{c:A3:c2}}。"}
+    errs = check_bindings(sk, bad)
+    assert check_rewrite(sk, bad) == []                                  # v1 看不出来
+    assert any("direction" in e for e in errs) and any("period" in e for e in errs)
+    assert any("subject '子公司' dropped" in e for e in errs) and any("stage" in e for e in errs)
+
+
 def _f4() -> pd.DataFrame:
     rows = []
     for i in range(30):

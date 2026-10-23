@@ -92,6 +92,61 @@ def check_rewrite(sk: dict, text: dict) -> list[str]:
     return errs
 
 
+# ------------------------------------------------------------------ X11 v2：数字以外的绑定（T-044；评测通过前不接入 rewrite）
+DIR_UP = re.compile(r"增长|增加|上升|提高|扩大|盈利|扭亏|回升|上涨|增至|增持")
+DIR_DN = re.compile(r"下降|减少|下滑|降低|收窄|亏损|首亏|回落|下跌|降至|减至|减持")
+SUBJECTS = ("子公司", "控股股东", "实际控制人", "实控人", "参股公司", "母公司")
+PLAN = re.compile(r"拟|计划|预案|草案|预计")
+DONE = re.compile(r"已(?:经)?(?:完成|实施|回购|减持|增持|披露|发生|支付|到账|转让)|完成|实施完毕")
+YEAR = re.compile(r"(?:19|20)\d{2}")
+_CLAUSE = re.compile(r"[，,；;。\n]")
+
+
+def _clause_of(text: str, start: int, end: int) -> str:
+    lo = max([m.end() for m in _CLAUSE.finditer(text, 0, start)], default=0)
+    m = _CLAUSE.search(text, end)
+    return text[lo: m.start() if m else len(text)]
+
+
+def check_bindings(sk: dict, text: dict) -> list[str]:
+    """对每个占位符所在的分句，与声明原文比较方向、主体、阶段、期间；返回错误列表（空 = 通过）。"""
+    errs = []
+    for sec, s in text.items():
+        if sec.startswith("_"):
+            continue
+        for m in PH.finditer(s):
+            ref = f"{m.group(1)}:{m.group(2)}"
+            c = sk["claims"].get(ref)
+            if c is None:
+                continue
+            seg, orig = PH.sub(" ", _clause_of(s, m.start(), m.end())), c.get("text") or ""
+            up_o, dn_o, up_s, dn_s = (bool(DIR_UP.search(orig)), bool(DIR_DN.search(orig)), bool(DIR_UP.search(seg)),
+                                      bool(DIR_DN.search(seg)))
+            if (up_o and not dn_o and dn_s and not up_s) or (dn_o and not up_o and up_s and not dn_s):
+                errs.append(f"{sec}: {ref} direction changed")
+            for w in SUBJECTS:
+                if (w in seg) != (w in orig) and not (w == "实控人" and "实际控制人" in orig):
+                    errs.append(f"{sec}: {ref} subject '{w}' {'added' if w in seg else 'dropped'}")
+            p_o, d_o, p_s, d_s = bool(PLAN.search(orig)), bool(DONE.search(orig)), bool(PLAN.search(seg)), bool(DONE.search(seg))
+            if (d_s and p_o and not d_o) or (p_s and d_o and not p_o):
+                errs.append(f"{sec}: {ref} stage changed")
+            ok_years = set(YEAR.findall(orig)) | ({str(c["period"])[:4]} if c.get("period") else set())
+            bad = sorted(set(YEAR.findall(seg)) - ok_years)
+            if bad and ok_years:
+                errs.append(f"{sec}: {ref} period {','.join(bad)} not in claim")
+    return errs
+
+
+def rewrite_messages(sk: dict) -> list[dict]:
+    brief = {k: [{"ref": r, "text": sk["claims"][r]["text"], "has_value": sk["claims"][r]["value"] is not None}
+                 for r in refs] for k, refs in sk["columns"].items()}
+    return [{"role": "system", "content": "你是研究报告的转写编辑。只改写给定的条目，不添加任何新事实、新判断或买卖建议。"
+             "输出 JSON 对象，键为 facts、inferences、counter_and_limits、to_verify，值为中文段落。"
+             "凡是数字一律写成占位符 {{c:<角色>:<编号>}}（例如 {{c:A1:c3}}），日期可以照写；不要写任何其他数字。"
+             "has_value 为 true 的事实条目必须各引用一次自己的占位符。"},
+            {"role": "user", "content": json.dumps(brief, ensure_ascii=False)}]
+
+
 def fill(sk: dict, text: dict) -> dict:
     return {k: PH.sub(lambda m: _fmt(sk["claims"][f"{m.group(1)}:{m.group(2)}"]), v) for k, v in text.items()
             if not k.startswith("_")}
@@ -101,13 +156,7 @@ def rewrite(llm: LLM | None, sk: dict) -> dict:
     """返回 {"mode": "model" | "template", "sections": {...}, "errors": [...]}。"""
     if llm is None:
         return {"mode": "template", "sections": template_text(sk), "errors": ["no model"]}
-    brief = {k: [{"ref": r, "text": sk["claims"][r]["text"], "has_value": sk["claims"][r]["value"] is not None}
-                 for r in refs] for k, refs in sk["columns"].items()}
-    msgs = [{"role": "system", "content": "你是研究报告的转写编辑。只改写给定的条目，不添加任何新事实、新判断或买卖建议。"
-             "输出 JSON 对象，键为 facts、inferences、counter_and_limits、to_verify，值为中文段落。"
-             "凡是数字一律写成占位符 {{c:<角色>:<编号>}}（例如 {{c:A1:c3}}），日期可以照写；不要写任何其他数字。"
-             "has_value 为 true 的事实条目必须各引用一次自己的占位符。"},
-            {"role": "user", "content": json.dumps(brief, ensure_ascii=False)}]
+    msgs = rewrite_messages(sk)
     try:
         r = llm.chat(msgs, json_mode=True, thinking=None, max_tokens=4000, meta={"stage": "f9_rewrite"})
         text = json.loads(r.content)
