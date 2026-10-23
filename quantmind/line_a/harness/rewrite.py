@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import re
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from quantmind.line_a.harness.llm import LLM
 
@@ -100,6 +100,8 @@ DIR_DN = re.compile(r"下降|减少|下滑|降低|收窄|亏损|首亏|回落|�
 SUBJECTS = ("子公司", "控股股东", "实际控制人", "实控人", "参股公司", "母公司")
 PLAN = re.compile(r"拟|计划|预案|草案|预计")
 DONE = re.compile(r"已(?:经)?(?:完成|实施|回购|减持|增持|披露|发生|支付|到账|转让)|完成|实施完毕")
+# v2.1：任何"已……"都表示已发生（"已披露 / 已公告 / 已发布 / 已核实"是报道用语，不算阶段）
+DONE_ANY = re.compile(r"已(?!披露|公告|发布|核实|知)经?.|完成|实施完毕")
 YEAR = re.compile(r"(?:19|20)\d{2}")
 _CLAUSE = re.compile(r"[，,；;。\n]")
 
@@ -122,16 +124,23 @@ def check_bindings(sk: dict, text: dict) -> list[str]:
             if c is None:
                 continue
             seg, orig = PH.sub(" ", _clause_of(s, m.start(), m.end())), c.get("text") or ""
-            up_o, dn_o, up_s, dn_s = (bool(DIR_UP.search(orig)), bool(DIR_DN.search(orig)), bool(DIR_UP.search(seg)),
-                                      bool(DIR_DN.search(seg)))
-            if (up_o and not dn_o and dn_s and not up_s) or (dn_o and not up_o and up_s and not dn_s):
-                errs.append(f"{sec}: {ref} direction changed")
+            up_o, dn_o = bool(DIR_UP.search(orig)), bool(DIR_DN.search(orig))
             for w in SUBJECTS:
                 if (w in seg) != (w in orig) and not (w == "实控人" and "实际控制人" in orig):
                     errs.append(f"{sec}: {ref} subject '{w}' {'added' if w in seg else 'dropped'}")
-            p_o, d_o, p_s, d_s = bool(PLAN.search(orig)), bool(DONE.search(orig)), bool(PLAN.search(seg)), bool(DONE.search(seg))
-            if (d_s and p_o and not d_o) or (p_s and d_o and not p_o):
-                errs.append(f"{sec}: {ref} stage changed")
+            # v2.1（T-044 登记的补救：只改方向、阶段两类）：分句里出现了原文没有的反向词 / 另一阶段的词就报错，
+            # 不再要求分句里只有一种方向（"减持后持股……增持"这类混写在 v2 里漏掉了）
+            dirs_o = set(DIR_UP.findall(orig)) | set(DIR_DN.findall(orig))
+            if up_o != dn_o:
+                opp = DIR_DN if up_o else DIR_UP
+                new = [w for w in opp.findall(seg) if w not in dirs_o]
+                if new:
+                    errs.append(f"{sec}: {ref} direction changed ({','.join(new)})")
+            p_o, d_o = bool(PLAN.search(orig)), bool(DONE.search(orig) or DONE_ANY.search(orig))
+            plan_new = [w for w in PLAN.findall(seg) if w not in orig]
+            done_new = [m.group(0) for m in DONE_ANY.finditer(seg) if m.group(0) not in orig]
+            if (done_new and p_o and not d_o) or (plan_new and d_o and not p_o):
+                errs.append(f"{sec}: {ref} stage changed ({','.join(done_new + plan_new)})")
             ok_years = set(YEAR.findall(orig)) | ({str(c["period"])[:4]} if c.get("period") else set())
             bad = sorted(set(YEAR.findall(seg)) - ok_years)
             if bad and ok_years:
@@ -186,3 +195,81 @@ def rewrite(llm: LLM | None, sk: dict) -> dict:
     if errs:
         return {"mode": "template", "sections": template_text(sk), "errors": errs[:20]}
     return {"mode": "model", "sections": fill(sk, text), "errors": []}
+
+
+# ------------------------------------------------------------------ F9 v2：研究要点（2026-10-23，T-044 / T-040）
+# 试跑里整段转写 40 个案例只有 1 个通过核对（裸数字 144 次、引用不存在的声明 25 次）。改成：
+# - 四栏事实由代码按模板生成（数值原样，不经过模型）；
+# - 模型只写不超过 8 条要点，每条结构化输出，自带引用的声明编号；逐条核对（编号、裸数字、绑定 v2.1）；
+# - 不合格的把错误发回修一次，仍不合格的那条单独丢掉并记录，不再整份退回模板。
+class Point(BaseModel):
+    text: str = Field(description="一句中文要点；数字一律写成占位符 {{c:<角色>:<编号>}}，年份写成“2025年”的形式")
+    refs: list[str] = Field(default_factory=list, description="这条要点引用的声明编号，例如 A1:c3")
+
+
+class Summary(BaseModel):
+    points: list[Point] = Field(default_factory=list)
+
+
+SUMMARY_SYSTEM = ("你是研究报告的编辑。根据给定的声明写不超过 8 条研究要点：先写最重要的风险与反证，再写关键财务和事件事实，"
+                  "最后写待核实的问题。只能使用给定的声明，不添加任何新事实、新判断或买卖建议；"
+                  "不要改变声明的方向（增 / 减）、主体（公司 / 子公司 / 股东）、阶段（计划 / 已实施）和期间。"
+                  "凡是数字一律写成占位符 {{c:<角色>:<编号>}}，年份写成“2025年”这种形式。输出 JSON："
+                  '{"points": [{"text": "...", "refs": ["A1:c3", ...]}]}')
+
+
+def _brief_refs(sk: dict, max_claims: int) -> list[str]:
+    cols = sk["columns"]
+    order = cols["counter_and_limits"] + [r for r in cols["to_verify"] if sk["claims"][r].get("a6")] + \
+        cols["facts"] + cols["inferences"] + cols["to_verify"]
+    return list(dict.fromkeys(order))[:max_claims]
+
+
+def check_point(sk: dict, p: dict) -> list[str]:
+    errs = []
+    text = p.get("text") or ""
+    for m in PH.finditer(text):
+        ref = f"{m.group(1)}:{m.group(2)}"
+        if ref not in sk["claims"]:
+            errs.append(f"unknown claim {ref}")
+    for r in p.get("refs") or []:
+        if r not in sk["claims"]:
+            errs.append(f"unknown ref {r}")
+    bare = _DATE.sub(" ", PH.sub(" ", text))
+    errs += [f"bare number {n}" for n in re.findall(r"\d+(?:\.\d+)?", bare)]
+    errs += check_bindings(sk, {"point": text})
+    return errs
+
+
+def summarize(llm: LLM | None, sk: dict, *, max_points: int = 8, max_claims: int = 40) -> dict:
+    """返回 {"points": [填好数值的要点], "dropped": [...], "errors": [...], "mode": "model" | "none"}。"""
+    from quantmind.line_a.harness.structured import chat_structured
+    if llm is None or not sk["claims"]:
+        return {"mode": "none", "points": [], "dropped": [], "errors": ["no model or no claims"]}
+    refs = _brief_refs(sk, max_claims)
+    brief = [{"ref": r, "type": sk["claims"][r]["type"], "text": sk["claims"][r]["text"],
+              "check": sk["claims"][r].get("check"), "a6": sk["claims"][r].get("a6")} for r in refs]
+    msgs = [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": json.dumps(brief, ensure_ascii=False)}]
+    try:
+        out, _ = chat_structured(llm, msgs, Summary, thinking=None, max_tokens=3000, meta={"stage": "f9_summary"})
+    except Exception as e:  # noqa: BLE001  网络或预算问题：只给模板
+        return {"mode": "none", "points": [], "dropped": [], "errors": [f"model error: {type(e).__name__}"]}
+    pts = (out or {}).get("points", [])[:max_points]
+    bad = {i: check_point(sk, p) for i, p in enumerate(pts)}
+    bad = {i: e for i, e in bad.items() if e}
+    if bad:                                              # 把具体错误发回，修一次
+        fix = msgs + [{"role": "assistant", "content": json.dumps({"points": pts}, ensure_ascii=False)},
+                      {"role": "user", "content": "下面这些要点没有通过核对，请只修改这些条目，其余照抄，输出完整的 JSON：\n"
+                       + json.dumps({str(i): e[:6] for i, e in bad.items()}, ensure_ascii=False)}]
+        try:
+            out2, _ = chat_structured(llm, fix, Summary, thinking=None, max_tokens=3000, meta={"stage": "f9_summary_fix"})
+            pts = (out2 or {}).get("points", pts)[:max_points]
+        except Exception:  # noqa: BLE001
+            pass
+    kept, dropped = [], []
+    for p in pts:
+        e = check_point(sk, p)
+        (dropped if e else kept).append(p | ({"errors": e[:6]} if e else {}))
+    filled = [PH.sub(lambda m: _fmt(sk["claims"][f"{m.group(1)}:{m.group(2)}"]), p["text"]) +
+              "（" + "，".join(p.get("refs") or []) + "）" for p in kept]
+    return {"mode": "model", "points": filled, "dropped": dropped, "errors": []}

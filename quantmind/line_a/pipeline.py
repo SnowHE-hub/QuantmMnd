@@ -427,6 +427,7 @@ def run_research(data_root: Path, out_root: Path, as_of: str, *, overrides: dict
         LLM(ledger=day / "ledger/_rewrite.jsonl", cache_dir=out_root / "research/_llm_cache", budget_rmb=2.0)
     md = f6.report(res, names, rw)
     (day / "f9_research.md").write_text(md, encoding="utf-8")
+    atomic_write_json(day / "f9_summaries.json", res.get("summaries", []))
     return res["status"] | {"day_run": str(runs[-1]), "bypass_rules": str(pd.read_parquet(o["bypass"])["rule_version"].iloc[0])
                             if "bypass" in o and len(bypass) else None}
 

@@ -32,12 +32,12 @@ def correct_clause(item: dict, ref: str) -> str:
     t = re.sub(r"[，,；;。\n]", " ", item["text"])
     dates = []
 
-    def keep(m):
+    def keep(m):                                   # 标记里不能有数字，否则会被下一步当成数字替换掉（v1 评测脚本的错误）
         dates.append(m.group(0))
-        return f"\x00{len(dates) - 1}\x00"
+        return "\x00" + chr(0xE000 + len(dates) - 1) + "\x00"
     t = rw._DATE.sub(keep, t)
     t = NUM.sub("{{c:" + ref + "}}", t)
-    t = re.sub(r"\x00(\d+)\x00", lambda m: dates[int(m.group(1))], t)
+    t = re.sub("\x00(.)\x00", lambda m: dates[ord(m.group(1)) - 0xE000], t)
     if "{{c:" not in t:
         t += "（{{c:" + ref + "}}）"
     return t
@@ -47,9 +47,9 @@ def perturb(kind: str, s: str) -> str | None:
     if kind == "direction":
         for a, b in SWAP:
             if a in s:
-                return s.replace(a, b, 1)
+                return s.replace(a, b)
             if b in s:
-                return s.replace(b, a, 1)
+                return s.replace(b, a)
         return None
     if kind == "subject":
         for a, b in (("子公司", "公司"), ("控股股东", "公司"), ("实际控制人", "公司")):
@@ -84,7 +84,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--day-dir", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--seed", type=int, default=20261023)
+    ap.add_argument("--seed", type=int, default=20261024)
     ap.add_argument("--cache", type=Path, required=True, help="与每日研究相同的模型缓存目录")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
@@ -117,12 +117,20 @@ def main() -> None:
     real = []
     n_model = n_v1_fail = 0
     for t, sk in cases:
+        from quantmind.line_a.harness.structured import chat_structured
         try:
-            r = llm.chat(rw.rewrite_messages(sk), json_mode=True, thinking=None, max_tokens=4000, meta={"stage": "x11_replay", "ticker": t})
-            text = json.loads(r.content)
+            text, rec = chat_structured(llm, rw.rewrite_messages(sk), rw.RewriteOut, thinking=None, max_tokens=4000,
+                                        meta={"stage": "x11_replay", "ticker": t})
         except Exception as e:  # noqa: BLE001
             real.append({"ticker": t, "status": f"error {type(e).__name__}"})
             continue
+        if text is None:
+            real.append({"ticker": t, "status": "invalid_after_repair"})
+            continue
+
+        class _R:
+            cached = all(not a["parse_errors"] for a in rec["attempts"])
+        r = _R()
         e1 = rw.check_rewrite(sk, text)
         if e1:
             n_v1_fail += 1

@@ -329,8 +329,9 @@ def f7_tables(cases: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 # ------------------------------------------------------------------ F9 研究报告
 def report(res: dict, names: dict[str, str] | None = None, rewrite_llm=None) -> str:
-    from quantmind.line_a.harness.rewrite import rewrite, skeleton
+    from quantmind.line_a.harness.rewrite import skeleton, summarize, template_text
     st, cases = res["status"], res["cases"]
+    summaries: list[dict] = []
     names = names or {}
     L = [f"# 影子研究报告 · {st['as_of']}", "",
          "> 研究用只读影子运行，不是投资建议。研究声明不改变任何账本、排名或权重。资金批准状态：NOT_APPROVED。", "",
@@ -359,15 +360,22 @@ def report(res: dict, names: dict[str, str] | None = None, rewrite_llm=None) -> 
         amap = json.loads(r.role_as_of_map)
         outs = {k: _load(p) for k, p in paths.items() if k != "A6" and Path(p).exists()}
         review = _load(paths["A6"]).get("output") if "A6" in paths and Path(paths["A6"]).exists() else None
-        rw = rewrite(rewrite_llm, skeleton(outs, review))
+        sk = skeleton(outs, review)
+        sm = summarize(rewrite_llm, sk)                       # F9 v2：模型只写要点，逐条核对
+        tt = template_text(sk)                                 # 四栏事实由代码生成，数值原样
         old = [f"{k}（{v}）" for k, v in amap.items() if k != "A6" and v != st["as_of"].replace("-", "")]
         L += [f"## {r.ticker} {names.get(r.ticker, '')}（{cat.get(r.category, r.category)}）", "",
-              f"转写：{'模型' if rw['mode'] == 'model' else '模板'}" + (f"；沿用的角色：{'，'.join(old)}" if old else ""), ""]
-        titles = {"facts": "事实", "inferences": "推断", "counter_and_limits": "反证与限制", "to_verify": "待核实"}
+              f"要点：{len(sm['points'])} 条通过核对" + (f"，{len(sm['dropped'])} 条未通过已去掉" if sm["dropped"] else "")
+              + (f"；沿用的角色：{'，'.join(old)}" if old else ""), ""]
+        L += ["**研究要点**", ""] + ([f"- {p}" for p in sm["points"]] or ["（无）"]) + [""]
+        titles = {"counter_and_limits": "反证与限制", "to_verify": "待核实", "facts": "事实", "inferences": "推断"}
         for k, title in titles.items():
-            L += [f"**{title}**", "", rw["sections"].get(k) or "（无）", ""]
+            L += [f"**{title}**", "", tt.get(k) or "（无）", ""]
+        summaries.append({"ticker": r.ticker, "n_points": len(sm["points"]), "n_dropped": len(sm["dropped"]),
+                          "dropped": sm["dropped"], "mode": sm["mode"], "errors": sm["errors"]})
         fl = res["flags"][res["flags"]["ticker"] == r.ticker]
         if len(fl):
             L += ["**风险事实（只是事实或待确认项，不扣分）**", ""] + [f"- {f}（{ro}）" for ro, f in zip(fl["role"], fl["flag"],
                                                                                            strict=True)] + [""]
+    res["summaries"] = summaries
     return "\n".join(L)
