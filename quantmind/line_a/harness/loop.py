@@ -105,7 +105,8 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
             rec.errors.append(f"wall clock {role.wall_clock_s:.0f}s exceeded")
             return rec
         # 修复轮（上一条最终回答不合格）：不再给工具；本机后端按 Schema 约束解码，保证合法（T-048）
-        fix = repaired and getattr(llm, "local", False)
+        # 没有工具的角色（单次调用）在本机后端上从第一步就按 Schema 约束解码（X7b，T-041）
+        fix = (repaired or not role.tools) and getattr(llm, "local", False)
         res = llm.chat(msgs, tools=None if fix else ([t.spec() for t in role.tools] or None), thinking=role.thinking,
                        max_tokens=role.max_tokens, meta={**(meta or {}), "role": role.name, "step": step},
                        schema=role.output_model.model_json_schema() if fix else None)

@@ -23,7 +23,7 @@ SEED = 20261022
 A1_TOOLS = ("financial_snapshot", "forecasts_and_express", "disclosure_schedule", "audit_and_pledge")
 
 
-def single_call(llm, dt, ticker: str) -> dict:
+def single_call(llm, dt, ticker: str, thinking: str | None = "high") -> dict:
     """X8 单次调用：同样的工具结果、同样的 Schema 与修复机会，只是不让模型自己调用工具。"""
     from quantmind.line_a.harness.llm import canonical
     from quantmind.line_a.harness.loop import (
@@ -48,7 +48,8 @@ def single_call(llm, dt, ticker: str) -> dict:
                                                     else body))
     task = (f"研究对象：{ticker}；as_of = {dt.as_of}（只能使用这一天及之前已发布的信息）。下面已经给出四个工具的结果，"
             "不能再调用工具，请直接输出 JSON。\n\n" + "\n\n".join(blocks))
-    spec = RoleSpec("A1", A1_SYSTEM, [], RoleOutput, max_steps=3, thinking="high", max_tokens=32000, max_tool_calls=0)
+    spec = RoleSpec("A1", A1_SYSTEM, [], RoleOutput, max_steps=3, thinking=thinking, max_tokens=32000, max_tool_calls=0,
+                    defaults={"ticker": ticker, "as_of": dt.as_of})
     rec = run_role(llm, spec, task, meta={"ticker": ticker, "as_of": dt.as_of, "x8": "single"})
     rec.evidence.update(evidence)
     checks = [asdict(c) for c in verify(rec.output, rec.evidence)] if rec.output and "claims" in rec.output else []
@@ -68,7 +69,7 @@ def main() -> None:
     )
     from quantmind.line_a.harness.tools_more import ResearchTools
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["loop", "local", "single"], required=True)
+    ap.add_argument("--mode", choices=["loop", "local", "single", "local_single"], required=True)
     ap.add_argument("--lake", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--model", default="qwen3.5-9b-q4km")
@@ -79,7 +80,7 @@ def main() -> None:
     cases = sample_cases(a.lake, AS_OFS, per_date=10, seed=SEED)
     if a.limit:
         cases = cases.head(a.limit)
-    if a.mode == "local":
+    if a.mode in ("local", "local_single"):
         llm = LLM(model=a.model, local=True, timeout_s=1800, ledger=a.out / "llm_ledger.jsonl",
                   cache_dir=a.out / "_llm_cache")
         base_spec = slices.role_spec
@@ -101,8 +102,8 @@ def main() -> None:
         t0 = time.time()
         dt = ResearchTools(a.lake, c["as_of"])
         try:
-            if a.mode == "single":
-                r = single_call(llm, dt, c["ticker"])
+            if a.mode in ("single", "local_single"):
+                r = single_call(llm, dt, c["ticker"], thinking=None if a.mode == "local_single" else "high")
                 p = a.out / "runs" / c["as_of"] / c["ticker"] / "A1_single.json"
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(canonical(r), encoding="utf-8")
