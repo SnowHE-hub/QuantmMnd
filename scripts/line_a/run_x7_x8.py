@@ -26,7 +26,13 @@ A1_TOOLS = ("financial_snapshot", "forecasts_and_express", "disclosure_schedule"
 def single_call(llm, dt, ticker: str) -> dict:
     """X8 单次调用：同样的工具结果、同样的 Schema 与修复机会，只是不让模型自己调用工具。"""
     from quantmind.line_a.harness.llm import canonical
-    from quantmind.line_a.harness.loop import DATA_NOTICE, MAX_TOOL_CHARS, RoleSpec, collect_evidence, run_role
+    from quantmind.line_a.harness.loop import (
+        DATA_NOTICE,
+        MAX_TOOL_CHARS,
+        RoleSpec,
+        collect_evidence,
+        run_role,
+    )
     from quantmind.line_a.harness.roles import A1_SYSTEM, RoleOutput
     from quantmind.line_a.harness.verifier import verify
     evidence: dict = {}
@@ -54,7 +60,12 @@ def single_call(llm, dt, ticker: str) -> dict:
 def main() -> None:
     from quantmind.line_a.harness import slices
     from quantmind.line_a.harness.evalset import gold_facts_a1, sample_cases, score_a1
-    from quantmind.line_a.harness.llm import LLM, BudgetExceededError, TLSInterceptionError, canonical
+    from quantmind.line_a.harness.llm import (
+        LLM,
+        BudgetExceededError,
+        TLSInterceptionError,
+        canonical,
+    )
     from quantmind.line_a.harness.tools_more import ResearchTools
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["loop", "local", "single"], required=True)
