@@ -102,6 +102,9 @@ def distill(llm, df: pd.DataFrame, out_jsonl: Path, *, batch: int = 20, log=prin
                                            max_tokens=3000, meta={"task": "x4v2_distill"})
             except (TLSInterceptionError, BudgetExceededError):
                 raise
+            except Exception as e:  # noqa: BLE001  单批失败（重试后仍断网等）：跳过，下一轮续标
+                log(f"  batch {i} failed: {type(e).__name__}: {str(e)[:120]}")
+                continue
             got = {it["id"]: it["types"] for it in (out or {}).get("items", [])}
             for j, r in enumerate(chunk):
                 if j in got:                                  # 缺的那条留到下次续跑时重标
