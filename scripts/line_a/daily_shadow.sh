@@ -36,6 +36,8 @@ soft_step() {  # 同 step，但失败只记录、继续往下走
   echo "$n exit $? $(date '+%F %T') (soft)" >> "$S"
 }
 CN0=$(date -d "$END -3 day" +%F)
+# 本机 Agent 后端（llama-server，T-048）常驻时占约 6 GB 显存；每日运行的 ENS 打分要用显卡，开始前先让它退出
+systemctl --user stop qm-llama9b 2>/dev/null && echo "stopped qm-llama9b $(date '+%F %T')" >> "$S"
 # 1 数据
 step lake        $P -u scripts/data_pipeline/update_lake_latest.py --end "$END" --data-root "$R"
 step events      $P -u scripts/data_pipeline/download_events.py --data-root "$R" --apis $EV --start 2018-01-01 --end "$END" --refresh-recent 2
