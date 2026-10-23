@@ -63,7 +63,7 @@ c = pd.to_datetime(pd.read_parquet('$R/data/lake/trade_cal_sse.parquet')['cal_da
 print(' '.join(str(d.date()) for d in sorted(c) if pd.Timestamp('$LAST') < d <= pd.Timestamp('$END')))")
 for d in $DAYS; do
   step "day_$d" $G -u -m quantmind.line_a.pipeline day --as-of "$d" --data-root "$R" --model-root "$FR/main" \
-       --bundle20 "$R/data/gpu_v1/forward_models/20d_fold18"
+       --bundle20 "$R/data/gpu_v1/forward_models/20d_fold18" --bundle63 "$R/data/gpu_v1/forward_models/63d_fold8"
 done
 # 4 账本
 step books $G -u -m quantmind.line_a.pipeline books --as-of "$END" --data-root "$R" --model-root "$FR/main" \

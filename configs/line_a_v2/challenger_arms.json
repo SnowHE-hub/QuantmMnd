@@ -1,0 +1,10 @@
+{
+ "what": "前瞻影子账本的挑战臂（用户 2026-10-23 批准进入前瞻影子；非劣界限 δ_R = 1pp、δ_D = 2pp 同日批准）",
+ "source": {"ens_c5_20d": "T-043 C5", "ens_c5_63d": "T-043 C5", "ens_q_ext_63d": "T-042 Q（63 日：非劣且优于）"},
+ "arms": {
+  "ens_c5_20d": {"base": "ens_native_20d", "transform": "c5_filter"},
+  "ens_c5_63d": {"base": "ens_native_63d", "transform": "c5_filter"},
+  "ens_q_ext_63d": {"base": "ens_native_63d", "transform": "quota_extended", "universe_size": 1000000,
+                    "params": {"n_pool": 240, "n_ext": 60, "adv_floor_rmb": 10000000}}
+ }
+}

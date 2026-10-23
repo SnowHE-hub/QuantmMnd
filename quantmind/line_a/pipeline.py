@@ -42,6 +42,7 @@ class Ctx:
     model_root: Path                   # 影子数据根 main（日频面板与 model/v1 的前瞻月份）
     out_root: Path                     # data/line_a_v2
     bundle20: Path | None = None       # ENS 20d 冻结模型包；None → 不跑 ENS
+    bundle63: Path | None = None       # ENS 63d 冻结模型包（T-047，第 8 折）；None → ens_native_63d 不可用
     code_rev: str = ""
     snapshot_hash: str = ""
     notes: list[str] = field(default_factory=list)
@@ -96,9 +97,10 @@ def score_ridge(ctx: Ctx, horizon: str) -> pd.DataFrame:
     return score(ref, X).reset_index()
 
 
-def score_ens(ctx: Ctx) -> pd.DataFrame:
+def score_ens(ctx: Ctx, horizon: str = "20d") -> pd.DataFrame:
     from quantmind.line_a.scoring import score_ens20
-    out, _ = score_ens20(ctx.model_root, [ctx.as_of], ctx.bundle20)
+    bundle, fold = (ctx.bundle20, 18) if horizon == "20d" else (ctx.bundle63, 8)
+    out, _ = score_ens20(ctx.model_root, [ctx.as_of], bundle, horizon=horizon, fold=fold)
     return out.reset_index()
 
 
@@ -138,7 +140,11 @@ def run_day(ctx: Ctx, js: JobStore) -> dict:
                               model=sha256_file(ctx.bundle20 / "manifest.json"), model_root=str(ctx.model_root))
     else:
         res["unavailable"]["ens_native_20d"] = "本次未提供模型包"
-    res["unavailable"]["ens_native_63d"] = "没有冻结的 63 日前瞻模型包（需另行登记）"
+    if ctx.bundle63 is not None:
+        o["ens_63d"] = _stage(js, ctx, "f3_ens_63d", "parquet", lambda: _pq(score_ens(ctx, "63d")),
+                              model=sha256_file(ctx.bundle63 / "manifest.json"), model_root=str(ctx.model_root))
+    else:
+        res["unavailable"]["ens_native_63d"] = "本次未提供 63 日模型包（T-047）"
     o["bypass"] = _stage(js, ctx, "bypass_events", "parquet",
                          lambda: _pq(event_queue(scan_events(ctx.data_root, ctx.as_of))), rules=EVENT_RULES)
     o["f4"] = _stage(js, ctx, "f4_candidates", "parquet", lambda: _pq(candidates(ctx, o, holdings)),
@@ -174,7 +180,7 @@ def candidates(ctx: Ctx, o: dict, holdings: set[str]) -> pd.DataFrame:
     major = frozenset(ev.loc[ev["importance"] == "major", "ticker"])        # 只有"重大"事件进入事件队列
     parts = []
     for h, cols in (("20d", {"ens20": ("ens_20d", "ENS"), "ridge20": ("ridge_20d", "score")}),
-                    ("63d", {"ridge63": ("ridge_63d", "score")})):
+                    ("63d", {"ens63": ("ens_63d", "ENS"), "ridge63": ("ridge_63d", "score")})):
         sc = {k: s for k, (n, c) in cols.items() if (s := _scores(o, n, c)) is not None}
         if not sc:
             continue
@@ -274,7 +280,7 @@ def report(ctx: Ctx, res: dict) -> str:
           "", "## 3 参考臂打分（F3）", ""]
     rows = []
     for arm, key, col in (("ridge_native_20d", "ridge_20d", "score"), ("ens_native_20d", "ens_20d", "ENS"),
-                          ("ridge_native_63d", "ridge_63d", "score")):
+                          ("ridge_native_63d", "ridge_63d", "score"), ("ens_native_63d", "ens_63d", "ENS")):
         s = _scores(o, key, col)
         if s is None:
             continue
@@ -337,16 +343,20 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
     grid = [d for d in f8_books.forward_grid(full, frozen) if d <= pd.Timestamp(as_of)]
     contracts = json.loads((CFG / "reference_strategies.json").read_text(encoding="utf-8"))["strategies"]
     stage_of = {"ridge_native_20d": ("f3_ridge_20d", "score"), "ens_native_20d": ("f3_ens_20d", "ENS"),
-                "ridge_native_63d": ("f3_ridge_63d", "score")}
+                "ridge_native_63d": ("f3_ridge_63d", "score"), "ens_native_63d": ("f3_ens_63d", "ENS")}
     recs = [dict(r) for r in js.db.execute("SELECT stage, key_fields, output_path FROM jobs WHERE status = ? "
                                            "ORDER BY finished_at", (SUCCEEDED,)).fetchall()]
-    scores, used, missing = {}, {}, {}
-    for arm, (stage, col) in stage_of.items():
+
+    def outputs_of(stage: str) -> dict[str, str]:
         got = {}
         for r in recs:
             kf = json.loads(r["key_fields"])
             if r["stage"] == stage and pd.Timestamp(kf["as_of"]) in grid:
                 got[kf["as_of"]] = r["output_path"]           # 同一天多次运行：取最后完成的一条
+        return got
+    scores, used, missing = {}, {}, {}
+    for arm, (stage, col) in stage_of.items():
+        got = outputs_of(stage)
         if grid and all(str(d.date()) in got for d in grid):
             df = pd.concat([pd.read_parquet(got[str(d.date())]) for d in grid], ignore_index=True)
             scores[arm] = df.rename(columns={col: "score"})[["as_of", "ticker", "score"]]
@@ -355,6 +365,18 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
             missing[arm] = [str(d.date()) for d in grid if str(d.date()) not in got]
     cols = ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "adj_factor", "amount"]
     prices = pd.read_parquet(prices_path, columns=cols)
+    # 挑战臂（用户 2026-10-23 批准进入前瞻影子；规则见 configs/line_a_v2/challenger_arms.json 与 challengers.py）
+    from quantmind.line_a import challengers
+    reference = set(scores)
+    doms = {k: pd.read_parquet(p) for k, p in outputs_of("f2_domains").items()}
+    challenger_notes = {}
+    for name, spec in challengers.load_arms(CFG).items():
+        if spec["base"] not in scores:
+            missing[name] = f"base arm {spec['base']} missing"
+            continue
+        scores[name], challenger_notes[name] = challengers.apply(spec, scores[spec["base"]],
+                                                                 lake=data_root / "data/lake", prices=prices, domains=doms)
+        contracts[name] = contracts[spec["base"]] | {"universe_size": spec.get("universe_size", 1500)}
     months = sorted({d.strftime("%Y-%m") for d in grid})
     ami = pd.concat([pd.read_parquet(model_root / f"data/gpu_v1/panel/base/{m}.parquet", columns=["amihud_illiquidity"])
                      for m in months]) if months else None
@@ -363,7 +385,9 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
     od = out_root / "books" / as_of
     od.mkdir(parents=True, exist_ok=True)
     summary = {"as_of": as_of, "grid": [str(d.date()) for d in grid], "inputs": used, "prices": str(prices_path),
-               "prices_sha256": sha256_file(prices_path), "arms_missing_scores": missing, "books": {}}
+               "prices_sha256": sha256_file(prices_path), "arms_missing_scores": missing,
+               "challengers": {k: {"spec": v, "notes": challenger_notes.get(k)} for k, v in challengers.load_arms(CFG).items()},
+               "books": {}}
     hold = set()
     for arm, lines in res.items():
         for prof, b in lines.items():
@@ -375,7 +399,7 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
                         df["targets"] = df["targets"].map(list)
                     df.to_parquet(od / f"{tag}__{k}.parquet")
             h = b["holdings"]
-            if len(h):
+            if len(h) and arm in reference:                 # 研究用的"持仓"只取参考臂
                 last = h[h["date"] == h["date"].max()]
                 hold |= set(last["ticker"])
             summary["books"][tag] = b["summary"]
@@ -418,6 +442,7 @@ def main() -> None:
         p.add_argument("--out-root", type=Path)
         if name == "day":
             p.add_argument("--bundle20", type=Path)
+            p.add_argument("--bundle63", type=Path)
         elif name == "books":
             p.add_argument("--prices", type=Path, required=True)
         else:
@@ -432,7 +457,7 @@ def main() -> None:
         return
     js = JobStore(out_root / "jobs.sqlite")
     if a.cmd == "day":
-        ctx = Ctx(a.as_of, a.data_root, a.model_root, out_root, a.bundle20)
+        ctx = Ctx(a.as_of, a.data_root, a.model_root, out_root, a.bundle20, a.bundle63)
         res = run_day(ctx, js)
     else:
         res = run_books(a.data_root, a.model_root, out_root, a.as_of, js, a.prices)

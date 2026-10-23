@@ -59,6 +59,32 @@ def test_forward_report_rc_overlap_dedupe_and_gap(tmp_path):
     assert forward_report_rc(lake, "600001.SH", "20261016", "20261019")[1] == "20261019"
 
 
+def test_challenger_quota_and_c5(tmp_path):
+    from quantmind.line_a import challengers as ch
+    lake = _lake(tmp_path)
+    days = pd.bdate_range("2026-09-01", "2026-10-21")
+    tick = [f"{600000 + i}.SH" for i in range(6)]
+    rows = []
+    for d in days:
+        for i, t in enumerate(tick):
+            if t == "600005.SH" and d in days[-8:-3]:
+                continue                                                # 停牌 5 天后在倒数第 3 天复牌
+            rows.append({"ts_code": t, "trade_date": d, "close": 10.0 if i else 1.5, "amount": 5e4 if i < 4 else 2e4})
+    prices = pd.DataFrame(rows)
+    pd.DataFrame({"ts_code": tick, "trade_date": ["20261021"] * 6, "close": [1.5] + [10.0] * 5,
+                  "total_mv": [5e5, 5e4, 5e5, 5e5, 5e5, 5e5]}).to_parquet(lake / "daily_basic.parquet")
+    pd.DataFrame({"ts_code": ["600003.SH"], "name": ["*ST测试"], "start_date": ["20260101"], "end_date": [None],
+                  "ann_date": ["20251231"]}).to_parquet(lake / "events/namechange_full_20261022.parquet")
+    fl = ch.c5_flags(lake, "2026-10-21", prices)
+    assert fl == {"600000.SH", "600001.SH", "600003.SH", "600005.SH"}  # 低价、小市值、ST、刚复牌
+    base = pd.DataFrame({"as_of": pd.Timestamp("2026-10-21"), "ticker": tick, "score": [6, 5, 4, 3, 2, 1]})
+    dom = pd.DataFrame({"domain": ["research_pool"] * 3 + ["extended"] * 3}, index=tick)
+    spec = {"transform": "quota_extended", "params": {"n_pool": 2, "n_ext": 1, "adv_floor_rmb": 3e7}}
+    q, notes = ch.apply(spec, base, lake=lake, prices=prices, domains={"2026-10-21": dom})
+    assert list(q["ticker"]) == ["600000.SH", "600001.SH", "600003.SH"]   # 扩展域里只有 600003 过 adv20 下限
+    assert notes["2026-10-21"]["ext_eligible"] == 1
+
+
 def test_rewrite_binding_checks_v2():
     from quantmind.line_a.harness.rewrite import check_bindings, check_rewrite
     sk = {"columns": {"facts": ["A1:c1", "A3:c2"], "inferences": [], "counter_and_limits": [], "to_verify": []},

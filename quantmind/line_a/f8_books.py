@@ -21,7 +21,7 @@ def nav_config(contract: dict) -> NavConfig:
     c, p = contract["costs"], contract["portfolio"]
     t = c["slippage_tiers_bp"]
     return NavConfig(horizon_td=contract["holding_td"], rebalance_step=contract["rebalance_step_weekly_periods"],
-                     top_n=p["top_n"], universe_size=1500, commission_bp=c["commission_bp_each_side"],
+                     top_n=p["top_n"], universe_size=contract.get("universe_size", 1500), commission_bp=c["commission_bp_each_side"],
                      transfer_bp=c["transfer_bp_each_side"],
                      tiers=SlippageTiers(large_bp=t["large_bp"], mid_bp=t["mid_bp"], small_bp=t["small_bp"],
                                          q_large=t["q_large"], q_small=t["q_small"]),
