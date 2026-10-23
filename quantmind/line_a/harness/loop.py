@@ -107,9 +107,16 @@ def run_role(llm: LLM, role: RoleSpec, task: str, *, meta: dict | None = None) -
         # 修复轮（上一条最终回答不合格）：不再给工具；本机后端按 Schema 约束解码，保证合法（T-048）
         # 没有工具的角色（单次调用）在本机后端上从第一步就按 Schema 约束解码（X7b，T-041）
         fix = (repaired or not role.tools) and getattr(llm, "local", False)
-        res = llm.chat(msgs, tools=None if fix else ([t.spec() for t in role.tools] or None), thinking=role.thinking,
-                       max_tokens=role.max_tokens, meta={**(meta or {}), "role": role.name, "step": step},
-                       schema=role.output_model.model_json_schema() if fix else None)
+        try:
+            res = llm.chat(msgs, tools=None if fix else ([t.spec() for t in role.tools] or None), thinking=role.thinking,
+                           max_tokens=role.max_tokens, meta={**(meta or {}), "role": role.name, "step": step},
+                           schema=role.output_model.model_json_schema() if fix else None)
+        except RuntimeError as e:                 # 上下文超长（本机后端 16K / 32K）：本案例记为超出预算，不中断整批
+            if "context" not in str(e).lower():
+                raise
+            rec.status = "budget"
+            rec.errors.append(f"step {step}: {str(e)[:200]}")
+            return rec
         rec.cost_rmb += 0.0 if res.cached else res.cost_rmb
         st = {"step": step, "request_hash": res.request_hash, "finish": res.finish_reason,
               "content_sha": _h(res.content), "tool_calls": []}

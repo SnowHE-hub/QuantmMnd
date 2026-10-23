@@ -113,6 +113,9 @@ def main() -> None:
         except (BudgetExceededError, TLSInterceptionError) as e:
             print(f"stop: {type(e).__name__}: {e}", flush=True)
             break
+        except Exception as e:  # noqa: BLE001  单个案例出错：记为 error，接着跑下一个
+            r = {"output": None, "checks": [], "status": f"error: {type(e).__name__}", "cost_rmb": 0.0,
+                 "errors": [str(e)[:300]]}
         gold = gold_facts_a1(a.lake, c["ticker"], c["as_of"])
         s = score_a1(r["output"], r["checks"], gold, r["status"])
         rec = {"case_id": c["case_id"], "as_of": c["as_of"], "ticker": c["ticker"], "board": c["board"],
