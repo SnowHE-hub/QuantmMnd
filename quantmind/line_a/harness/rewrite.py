@@ -220,7 +220,8 @@ class Summary(BaseModel):
 SUMMARY_SYSTEM = ("你是研究报告的编辑。根据给定的声明写不超过 8 条研究要点：先写最重要的风险与反证，再写关键财务和事件事实，"
                   "最后写待核实的问题。只能使用给定的声明，不添加任何新事实、新判断或买卖建议；"
                   "不要改变声明的方向（增 / 减）、主体（公司 / 子公司 / 股东）、阶段（计划 / 已实施）和期间。"
-                  "凡是数字一律写成占位符 {{c:<角色>:<编号>}}，年份写成“2025年”这种形式。输出 JSON："
+                  "数字只能照抄所引用声明里的数字（也可以写成占位符 {{c:<角色>:<编号>}}），不能自己计算或改写数字；"
+                  "每条要点的 refs 要列出它用到的全部声明。输出 JSON："
                   '{"points": [{"text": "...", "refs": ["A1:c3", ...]}]}')
 
 
@@ -241,8 +242,12 @@ def check_point(sk: dict, p: dict) -> list[str]:
     for r in p.get("refs") or []:
         if r not in sk["claims"]:
             errs.append(f"unknown ref {r}")
+    # 数字必须有出处：要点里的每个数字都要原样出现在它引用的某条声明里（声明本身已过代码校验），不允许新数字
+    src = " ".join(str(sk["claims"][r].get("text") or "") for r in (p.get("refs") or []) if r in sk["claims"])
+    allowed = {n.replace(",", "") for n in re.findall(r"\d[\d,]*(?:\.\d+)?", src)}
     bare = _DATE.sub(" ", PH.sub(" ", text))
-    errs += [f"bare number {n}" for n in re.findall(r"\d+(?:\.\d+)?", bare)]
+    errs += [f"number {n} not in referenced claims" for n in re.findall(r"\d[\d,]*(?:\.\d+)?", bare)
+             if n.replace(",", "") not in allowed]
     errs += check_bindings(sk, {"point": text})
     return errs
 
