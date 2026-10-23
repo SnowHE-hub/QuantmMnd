@@ -129,6 +129,8 @@ def main() -> None:
                     ans = json.loads(out.content)
                 except json.JSONDecodeError:
                     ans = {"unparseable": out.content[:200]}      # 记为没有回答数字
+                if not isinstance(ans, dict):
+                    ans = {"unparseable": out.content[:200]}
                 rec = {"case_id": c["case_id"], "ticker": c["ticker"], "as_of": c["as_of"], "cost_rmb": out.cost_rmb,
                        "answer": ans}
                 for m in ("revenue", "n_income_attr_p"):
