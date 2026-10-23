@@ -136,10 +136,16 @@ def check_bindings(sk: dict, text: dict) -> list[str]:
                 new = [w for w in opp.findall(seg) if w not in dirs_o]
                 if new:
                     errs.append(f"{sec}: {ref} direction changed ({','.join(new)})")
-            p_o, d_o = bool(PLAN.search(orig)), bool(DONE.search(orig) or DONE_ANY.search(orig))
+            # v2.2（2026-10-23，T-044 第二次补救，只改阶段）：分句里新出现的阶段词（原文没有），
+            # 并且原文里另一阶段的词在分句里不见了（或原文本来就没有这一阶段的词），判为阶段被改。
+            # 这样"预案……完成"改成"预案……拟"能查出来，"完成"写成"已完成"不会误报
+            plan_o = set(PLAN.findall(orig))
+            done_o = {m.group(0) for m in DONE_ANY.finditer(orig)}
             plan_new = [w for w in PLAN.findall(seg) if w not in orig]
             done_new = [m.group(0) for m in DONE_ANY.finditer(seg) if m.group(0) not in orig]
-            if (done_new and p_o and not d_o) or (plan_new and d_o and not p_o):
+            done_lost = [w for w in done_o if w not in seg]
+            plan_lost = [w for w in plan_o if w not in seg]
+            if (plan_new and (done_lost or not plan_o)) or (done_new and (plan_lost or not done_o)):
                 errs.append(f"{sec}: {ref} stage changed ({','.join(done_new + plan_new)})")
             ok_years = set(YEAR.findall(orig)) | ({str(c["period"])[:4]} if c.get("period") else set())
             bad = sorted(set(YEAR.findall(seg)) - ok_years)

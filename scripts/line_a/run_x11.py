@@ -84,7 +84,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--day-dir", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--seed", type=int, default=20261024)
+    ap.add_argument("--seed", type=int, default=20261025)
     ap.add_argument("--cache", type=Path, required=True, help="与每日研究相同的模型缓存目录")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
