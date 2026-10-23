@@ -7,6 +7,8 @@
 #   2 影子数据根：价格面板 → 股票基础表合并 → qlib 前瞻目录 → 链接冻结月份 → 原样运行冻结的构建器
 #   3 日任务：(LAST_END, END] 内每个交易日跑 M、F0–F5c、F9（已成功的任务键直接复用）
 #   4 账本：截至 END 的前瞻账本与容量情景
+#   5 影子研究（T-040）：END 当天的 F6 研究、F7 验收、F9 研究报告
+# 巨潮公告（第 1 步里）和影子研究（第 5 步）是软步骤：失败只记录，不阻断量化部分，也不影响 ALL DONE。
 # 不删除任何旧的影子数据根（保留策略需要用户批准）；每个重任务都在 MemoryMax 受限的 systemd 用户单元里由调用方运行。
 set -u
 END=$1; LAST=$2; TAG=${END//-/}
@@ -26,6 +28,14 @@ step() {  # name, command...
   echo "$n exit $rc $(date '+%F %T')" >> "$S"
   [ $rc -eq 0 ] || { echo "STOP at $n" >> "$S"; exit $rc; }
 }
+soft_step() {  # 同 step，但失败只记录、继续往下走
+  local n=$1; shift
+  if grep -q "^$n exit 0" "$S" 2>/dev/null; then echo "$n skip (done)" >> "$S"; return 0; fi
+  echo "$n start $(date '+%F %T')" >> "$S"
+  PYTHONPATH=. WRITE_MODE=parquet_only "$@" > "$L/$n.log" 2>&1
+  echo "$n exit $? $(date '+%F %T') (soft)" >> "$S"
+}
+CN0=$(date -d "$END -3 day" +%F)
 # 1 数据
 step lake        $P -u scripts/data_pipeline/update_lake_latest.py --end "$END" --data-root "$R"
 step events      $P -u scripts/data_pipeline/download_events.py --data-root "$R" --apis $EV --start 2018-01-01 --end "$END" --refresh-recent 2
@@ -33,6 +43,9 @@ step events_cmp  $P -u scripts/data_pipeline/download_events.py --data-root "$R"
 step stock_basic $P -u scripts/data_pipeline/update_fundamentals_latest.py --data-root "$R" --end "$END" --stock-basic-only
 step fin_queues  $P -u scripts/data_pipeline/update_fundamentals_latest.py --data-root "$R" --end "$END" --queues-since "$LAST" --workers 2
 step index_extra $P -u scripts/data_pipeline/download_index_extra.py --data-root "$R" --end "$END"
+# 巨潮公告元数据：最近 4 天强制重抓并合并（补迟到的公告）；拿巨潮下载的文件锁，最多等 30 分钟
+soft_step cninfo flock -w 1800 /tmp/qm_cninfo_meta.lock $P -u scripts/data_pipeline/download_cninfo.py --data-root "$R" \
+     --start "$CN0" --end "$END" --refresh-recent 4 --interval 1.5
 step snapshot    $P -m quantmind.line_a.snapshot --data-root "$R" --as-of "$END"
 # 2 影子数据根
 step prices      $P -u scripts/data_pipeline/build_price_panels.py --end "$END" --data-root "$R"
@@ -53,3 +66,5 @@ done
 step books $G -u -m quantmind.line_a.pipeline books --as-of "$END" --data-root "$R" --model-root "$FR/main" \
      --prices "$R/data/raw/alpha_prices_panel_v6_$TAG.parquet"
 echo "ALL DONE $(date '+%F %T')" >> "$S"
+# 5 影子研究（软步骤，放在 ALL DONE 之后：研究失败不会让量化部分重跑）
+soft_step research $G -u -m quantmind.line_a.pipeline research --as-of "$END" --data-root "$R"

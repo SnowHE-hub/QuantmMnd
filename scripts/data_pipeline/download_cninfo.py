@@ -14,7 +14,7 @@
        连续两次 truncated 且总数、行数都不变 → 记 partial（终态，缺口写进检查点，不再重试）。
 产物：<root>/data/lake/text/cninfo/_parts/<YYYYMMDD>.parquet；_checkpoints/cninfo_meta.json（每日终态、总数、行数、请求数）。
 限速：请求间隔 --interval 秒（默认 1.5）；HTTP / JSON 错误指数退避，最多 5 次；--max-seconds 到时在两天之间退出（定时任务续跑）。
-用法：python download_cninfo.py --data-root <root> [--start 2019-01-01] [--end 2026-10-16] [--max-seconds 3300]
+用法：python download_cninfo.py --data-root <root> [--start 2019-01-01] [--end 2026-10-16] [--max-seconds 3300] [--refresh-recent N]
 """
 from __future__ import annotations
 
@@ -168,12 +168,25 @@ def save_ckpt(path: Path, ck: dict) -> None:
     os.replace(tmp, path)
 
 
+def _merge_existing(path: Path, df: pd.DataFrame) -> pd.DataFrame:
+    """重抓时与已有的行合并（只增不删）：同一 announcementId 用新抓的版本，旧文件里有、这次没抓到的行保留。"""
+    if not path.exists():
+        return df
+    old = pd.read_parquet(path)
+    if df.empty:
+        return old
+    keep = old[~old["announcementId"].astype(str).isin(set(df["announcementId"]))]
+    return pd.concat([df, keep], ignore_index=True).sort_values(["announcementTime", "announcementId"]) \
+        .reset_index(drop=True)
+
+
 def run(out_dir: Path, days: list[str], client: Client, max_seconds: float = 0, log=print,
-        clock=time.monotonic) -> dict:
+        clock=time.monotonic, refresh: set[str] = frozenset()) -> dict:
+    """refresh：这些日子即使已是终态也重抓（每日运行补迟到的公告），结果与已有行合并。"""
     parts, ck_path = out_dir / "_parts", out_dir / "_checkpoints/cninfo_meta.json"
     parts.mkdir(parents=True, exist_ok=True)
     ck = load_ckpt(ck_path)
-    todo = [d for d in days if ck["days"].get(d, {}).get("state") not in TERMINAL_OK]
+    todo = [d for d in days if d in refresh or ck["days"].get(d, {}).get("state") not in TERMINAL_OK]
     log(f"[cninfo] days={len(days)} todo={len(todo)}")
     t0 = clock()
     for i, day in enumerate(todo, 1):
@@ -184,14 +197,19 @@ def run(out_dir: Path, days: list[str], client: Client, max_seconds: float = 0, 
         try:
             rows, ok, total = fetch_node(client, day)
             df = to_frame(rows, datetime.now(BJ).isoformat())
+            dest = parts / f"{day.replace('-', '')}.parquet"
+            if day in refresh:
+                df = _merge_existing(dest, df)
             if len(df):
                 tmp = parts / f"{day.replace('-', '')}.parquet.tmp"
                 df.to_parquet(tmp, index=False)
-                os.replace(tmp, parts / f"{day.replace('-', '')}.parquet")
+                os.replace(tmp, dest)
             state = EMPTY if total == 0 else (DONE if ok else TRUNCATED)
             rec = {"state": state, "total": total, "rows": int(len(df))}
             if total and len(df) > total:
                 rec["excess"] = int(len(df) - total)                   # 抓取期间总数变了（如 2021-04-30 15388 / 15387）
+            if day in refresh:
+                rec["refreshed_at"] = datetime.now(BJ).isoformat(timespec="seconds")
             if state == TRUNCATED and prev.get("state") == TRUNCATED and \
                     (prev.get("total"), prev.get("rows")) == (total, rec["rows"]):
                 rec.update(state=PARTIAL, gap=total - rec["rows"])     # 重试结果不变：缺口是接口本身的，不再重试
@@ -214,10 +232,13 @@ def main(argv=None) -> int:
     ap.add_argument("--end", default="2026-10-16")
     ap.add_argument("--interval", type=float, default=1.5)
     ap.add_argument("--max-seconds", type=float, default=0)
+    ap.add_argument("--refresh-recent", type=int, default=0,
+                    help="范围内最后 N 天即使已是终态也重抓并与已有行合并（每日运行补迟到的公告，T-040）")
     a = ap.parse_args(argv)
     days = [d.strftime("%Y-%m-%d") for d in pd.date_range(a.start, a.end, freq="D")]
+    refresh = set(days[-a.refresh_recent:]) if a.refresh_recent > 0 else set()
     states = run(Path(a.data_root) / "data/lake/text/cninfo", days, Client(interval=a.interval),
-                 max_seconds=a.max_seconds, log=lambda m: print(m, flush=True))
+                 max_seconds=a.max_seconds, log=lambda m: print(m, flush=True), refresh=refresh)
     return 2 if states.get(FAILED) or states.get(TRUNCATED) else 0
 
 

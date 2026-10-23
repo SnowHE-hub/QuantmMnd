@@ -141,9 +141,14 @@ def review_checks(review: dict, upstream: dict[str, dict], registry: dict) -> li
     return out
 
 
-def run_case(llm: LLM, lake: Path, as_of: str, ticker: str, roles: list[str], out_root: Path | None = None) -> dict:
+def run_case(llm: LLM, lake: Path, as_of: str, ticker: str, roles: list[str], out_root: Path | None = None,
+             reuse: dict[str, dict] | None = None) -> dict:
+    """reuse：{角色: 以前某天 run_slice 的结果}，这些角色本次不重跑，声明和证据照样交给 A6（T-040 按角色缺口调用）。"""
     up: dict[str, dict] = {}
     registry: dict = {}
+    for r, prev in (reuse or {}).items():
+        up[r] = prev
+        registry.update(prev.get("evidence", {}))
     for r in roles:
         dt = ResearchTools(lake, as_of)
         up[r] = run_slice(llm, dt, ticker, r, out_root)
@@ -156,9 +161,11 @@ def run_case(llm: LLM, lake: Path, as_of: str, ticker: str, roles: list[str], ou
                    extra="\n上游角色的声明（用 <角色>:<local_id> 引用）：\n" + canonical(brief))
     registry.update(a6["evidence"])
     a6["review_checks"] = review_checks(a6["output"] or {}, up, registry) if a6["output"] else []
-    case = {"ticker": ticker, "as_of": as_of, "roles": roles, "cost_rmb": sum(v["cost_rmb"] for v in up.values())
-            + a6["cost_rmb"], "upstream": {r: {"status": v["status"], "path": v.get("path"),
-                                               "check_status": _counts(v["checks"])} for r, v in up.items()},
+    case = {"ticker": ticker, "as_of": as_of, "roles": roles,
+            "reused": {r: v.get("as_of") for r, v in (reuse or {}).items()},
+            "cost_rmb": sum(up[r]["cost_rmb"] for r in roles) + a6["cost_rmb"],
+            "upstream": {r: {"status": v["status"], "path": v.get("path"), "as_of": v.get("as_of"),
+                             "check_status": _counts(v["checks"])} for r, v in up.items()},
             "a6": {"status": a6["status"], "path": a6.get("path"),
                    "verdicts": _counts([{"status": j["verdict"]} for j in (a6["output"] or {}).get("judgments", [])]),
                    "review_checks": _counts(a6["review_checks"])}}

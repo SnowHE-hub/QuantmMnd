@@ -299,7 +299,7 @@ def report(ctx: Ctx, res: dict) -> str:
     if "bypass" in o:
         ev = pd.read_parquet(o["bypass"])
         L += ["## 4b 旁路：全市场事件监测", "",
-              f"当日结构化事件涉及 {len(ev)} 只股票：重大 {int((ev['importance'] == 'major').sum())} 只、"
+              f"当日结构化事件与巨潮公告标题涉及 {len(ev)} 只股票：重大 {int((ev['importance'] == 'major').sum())} 只、"
               f"待确认 {int((ev['importance'] == 'watch').sum())} 只。只有\"重大\"进入事件队列，只提高研究优先级。", ""]
         mj = ev[ev["importance"] == "major"].merge(f1[["name"]], left_on="ticker", right_index=True, how="left").head(15)
         if len(mj):
@@ -317,6 +317,8 @@ def report(ctx: Ctx, res: dict) -> str:
               f"覆盖 {len(rc)} 只（宽候选 + 持仓）。异常波动阈值与基准指数映射为\"待核实\"。", "",
               _md_table(pd.DataFrame([flags])), ""]
     L += books_lines(ctx.out_root, ctx.as_of)
+    L += ["## 4e 影子研究（F6 / F7）", "",
+          f"每日运行的最后一步生成，见 `research/daily/{ctx.as_of}/f9_research.md`（T-040）。研究声明不改变账本、排名或权重。", ""]
     L += ["## 5 已知限制", "",
           "- 北向资金字段 2024-08-19 起口径改变（T-035）：ENS 的树模型使用该市场级特征，Ridge 截面排序不受影响。",
           "- 北交所不在股票基础表与财报里，模型没有北交所输入：全开通线目前与除北交所线相同。",
@@ -382,21 +384,52 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
     return summary
 
 
+# ------------------------------------------------------------------ F6 / F7 / F9 影子研究（T-040）
+def run_research(data_root: Path, out_root: Path, as_of: str, *, overrides: dict | None = None) -> dict:
+    """读当天日任务的 F4 与旁路结果，跑 F6 研究、F7 验收，写 F9 研究报告。日任务没跑完就报错退出。"""
+    from quantmind.line_a import f6_research as f6
+    from quantmind.line_a.harness.llm import LLM
+    runs = sorted((out_root / "runs" / as_of).glob("day_*.json"), key=lambda p: p.stat().st_mtime)
+    if not runs:
+        raise FileNotFoundError(f"no day run for {as_of}")
+    o = json.loads(runs[-1].read_text(encoding="utf-8"))["outputs"]
+    f4 = pd.read_parquet(o["f4"])
+    bypass = pd.read_parquet(o["bypass"]) if "bypass" in o else pd.DataFrame(columns=["ticker", "importance", "n_events"])
+    res = f6.run_research(data_root, out_root, as_of, f4, bypass, latest_holdings(out_root, as_of),
+                          cfg=f6.CFG | (overrides or {}))
+    names = pd.read_parquet(o["f1"])["name"].to_dict() if "f1" in o else {}
+    day = Path(res["dir"])
+    rw = None if res["status"]["state"] == "unavailable" else \
+        LLM(ledger=day / "ledger/_rewrite.jsonl", cache_dir=out_root / "research/_llm_cache", budget_rmb=2.0)
+    md = f6.report(res, names, rw)
+    (day / "f9_research.md").write_text(md, encoding="utf-8")
+    return res["status"] | {"day_run": str(runs[-1]), "bypass_rules": str(pd.read_parquet(o["bypass"])["rule_version"].iloc[0])
+                            if "bypass" in o and len(bypass) else None}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("day", "books"):
+    for name in ("day", "books", "research"):
         p = sub.add_parser(name)
         p.add_argument("--as-of", required=True)
         p.add_argument("--data-root", type=Path, required=True)
-        p.add_argument("--model-root", type=Path, required=True)
+        p.add_argument("--model-root", type=Path, required=name != "research")
         p.add_argument("--out-root", type=Path)
         if name == "day":
             p.add_argument("--bundle20", type=Path)
-        else:
+        elif name == "books":
             p.add_argument("--prices", type=Path, required=True)
+        else:
+            p.add_argument("--max-cases", type=int)
+            p.add_argument("--budget", type=float)
     a = ap.parse_args()
     out_root = a.out_root or a.data_root / "data/line_a_v2"
+    if a.cmd == "research":
+        ov = {k: v for k, v in (("max_cases", a.max_cases), ("budget_rmb", a.budget)) if v is not None}
+        print(json.dumps(run_research(a.data_root, out_root, a.as_of, overrides=ov), ensure_ascii=False, default=str,
+                         indent=1))
+        return
     js = JobStore(out_root / "jobs.sqlite")
     if a.cmd == "day":
         ctx = Ctx(a.as_of, a.data_root, a.model_root, out_root, a.bundle20)

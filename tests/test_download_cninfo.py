@@ -164,3 +164,19 @@ def test_failed_request_retries_then_records_failed(tmp_path):
     states = dc.run(tmp_path, ["2019-04-26"], c, log=lambda *a: None)
     ck = json.loads((tmp_path / "_checkpoints/cninfo_meta.json").read_text(encoding="utf-8"))["days"]["2019-04-26"]
     assert states == {dc.FAILED: 1} and "reset" in ck["error"] and ck["requests"] == 2
+
+
+def test_refresh_recent_refetches_terminal_days_and_merges(tmp_path):
+    """T-040：每日运行重抓最近几天（已是终态也重抓），与已有行合并，只增不删。"""
+    items = make_items({("szmb", "category_rcjy_szsh"): 40})
+    days = ["2019-04-26"]
+    dc.run(tmp_path, days, client(items[:30]), log=lambda *a: None)
+    calls = []
+    dc.run(tmp_path, days, client(items[:30], calls), log=lambda *a: None)
+    assert calls == []                                                  # 终态、没要求重抓：不再请求
+    late = [dict(a, announcementId=str(900_000 + i)) for i, a in enumerate(items[30:35])]
+    dc.run(tmp_path, days, client(items[5:30] + late), log=lambda *a: None, refresh={"2019-04-26"})
+    df = pd.read_parquet(tmp_path / "_parts/20190426.parquet")
+    assert len(df) == 35 and df["announcementId"].is_unique             # 5 条迟到的并入；这次没抓到的前 5 条保留
+    ck = json.loads((tmp_path / "_checkpoints/cninfo_meta.json").read_text(encoding="utf-8"))["days"]["2019-04-26"]
+    assert "refreshed_at" in ck and ck["state"] == dc.DONE
