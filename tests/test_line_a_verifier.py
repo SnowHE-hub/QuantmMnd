@@ -187,3 +187,18 @@ def test_verifier_v2_document_text_and_ellipsis_quotes():
     assert st == {"c1": "verified", "c2": "mismatch", "c3": "verified"}      # 原文里找数；数不对仍是不一致
     assert quote_in("（即不超过公司总股本的3.00%）", "(即不超过公司总股本的3.00%)")       # 全角半角统一
     assert not quote_in("总股本的5.00%", para)
+
+
+def test_verifier_v2_magnitude_error_and_thousands_separator():
+    from quantmind.line_a.harness.verifier import verify
+    ev = {"tushare:income:X:20231231:20240416": {"evidence_id": "tushare:income:X:20231231:20240416",
+                                                  "revenue": 2468563737.92, "_units": {"revenue": "元"}}}
+
+    def claim(text):
+        return {"claims": [{"local_id": "c1", "claim_type": "reported_fact", "text": text, "value": 2468563737.92,
+                            "unit": "元", "evidence": [{"evidence_id": "tushare:income:X:20231231:20240416",
+                                                       "field": "revenue"}]}]}
+    bad = verify(claim("2023年营业收入为246.86亿元。"), ev)[0]
+    assert bad.status == "mismatch" and any("magnitude" in n for n in bad.notes)
+    good = verify(claim("2023年营业收入为24.69亿元（2,468,563,737.92元）。"), ev)[0]
+    assert good.status == "verified" and not any("unsourced" in n for n in good.notes)   # 千分位不再被拆开

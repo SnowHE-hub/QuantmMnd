@@ -235,6 +235,18 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 allowed.add(float(claims[i]["value"]))
         ids = " ".join(r["evidence_id"] for r in c.get("evidence") or [])
         body = _IDTOK.sub(" ", _DATE.sub(" ", c.get("text", "")))
+        body = re.sub(r"(?<=\d)[,，](?=\d{3})", "", body)          # 千分位：先合并成一个数（v2，T-050；之前被拆成几段，几乎全是误报）
+        # 数量级错误（v2，T-050）：正文里没有任何地方正确写出本条的数值，却有一个数与它只差 10 的整数次方
+        # （例如 24.69 亿写成 246.86 亿）。正确的数值也在正文里时不判，避免同一句里碰巧相差 10 倍的两个数误报
+        cv = c.get("value")
+        nums = [float(x) for x in _NUM.findall(body)]
+        if cv is not None and float(cv) != 0 and c["claim_type"] in ("reported_fact", "computed") and nums:
+            ok0 = any(_close(xv * s, float(cv), 2e-3) for xv in nums for s in (1, 1e4, 1e8, 0.01))
+            bad = [xv for xv in nums if abs(xv) >= 1 and any(_close(xv * s * 10 ** k, float(cv), 2e-3)
+                                                              for s in (1, 1e4, 1e8) for k in (-3, -2, -1, 1, 2, 3))]
+            if not ok0 and bad:
+                ck.status = "mismatch"
+                ck.notes.append(f"magnitude error: text {bad[0]:g} vs value {cv}")
         for x in _NUM.findall(body):
             if x in ids:
                 continue
