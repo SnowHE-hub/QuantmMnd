@@ -147,13 +147,17 @@ V3_NOTE = ("\n金额字段旁的 _display 是代码换算好的可读写法（�
 # T-051（2026-10-24）：留出集 2 上 DeepSeek 的 v3 组召回 99.2%、有问题声明 0.0%，基线 98.7%、0.2%，按登记采用；
 # A1 默认打开 v3（可读金额 + 完整性检查）
 V3_ROLES = frozenset({"A1"})
+# T-051 v3.1（2026-10-24）：留出集 3 上 DeepSeek 用不带引文的 A1 证据 Schema，召回 99.2%、有问题声明 0.0%，
+# v3 为 99.6%、0.5%，满足登记的非劣条件，A1 默认改用 StructuredRoleOutput
+STRUCTURED_ROLES = frozenset({"A1"})
 
 
 def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Path | None = None,
               extra: str = "", single: bool | None = None, v3: bool | None = None,
-              structured_a1: bool = False) -> dict:
-    """v3：T-051 harness v3；None 表示按 V3_ROLES 决定。structured_a1：A1 用不带引文的证据 Schema（v3.1，判定之前默认关闭）。"""
+              structured_a1: bool | None = None) -> dict:
+    """v3：T-051 harness v3；structured_a1：A1 用不带引文的证据 Schema（v3.1）。None 表示按 V3_ROLES / STRUCTURED_ROLES。"""
     v3 = role in V3_ROLES if v3 is None else v3
+    structured_a1 = role in STRUCTURED_ROLES if structured_a1 is None else structured_a1
     if v3:
         dt.display_amounts = True
         extra = V3_NOTE + extra
