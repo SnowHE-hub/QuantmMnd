@@ -118,3 +118,21 @@ def test_dividend_and_tax():
     r = sim.run()
     held = r["trades"][(r["trades"]["ticker"] == "600001.SH") & (r["trades"]["side"] == "buy")]["shares"].sum()
     assert r["costs"]["dividend_tax"] == pytest.approx(held * 0.5 * 0.20)   # 持有不到 1 个月：20%
+
+
+def test_review_t053_fixes():
+    from quantmind.line_a.sim_account import _Pos, board_of, limit_price
+    assert limit_price(10.25, 0.10, False) == 9.23 and limit_price(9.45, 0.10, True) == 10.40   # 十进制四舍五入
+    assert board_of("689009.SH") == "STAR" and board_of("920090.BJ") == "BSE" and board_of("600000.SH") == "MAIN"
+    px = _px({"600001.SH": {"close": 10.0}, "600002.SH": {"close": 100.0}})
+    sim = AccountSimulator(_scores(["600001.SH"]), px, _cfg(), start=DAYS[0], end=DAYS[5])
+    sim.pos["600001.SH"] = _Pos(150.0, DAYS[0], DAYS[0])          # 部分卖出 50 股：不足一手，订单终止，不无限重试
+    sim.pending = [{"side": "sell", "ticker": "600001.SH", "decided": DAYS[1], "value": 500.0, "sell_all": False,
+                    "slip_bp": 5.0, "expiry": None, "rank": -1}]
+    sim._execute(DAYS[2])
+    assert sim.pending == [] and sim.rejects[-1]["reason"] == "below_one_lot" and sim.pos["600001.SH"].shares == 150
+    sim.cash = 5000.0                                              # 现金不够一手：委托被拒，不留到第二天
+    sim.pending = [{"side": "buy", "ticker": "600002.SH", "decided": DAYS[1], "value": 11000.0, "sell_all": False,
+                    "slip_bp": 5.0, "expiry": DAYS[20], "rank": 0}]
+    sim._execute(DAYS[3])
+    assert sim.pending == [] and sim.rejects[-1]["reason"] == "insufficient_cash"

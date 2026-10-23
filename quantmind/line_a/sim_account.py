@@ -15,14 +15,34 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
 
 import numpy as np
 import pandas as pd
 
-from quantmind.backtest.wf_costs import CHINEXT_20PCT_DATE, SlippageTiers, amihud_to_quantile, board_of, stamp_duty_rate
+from quantmind.backtest.wf_costs import CHINEXT_20PCT_DATE, SlippageTiers, amihud_to_quantile, stamp_duty_rate
+from quantmind.backtest.wf_costs import board_of as _board_of_frozen
 
 ST_LIMIT_10PCT_FROM = pd.Timestamp("2026-07-06")     # 沪深主板风险警示股涨跌幅 5% → 10%（2026 年修订交易规则）
 LOT = {"MAIN": (100, 100), "CHINEXT": (100, 100), "STAR": (200, 1), "BSE": (100, 1)}
+
+
+def board_of(ticker: str) -> str:
+    """在冻结的 wf_costs.board_of 之上补两类代码（T-053 审查）：689 开头是科创板 CDR，92 开头 / .BJ 后缀是北交所。
+    冻结的函数不改（引擎在用）。"""
+    t = str(ticker)
+    if t.startswith("689"):
+        return "STAR"
+    if t.startswith("92") or t.endswith(".BJ"):
+        return "BSE"
+    return _board_of_frozen(t)
+
+
+def limit_price(pre: float, pct: float, up: bool) -> float:
+    """涨跌停价：昨收 × (1 ± 幅度)，十进制四舍五入到分（T-053：Python 的 round 对 10.25 × 0.9 给 9.22，交易所是 9.23）。"""
+    k = Decimal(repr(pct))
+    v = Decimal(repr(float(pre))) * (Decimal(1) + k if up else Decimal(1) - k)
+    return float(v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 @dataclass
@@ -32,7 +52,7 @@ class SimConfig:
     rebalance_step: int = 4                  # 每几个决策网格点调一次仓
     universe_size: int | None = 1500         # PIT adv20 前 N；None = 不限
     buffer_mult: float | None = 2.0          # 持仓仍在前 buffer_mult × N 就不卖；None = 不缓冲
-    drift_band: float = 0.5                  # 留在目标里的持仓，偏离目标金额超过这个比例才调；0 = 每次都调平
+    drift_band: float = 0.0                  # 留在目标里的持仓，偏离目标金额超过这个比例才调；0 = 每次都调平（登记口径）
     exec_price: str = "open"                 # open / vwap
     commission_rate: float = 2.5e-4
     min_commission: float = 5.0
@@ -145,7 +165,7 @@ class AccountSimulator:
         self.cash = float(cfg.aum)
         self.pos: dict[str, _Pos] = {}
         self.pending: list[dict] = []
-        self.trades, self.rejects, self.nav_rows, self.targets = [], [], [], []
+        self.trades, self.rejects, self.nav_rows, self.targets, self.hold_rows = [], [], [], [], []
         self.costs = {"commission": 0.0, "transfer": 0.0, "stamp": 0.0, "slippage": 0.0, "dividend_tax": 0.0}
         self.bench_nav, self.bench_members = 1.0, []
 
@@ -166,9 +186,9 @@ class AccountSimulator:
             return "suspended_no_bar"
         pre, hi, lo = float(self.pre.at[d, t]), float(self.high.at[d, t]), float(self.low.at[d, t])
         pct = limit_pct(t, d, self.cfg.mode == "raw" and self._is_st(t, d))
-        if side == "buy" and (hi >= round(pre * (1 + pct), 2) - 1e-9 or (hi == lo and hi > pre)):
+        if side == "buy" and (hi >= limit_price(pre, pct, True) - 1e-9 or (hi == lo and hi > pre)):
             return "limit_up_locked"
-        if side == "sell" and (lo <= round(pre * (1 - pct), 2) + 1e-9 or (hi == lo and hi < pre)):
+        if side == "sell" and (lo <= limit_price(pre, pct, False) + 1e-9 or (hi == lo and hi < pre)):
             return "limit_down_locked"
         return None
 
@@ -261,8 +281,13 @@ class AccountSimulator:
                                  "expiry": expiry if side == "buy" else None,
                                  "rank": target.index(t) if t in target else -1})
         self.targets.append({"as_of": d, "targets": target, "equity": equity, "per_name": per})
+        self._snapshot(d)
 
     # ------------------------------------------------------------------ 成交
+    def _part(self, d, t, shares: float) -> float | None:
+        v = self.vol.at[d, t] if t in self.vol.columns else np.nan
+        return float(shares / v) if pd.notna(v) and v > 0 else None
+
     def _cap(self, d, t, shares: float) -> float:
         p = self.cfg.participation
         if p is None or self.cfg.mode == "adj":
@@ -295,10 +320,15 @@ class AccountSimulator:
                 keep.append(o)
                 continue
             want = p.shares if o["sell_all"] else min(p.shares, o["value"] / price)
+            step = LOT.get(board_of(t), (100, 100))[1]
             if integer and not o["sell_all"]:
-                lo, step = LOT.get(board_of(t), (100, 100))
                 want = math.floor(want / step) * step
+                if want <= 0:                          # 部分卖出不足一个申报单位：没有可卖数量，订单终止（T-053）
+                    self.rejects.append({"date": d, "ticker": t, "side": "sell", "reason": "below_one_lot"})
+                    continue
             qty = self._cap(d, t, want)
+            if integer and qty < want:                 # 被参与率截断时按申报单位取整；零股留到最后一次卖完
+                qty = math.floor(qty / step) * step
             if qty <= 0:
                 keep.append(o)
                 self.rejects.append({"date": d, "ticker": t, "side": "sell", "reason": "participation_cap"})
@@ -309,6 +339,7 @@ class AccountSimulator:
             if c.mode == "raw" and c.dividend_tax and p.div_received > 0:
                 frac = qty / p.shares
                 tax = p.div_received * frac * dividend_tax_rate(p.first_buy, d)
+                tax = min(tax, max(gross - sum(fee.values()), 0.0))     # 不让税把现金扣成负数（T-053）
                 p.div_received -= p.div_received * frac
             fee["dividend_tax"] = tax
             cost = sum(fee.values())
@@ -317,7 +348,7 @@ class AccountSimulator:
                 self.costs[k] += v
             p.shares -= qty
             self.trades.append({"date": d, "ticker": t, "side": "sell", "shares": qty, "price": price, "gross": gross,
-                                "cost": cost, "decided": o["decided"]})
+                                "cost": cost, "decided": o["decided"], "participation": self._part(d, t, qty)})
             if p.shares <= 1e-9:
                 del self.pos[t]
             elif o["sell_all"] or qty < want:
@@ -350,7 +381,8 @@ class AccountSimulator:
                 reason = "participation_cap" if qty > 0 else ("insufficient_cash" if budget < o["value"] * 0.999
                                                                else "cannot_afford_one_lot")
                 self.rejects.append({"date": d, "ticker": t, "side": "buy", "reason": reason})
-                if reason != "cannot_afford_one_lot":
+                # 真实账户里资金不够的委托会被拒，不留到第二天（T-053）；研究口径保持引擎的做法（现金为 0 时留着）
+                if reason == "participation_cap" or (reason == "insufficient_cash" and not integer):
                     keep.append(o)
                 continue
             gross = capped * price
@@ -366,11 +398,19 @@ class AccountSimulator:
             else:
                 self.pos[t] = _Pos(capped, d, d)
             self.trades.append({"date": d, "ticker": t, "side": "buy", "shares": capped, "price": price, "gross": gross,
-                                "cost": cost, "decided": o["decided"]})
+                                "cost": cost, "decided": o["decided"], "participation": self._part(d, t, capped)})
             left = o["value"] - gross - cost
             if capped < qty and left > price * LOT.get(board_of(t), (100, 100))[0]:   # 参与率限制：剩余部分明天接着买
                 keep.append(o | {"value": left})
         self.pending = keep
+
+    def _snapshot(self, d) -> None:
+        px = self.adjc_ffill if self.cfg.mode == "adj" else self.close_ffill
+        eq = self._value(d)
+        for t, p in sorted(self.pos.items()):
+            v = p.shares * float(px.at[d, t])
+            self.hold_rows.append({"date": d, "ticker": t, "board": board_of(t), "shares": p.shares,
+                                   "price": float(px.at[d, t]), "value": v, "weight": v / eq if eq else np.nan})
 
     def _corporate_actions(self, d) -> None:
         ev = self.divs.get(d)
@@ -394,6 +434,10 @@ class AccountSimulator:
                 px = float((self.adjc_ffill if self.cfg.mode == "adj" else self.close_ffill).at[d, t])
                 gross = self.pos[t].shares * px                       # 与引擎相同：按末价清仓，计卖出成本（小盘档滑点）
                 fee = self._fees(gross, "sell", d, self.cfg.tiers.small_bp) if gross > 0 else {}
+                p = self.pos[t]
+                if self.cfg.mode == "raw" and self.cfg.dividend_tax and p.div_received > 0 and fee:   # 清仓也算卖出（T-053）
+                    fee["dividend_tax"] = min(p.div_received * dividend_tax_rate(p.first_buy, d),
+                                              max(gross - sum(fee.values()), 0.0))
                 for k, v in fee.items():
                     self.costs[k] += v
                 self.cash += gross - sum(fee.values())
@@ -431,10 +475,14 @@ class AccountSimulator:
                                   "max_weight": max((p.shares * float(px.at[d, t]) for t, p in self.pos.items()
                                                      if pd.notna(px.at[d, t])), default=0.0) / eq if eq else 0.0})
             prev = d
+        self._snapshot(cal[-1])
         nav = pd.DataFrame(self.nav_rows).set_index("date")
-        return {"nav": nav, "trades": pd.DataFrame(self.trades), "rejects": pd.DataFrame(self.rejects),
-                "targets": pd.DataFrame(self.targets), "costs": dict(self.costs),
-                "summary": summarize(nav, self.cfg.aum, pd.DataFrame(self.trades), self.costs)}
+        rej = pd.DataFrame(self.rejects)
+        summ = summarize(nav, self.cfg.aum, pd.DataFrame(self.trades), self.costs)
+        summ["rejects_by_reason"] = rej["reason"].value_counts().to_dict() if len(rej) else {}
+        summ["n_cannot_afford_one_lot"] = int(summ["rejects_by_reason"].get("cannot_afford_one_lot", 0))
+        return {"nav": nav, "trades": pd.DataFrame(self.trades), "rejects": rej, "holdings": pd.DataFrame(self.hold_rows),
+                "targets": pd.DataFrame(self.targets), "costs": dict(self.costs), "summary": summ}
 
 
 def summarize(nav: pd.DataFrame, aum: float, trades: pd.DataFrame, costs: dict) -> dict:
@@ -455,4 +503,6 @@ def summarize(nav: pd.DataFrame, aum: float, trades: pd.DataFrame, costs: dict) 
             "turnover_x": gross_traded / 2 / aum, "cost_total": float(sum(costs.values())),
             "cost_share_of_aum": float(sum(costs.values()) / aum), "costs": {k: float(v) for k, v in costs.items()},
             "avg_cash_share": float((nav["cash"] / nav["equity"]).mean()),
+            "max_participation": float(trades["participation"].max()) if len(trades) and "participation" in trades
+            and trades["participation"].notna().any() else None,
             "n_trades": int(trades["side"].isin(["buy", "sell"]).sum()) if len(trades) else 0}

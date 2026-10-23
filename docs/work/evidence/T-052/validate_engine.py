@@ -34,7 +34,7 @@ def main() -> None:
     en = eng["nav_daily"].set_index("date")
     cfg = SimConfig(aum=1.0, top_n=300, rebalance_step=4, universe_size=1500, buffer_mult=None, drift_band=0.0,
                     commission_rate=3e-4, min_commission=0.0, transfer_rate=2e-5, tiers=tiers, participation=None,
-                    mode="adj", dividend_tax=False)
+                    mode="adj", dividend_tax=False)  # drift_band=0.0：每次调平，与引擎相同
     sim = AccountSimulator(sc, px, cfg, start=start, end=end, amihud=ami).run()
     sn = sim["nav"]
     j = en.join(sn, how="inner", rsuffix="_sim")

@@ -50,18 +50,18 @@ def load() -> None:
 
 def configs() -> list[dict]:
     out = []
-    for (sig, (base, quota, steps)), n, buf, ex, aum, win in itertools.product(
-            SIGNALS.items(), NS, (None, 2.0), ("open", "vwap"), AUMS, WINDOWS):
+    for (sig, (base, quota, steps)), n, buf, ex, aum, win, drift in itertools.product(
+            SIGNALS.items(), NS, (None, 2.0), ("open", "vwap"), AUMS, WINDOWS, (0.0, 0.5)):
         for step in steps:
             out.append({"signal": sig, "base": base, "quota": quota, "n": n, "step": step, "buffer": buf, "exec": ex,
-                        "aum": aum, "window": win, "boards": "main+chinext" if aum < 5e5 else "all"})
+                        "aum": aum, "window": win, "drift": drift, "boards": "main+chinext" if aum < 5e5 else "all"})
     for aum, (sig, n) in PRIMARY.items():                       # 只开主板的对照（主配置）
         for win in WINDOWS:
             out.append({"signal": sig, "base": sig, "quota": None, "n": n, "step": 4, "buffer": 2.0, "exec": "open",
-                        "aum": aum, "window": win, "boards": "main_only"})
+                        "aum": aum, "window": win, "drift": 0.0, "boards": "main_only"})
     for c in out:
         c["primary"] = (PRIMARY.get(c["aum"]) == (c["signal"], c["n"]) and c["step"] == 4 and c["buffer"] == 2.0
-                        and c["exec"] == "open" and c["boards"] != "main_only")
+                        and c["exec"] == "open" and c["drift"] == 0.0 and c["boards"] != "main_only")
         c["key"] = f"{c['window']}_{c['signal']}_n{c['n']}_s{c['step']}_b{c['buffer'] or 0}_{c['exec']}_" \
                    f"{int(c['aum']):d}_{c['boards']}"
     return out
@@ -72,7 +72,7 @@ def run_one(c: dict) -> dict:
     start, end = WINDOWS[c["window"]]
     boards = {"all": ALL, "main+chinext": SMALL, "main_only": MAIN_ONLY}[c["boards"]]
     cfg = SimConfig(aum=c["aum"], top_n=c["n"], rebalance_step=c["step"], buffer_mult=c["buffer"], exec_price=c["exec"],
-                    boards=boards, quota_ext=c["quota"])
+                    boards=boards, quota_ext=c["quota"], drift_band=c["drift"])
     try:
         r = AccountSimulator(G["scores"][c["base"]], G["market"], cfg, start=start, end=end, amihud=G["amihud"],
                              dividends=G["divs"], st_intervals=G["st"]).run()
@@ -85,7 +85,7 @@ def run_one(c: dict) -> dict:
         s[f"ret_{k}"] = float(idx[k].iloc[-1] / idx[k].iloc[0] - 1)
     rej = r["rejects"]["reason"].value_counts().to_dict() if len(r["rejects"]) else {}
     tg = r["targets"]
-    row = c | {k: v for k, v in s.items() if k != "costs"} | {f"cost_{k}": v for k, v in s["costs"].items()} | \
+    row = c | {k: v for k, v in s.items() if k not in ("costs", "rejects_by_reason")} | {f"cost_{k}": v for k, v in s["costs"].items()} | \
         {"rejects": json.dumps(rej, ensure_ascii=False), "n_decisions": int(len(tg)),
          "first_decision": str(tg["as_of"].min().date()) if len(tg) else None, "secs": round(time.time() - t0, 1)}
     if c["primary"] or c["boards"] == "main_only":
@@ -96,6 +96,8 @@ def run_one(c: dict) -> dict:
         if len(r["rejects"]):
             r["rejects"].to_parquet(d / "rejects.parquet")
         tg.assign(targets=tg["targets"].map(list)).to_parquet(d / "targets.parquet")
+        if len(r["holdings"]):
+            r["holdings"].to_parquet(d / "holdings.parquet")
     return row
 
 

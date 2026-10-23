@@ -75,6 +75,10 @@ def main() -> None:
             print(f"stop: {type(e).__name__}: {e}", flush=True)
             break
         except Exception as e:  # noqa: BLE001  单个案例出错：记为 error，接着跑下一个
+            if type(e).__name__ in ("ConnectError", "ConnectTimeout") and llm.local:
+                # 本机后端挂了（例如 llama-server 的 CUDA 错误）：这是基础设施故障，不记成案例结果，停下等重启
+                print(f"stop: local backend unreachable: {type(e).__name__}", flush=True)
+                sys.exit(3)
             r = {"output": None, "checks": [], "status": f"error: {type(e).__name__}", "cost_rmb": 0.0,
                  "errors": [str(e)[:300]], "steps": []}
         gold = gold_facts_a1(a.lake, c["ticker"], c["as_of"])
