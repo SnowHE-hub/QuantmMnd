@@ -83,7 +83,12 @@ def main() -> None:
     import pandas as pd
 
     from quantmind.line_a.harness.evalset import gold_facts_a1, sample_cases, score_a1
-    from quantmind.line_a.harness.llm import LLM, BudgetExceededError, TLSInterceptionError, canonical
+    from quantmind.line_a.harness.llm import (
+        LLM,
+        BudgetExceededError,
+        TLSInterceptionError,
+        canonical,
+    )
     from quantmind.line_a.harness.slices import run_slice
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["d1", "d2"], required=True)
