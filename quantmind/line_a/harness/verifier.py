@@ -4,7 +4,8 @@
 - reported_fact：
   - 引用的 evidence_id 必须存在；
   - 给了字段和数值时，数值要与记录一致（允许元 / 万元 / 亿元换算，相对误差 ≤ 1e-6）；
-  - 给了引文时，引文要逐字出现在记录的文本字段里。
+  - 给了引文时，引文要逐字出现在记录的文本字段里；
+  - 引用的字段是短文字（审计意见、预告类型）时，这段文字要出现在声明正文或引文里（v3，T-051）。
 - computed：公式只允许四则运算、abs 和输入声明的编号；用输入声明的数值重算，相对误差 ≤ 1e-4。
 - inference / counter_evidence：依据的声明必须存在；依据里有未通过的声明时，标为 weak_basis。
 - 正文数字：text 里出现、但在本条 value、引用记录和输入声明里都找不到的数字，记为 unsourced_number。
@@ -123,6 +124,12 @@ def quote_in(q: str, text: str) -> bool:
     return bool(parts)
 
 
+def _is_text_value(raw: str) -> bool:
+    """短的文字取值（"标准无保留意见"、"预增"）；纯数字串、日期和长段落不算。"""
+    t = raw.strip()
+    return 0 < len(t) <= 30 and not re.fullmatch(r"[\d.\-:T ]+|\d{6}\.(?:SH|SZ|BJ)", t)
+
+
 def cu_of(r: dict, c: dict, own) -> str | None:
     return r.get("unit") if own is not None else c.get("unit")
 
@@ -158,6 +165,16 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 v = own if own is not None else claim_v
                 raw = rec.get(f) if f else None
                 numeric = isinstance(raw, (int, float)) and not isinstance(raw, bool)
+                if f and isinstance(raw, str) and _is_text_value(raw):
+                    # 文字字段（v3，T-051）：审计意见、预告类型这类字段，记录里的文字要出现在声明正文或引文里；
+                    # 不看 value（模型常写 1.0 占位）
+                    if _norm(raw) not in _norm(c.get("text", "") + (q or "")):
+                        ck.status = "mismatch"
+                        ck.notes.append(f"text field {f}={raw!r} not stated in claim text or quote")
+                    elif own is None:
+                        claim_tried += 1
+                        claim_hits += 1
+                    continue
                 if v is not None and not numeric and q and quote_ok:
                     # 文档证据：数值从已核对的引文里找（千分位、空格、单位写法不同都允许）
                     ok = _value_in_quote(float(v), r.get("unit") if own is not None else c.get("unit"), q)

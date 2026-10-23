@@ -17,6 +17,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from quantmind.line_a.harness.completeness import a1_missing
 from quantmind.line_a.harness.llm import LLM, canonical
 from quantmind.line_a.harness.loop import RoleSpec, Tool, run_role
 from quantmind.line_a.harness.roles import (
@@ -139,16 +140,26 @@ def _single_call_task(spec: RoleSpec, ticker: str, as_of: str, extra: str) -> tu
     return task, evidence
 
 
+V3_NOTE = ("\n金额字段旁的 _display 是代码换算好的可读写法（例如 54.33亿元），正文写金额时直接照抄 _display，不要自己换算单位；"
+           "value 和 unit 仍按原始字段填写。")
+
+
 def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Path | None = None,
-              extra: str = "", single: bool | None = None) -> dict:
+              extra: str = "", single: bool | None = None, v3: bool = False) -> dict:
+    """v3：T-051 harness v3（可读金额 + A1 完整性检查）；判定之前默认关闭。"""
+    if v3:
+        dt.display_amounts = True
+        extra = V3_NOTE + extra
     spec = role_spec(role, dt, ticker)
+    if v3 and role == "A1":
+        spec.completeness = lambda out, ev: a1_missing(out, ev, dt.as_of)
     single = role in SINGLE_CALL_ROLES if single is None else single
     if single:
         task, pre = _single_call_task(spec, ticker, dt.as_of, extra)
-        spec1 = RoleSpec(spec.name, spec.system, [], spec.output_model, max_steps=3, thinking=spec.thinking,
-                         max_tokens=spec.max_tokens, max_tool_calls=0, defaults=spec.defaults)
-        rec = run_role(llm, spec1, task, meta={"ticker": ticker, "as_of": dt.as_of, "mode": "single"})
-        rec.evidence.update(pre)
+        spec1 = RoleSpec(spec.name, spec.system, [], spec.output_model, max_steps=4, thinking=spec.thinking,
+                         max_tokens=spec.max_tokens, max_tool_calls=0, defaults=spec.defaults,
+                         completeness=spec.completeness)
+        rec = run_role(llm, spec1, task, meta={"ticker": ticker, "as_of": dt.as_of, "mode": "single"}, evidence=pre)
     else:
         rec = run_role(llm, spec, _task(ticker, dt.as_of, extra), meta={"ticker": ticker, "as_of": dt.as_of})
     rec.evidence.update(getattr(dt, "side_evidence", {}))     # 公告全文与逐段记录（覆盖工具里截短的版本）

@@ -202,3 +202,21 @@ def test_verifier_v2_magnitude_error_and_thousands_separator():
     assert bad.status == "mismatch" and any("magnitude" in n for n in bad.notes)
     good = verify(claim("2023年营业收入为24.69亿元（2,468,563,737.92元）。"), ev)[0]
     assert good.status == "verified" and not any("unsourced" in n for n in good.notes)   # 千分位不再被拆开
+
+
+def test_verifier_v3_text_fields():
+    ev = {"tushare:fina_audit:600000.SH:20251231:20260420": {
+        "evidence_id": "tushare:fina_audit:600000.SH:20251231:20260420", "end_date": "20251231",
+        "audit_result": "标准无保留意见", "audit_agency": "某会计师事务所"}}
+    ref = [{"evidence_id": "tushare:fina_audit:600000.SH:20251231:20260420", "field": "audit_result"}]
+    out = _out([
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "2025 年年报审计意见为标准无保留意见", "value": 1.0,
+         "evidence": ref},
+        {"local_id": "c2", "claim_type": "reported_fact", "text": "2025 年年报审计意见为保留意见", "evidence": ref},
+        {"local_id": "c3", "claim_type": "reported_fact", "text": "年报审计结论如引文",
+         "evidence": [ref[0] | {"quote": "标准无保留意见"}]},
+        {"local_id": "c4", "claim_type": "reported_fact", "text": "审计期间为 2025 年",
+         "evidence": [ref[0] | {"field": "end_date"}]},
+    ])
+    st = {c.local_id: c.status for c in verify(out, ev)}
+    assert st == {"c1": "verified", "c2": "mismatch", "c3": "verified", "c4": "verified"}
