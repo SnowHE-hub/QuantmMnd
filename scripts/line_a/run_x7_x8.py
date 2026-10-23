@@ -87,6 +87,7 @@ def main() -> None:
         def slow_spec(*args, **kw):                         # 本机生成慢：角色墙钟 900 → 1,800 秒（已登记）
             s = base_spec(*args, **kw)
             s.wall_clock_s = 1800.0
+            s.thinking = None                     # v1.1：本机关闭思考（T-041 变更登记）
             return s
         slices.role_spec = slow_spec
     else:
