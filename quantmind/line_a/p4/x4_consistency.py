@@ -35,14 +35,16 @@ def _cloud_module(pack: Path):
     return m
 
 
-def run_local(pack: Path, run_dir: Path, out_path: Path, model_key: str, *, limit: int | None = None) -> Path:
-    """run_dir：Colab 输出里的 ft__<model_key>（含 adapter_best、best.json、config.json）。"""
+def run_local(pack: Path, run_dir: Path, out_path: Path, model_key: str, *, limit: int | None = None,
+              local_path: str | None = None) -> Path:
+    """run_dir：Colab 输出里的 ft__<model_key>（含 adapter_best、best.json、config.json）。
+    local_path：基座的本地目录（固定 revision 下载的文件）；不给就按模型名从 Hub 缓存加载。"""
     from peft import PeftModel
     xc = _cloud_module(pack)
     xc.verify_pack(Path(pack))
     best = json.loads((Path(run_dir) / "best.json").read_text())
     q4 = json.loads((Path(run_dir) / "config.json").read_text()).get("load_in_4bit", False)
-    base, tok = xc.load_model(model_key, load_in_4bit=q4)
+    base, tok = xc.load_model(model_key, load_in_4bit=q4, local_path=local_path)
     model = PeftModel.from_pretrained(base, Path(run_dir) / "adapter_best")
     model.eval()
     rows = xc._read_jsonl(Path(pack) / "cells.jsonl")

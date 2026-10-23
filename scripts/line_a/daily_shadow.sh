@@ -46,6 +46,9 @@ step index_extra $P -u scripts/data_pipeline/download_index_extra.py --data-root
 # 巨潮公告元数据：最近 4 天强制重抓并合并（补迟到的公告）；拿巨潮下载的文件锁，最多等 30 分钟
 soft_step cninfo flock -w 1800 /tmp/qm_cninfo_meta.lock $P -u scripts/data_pipeline/download_cninfo.py --data-root "$R" \
      --start "$CN0" --end "$END" --refresh-recent 4 --interval 1.5
+# 卖方盈利预测（report_rc）每日增量：一个 [END − 3, END] 窗口，最多 2 次调用（2000 积分档每 24 小时 10 次；T-040）
+soft_step report_rc $P -u scripts/data_pipeline/download_events.py --data-root "$R" --apis report_rc \
+     --start "$CN0" --end "$END" --max-calls 2
 step snapshot    $P -m quantmind.line_a.snapshot --data-root "$R" --as-of "$END"
 # 2 影子数据根
 step prices      $P -u scripts/data_pipeline/build_price_panels.py --end "$END" --data-root "$R"

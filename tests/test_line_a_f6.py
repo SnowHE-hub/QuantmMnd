@@ -42,6 +42,23 @@ def test_cninfo_mapping_window_and_scan(tmp_path):
                   ("000002.SZ", "control_change", "major")}                              # 回购是 routine，B 股不在证券表
 
 
+def test_forward_report_rc_overlap_dedupe_and_gap(tmp_path):
+    from quantmind.line_a.harness.tools_more import forward_report_rc
+    lake = tmp_path / "lake"
+    d = lake / "events/_parts/report_rc"
+    d.mkdir(parents=True)
+    row = {"ts_code": "600001.SH", "org_name": "A证券", "quarter": "2026Q4", "np": 1.0}
+    pd.DataFrame([row | {"report_date": "20261018"}, row | {"report_date": "20261020"}]).to_parquet(
+        d / "20261017_20261020.parquet")
+    pd.DataFrame([row | {"report_date": "20261020"}, row | {"report_date": "20261021"}]).to_parquet(
+        d / "20261018_20261021.parquet")                                 # 与前一个窗口重叠
+    pd.DataFrame([row | {"report_date": "20261026"}]).to_parquet(d / "20261025_20261026.parquet")   # 22–24 日有缺口
+    df, cov = forward_report_rc(lake, "600001.SH", "20261016", "20261030")
+    assert cov == "20261021" and sorted(df["report_date"]) == ["20261018", "20261020", "20261021"]
+    assert not df["version_conflict"].any()
+    assert forward_report_rc(lake, "600001.SH", "20261016", "20261019")[1] == "20261019"
+
+
 def _f4() -> pd.DataFrame:
     rows = []
     for i in range(30):

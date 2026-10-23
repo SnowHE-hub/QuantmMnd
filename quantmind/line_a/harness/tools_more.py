@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pandas as pd
 import pyarrow.dataset as ds
@@ -15,6 +16,27 @@ PURCHASED_RC = "events_purchased/xianyu_20261022/report_rc_clean.parquet"   # �
 PURCHASED_RC_END = "20260522"
 EXTENDED_RC = "events_purchased/xianyu_20261022/report_rc_extended.parquet"   # 数据包 + 中转补的 2026-05-22 之后
 EXTENDED_RC_END = "20261016"
+
+
+def forward_report_rc(lake: Path, ticker: str, after: str, as_of: str) -> tuple[pd.DataFrame, str]:
+    """官方 report_rc 每日增量（每晚抓 [END − 3, END] 一个窗口，窗口互相重叠）：取 report_date 在 (after, as_of] 的行并去重。
+    返回 (行, 连续覆盖到的日期)：从 after 的下一天起，窗口首尾相接才算覆盖；中间有缺口就只算到缺口之前。"""
+    parts = sorted((Path(lake) / "events/_parts/report_rc").glob("*_*.parquet"))
+    wins = sorted((p.stem.split("_")[0], p.stem.split("_")[1], p) for p in parts if p.stem.split("_")[1] > after
+                  and p.stem.split("_")[0] <= as_of)
+    covered = after
+    for a, b, _ in wins:
+        if pd.Timestamp(a) <= pd.Timestamp(covered) + pd.Timedelta(days=1):
+            covered = max(covered, min(b, as_of))
+    if not wins:
+        return pd.DataFrame(), after
+    df = pd.concat([ds.dataset(str(p), format="parquet").to_table(filter=ds.field("ts_code") == ticker).to_pandas()
+                    for _, _, p in wins], ignore_index=True)
+    if df.empty:
+        return df, covered
+    d = df["report_date"].astype(str)
+    df = df[(d > after) & (d <= covered)].drop_duplicates().assign(version_conflict=False, source="official_daily")
+    return df, covered
 
 
 @dataclass
@@ -132,6 +154,12 @@ class ResearchTools(DataTools):
             note = ("来源：第三方转售的 Tushare report_rc 数据包，已与官方重叠窗口逐行核对（T-038）"
                     + ("；2026-05-22 之后来自第三方中转接口，已与数据包的 5 月数据交叉核对" if clean == ext else "")
                     + f"；同一报告有多个版本的 {n_conflict} 行已排除。")
+            if clean == ext and covered < self.as_of:      # T-040：拼接表之后的官方每日增量
+                fwd, fcov = forward_report_rc(self.lake, ticker, covered, self.as_of)
+                if fcov > covered:
+                    df = pd.concat([df, fwd], ignore_index=True) if len(fwd) else df
+                    note += f"{covered} 之后来自官方接口的每日增量（到 {fcov}，T-040）。"
+                    covered = fcov
             if covered < self.as_of:
                 note += f"数据只到 {covered}，之后的预测尚未取得；不能据此推断没有分析师覆盖。"
             if not len(df):

@@ -28,6 +28,8 @@ from typing import Any
 
 BJ = timezone(timedelta(hours=8))
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+# 本机后端（X7，T-041）：WSL 里 Ollama 的 OpenAI 兼容接口；不需要密钥，不出本机，费用记 0
+OLLAMA_URL = "http://127.0.0.1:11434/v1/chat/completions"
 # 元 / 百万 tokens：(缓存命中输入, 未命中输入, 输出)；来源 api-docs.deepseek.com 价格页（2026-10-21 查阅）
 PRICES = {"deepseek-flash": {"idle": (0.02, 1.0, 4.0), "peak": (0.04, 2.0, 8.0)},
           "deepseek-v4-pro": {"idle": (0.15, 4.5, 13.5), "peak": (0.30, 9.0, 27.0)}}
@@ -129,13 +131,20 @@ class LLM:
     timeout_s: float = 300.0
     max_retries: int = 4
     transport: Any = None                   # 测试注入：callable(url, headers, body) -> (status, json)
+    local: bool = False                     # True：本机 Ollama（OLLAMA_URL），不读密钥，费用记 0
     spent_rmb: float = 0.0
     _key: str | None = field(default=None, repr=False)
 
     def _post(self, body: dict) -> tuple[int, dict]:
         if self.transport is not None:
-            return self.transport(DEEPSEEK_URL, {}, body)
+            return self.transport(OLLAMA_URL if self.local else DEEPSEEK_URL, {}, body)
         import httpx
+        if self.local:
+            r = httpx.post(OLLAMA_URL, json=body, timeout=self.timeout_s)
+            try:
+                return r.status_code, r.json()
+            except ValueError:
+                return r.status_code, {"error": {"message": r.text[:500]}}
         if self._key is None:
             self._key = read_key()
         try:
@@ -162,7 +171,9 @@ class LLM:
             body["tools"] = tools
         if json_mode:
             body["response_format"] = {"type": "json_object"}
-        if thinking:
+        if self.local:                     # Ollama：思考用 reasoning_effort 控制（"none" 关闭）
+            body["reasoning_effort"] = thinking or "none"
+        elif thinking:
             body["thinking"] = {"type": "enabled"}
             body["reasoning_effort"] = thinking
         else:
@@ -189,9 +200,10 @@ class LLM:
         ch = data["choices"][0]
         m = ch.get("message", {})
         usage = data.get("usage", {})
-        cost = estimate_cost(self.model, usage)
+        cost = 0.0 if self.local else estimate_cost(self.model, usage)
         self.spent_rmb += cost if cost == cost else 0.0
-        res = LLMResult(content=m.get("content") or "", reasoning=m.get("reasoning_content") or "",
+        res = LLMResult(content=m.get("content") or "",
+                        reasoning=m.get("reasoning_content") or m.get("reasoning") or "",
                         tool_calls=m.get("tool_calls") or [], finish_reason=ch.get("finish_reason", ""),
                         model=self.model, model_version=str(data.get("model", "")), usage=usage, cost_rmb=cost,
                         latency_s=round(time.time() - t0, 3), request_hash=rh)
