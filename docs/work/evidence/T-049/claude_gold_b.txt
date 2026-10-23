@@ -1,0 +1,29 @@
+4	unlock
+8	repurchase
+23	unlock
+24	dividend
+25	performance_forecast
+42	dividend
+45	performance_forecast
+69	holder_increase
+74	regulatory_letter,st_change	评级机构转述收到监管函与撤销退市风险警示
+85	repurchase
+91	restructuring
+93	repurchase
+103	penalty	高管收到处罚
+107	repurchase
+110	repurchase	回购专项贷款
+114	dividend
+118	dividend	决定不分配
+119	repurchase
+138	repurchase
+142	repurchase	调整回购价格上限，属回购流程
+147	dividend
+150	restructuring
+153	dividend
+171	dividend
+173	holder_reduction
+177	repurchase
+181	dividend
+190	holder_reduction
+194	unlock	限制性股票解锁条件成就

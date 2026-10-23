@@ -1,0 +1,2 @@
+9d0ad5cc3bc27be93206aa52607625ee578329a3ed1daea6351b530a3e49ddb7  /home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v2/gold_v2_a_labeled.parquet
+d62e95cf449b506f82fc64f457140c75315109f1c24da5289691e91b261bb5b3  /home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v2/gold_v2_b_labeled.parquet
