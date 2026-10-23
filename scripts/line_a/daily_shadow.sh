@@ -72,4 +72,10 @@ step books $G -u -m quantmind.line_a.pipeline books --as-of "$END" --data-root "
      --prices "$R/data/raw/alpha_prices_panel_v6_$TAG.parquet"
 echo "ALL DONE $(date '+%F %T')" >> "$S"
 # 5 影子研究（软步骤，放在 ALL DONE 之后：研究失败不会让量化部分重跑）
+# 研究要用 DeepSeek：网络在解密 HTTPS（校园网）时证书校验会失败。先等网络，最多 8 小时，每 10 分钟查一次
+for i in $(seq 1 48); do
+  curl -s -o /dev/null --max-time 20 https://api.deepseek.com/ && break
+  [ "$i" = 1 ] && echo "research waiting for network (TLS) $(date '+%F %T')" >> "$S"
+  sleep 600
+done
 soft_step research $G -u -m quantmind.line_a.pipeline research --as-of "$END" --data-root "$R"
