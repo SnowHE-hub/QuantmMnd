@@ -44,9 +44,12 @@ def role_spec(role: str, dt: ResearchTools, subject: str, *, thinking: str | Non
         params["required"] = ["ticker", *required]
 
         def guarded(ticker: str, **kw):          # 只允许查本次研究对象，防止被文本诱导去查别的股票
-            if ticker != subject:
+            t = str(ticker).strip().upper()
+            if t == subject.split(".")[0]:          # 不带交易所后缀的 6 位代码（本机 9B 常这样写）：补成研究对象本身
+                t = subject
+            if t != subject:
                 return {"error": f"this run is restricted to {subject}"}
-            return fn(ticker, **kw)
+            return fn(subject, **kw)
         return Tool(name, desc, params, guarded)
 
     ann = [_tool("list_announcements", "按时点列出公告标题、发布时间、规则分类（类型 / 阶段 / 重要性）",

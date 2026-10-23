@@ -201,3 +201,17 @@ def test_run_research_budget_resume_reuse_and_f7(tmp_path):
     assert ("600100.SH", ("A1",), ("A2", "A3", "A4")) in calls
     md = f6.report(res, {"600100.SH": "测试股份"}, None)
     assert "影子研究报告" in md and "测试股份" in md and "沿用的角色" in md
+
+
+def test_tool_guard_accepts_bare_code_of_subject_only():
+    from quantmind.line_a.harness.slices import role_spec
+
+    class Fake:
+        as_of = "20240910"
+        def __getattr__(self, name):
+            return lambda ticker, **kw: {"ticker": ticker}
+    spec = role_spec("A1", Fake(), "603876.SH")
+    fn = spec.tools[0].fn
+    assert fn(ticker="603876") == {"ticker": "603876.SH"}            # 不带后缀：补成研究对象
+    assert fn(ticker="603876.sh") == {"ticker": "603876.SH"}
+    assert "error" in fn(ticker="600519.SH") and "error" in fn(ticker="600519")
