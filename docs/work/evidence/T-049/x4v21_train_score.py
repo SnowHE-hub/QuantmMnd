@@ -4,7 +4,8 @@
 - gold-hard：Claude 盲标（41d06c0），每条标题 × 14 类展开成判断表，part = H；
 - 系统：R 标题规则、D DeepSeek 直接分类、M2 = v2 模型（原阈值）、M21 = v2.1；
 - 采用条件：gold-hard F1 比 M2 高 ≥ 0.03；金标准 v2 F1 不比 M2 低 0.005 以上；金标准 v2 严重类型召回不低于 M2。
-用法：PYTHONPATH=. python docs/work/evidence/T-049/x4v21_train_score.py
+用法：PYTHONPATH=. python docs/work/evidence/T-049/x4v21_train_score.py [v21|v22]
+  v22：全部训练 / 校准数据用指南 v2.1 重新标注（x4_v22/distill_*.jsonl），模型 macbert_multilabel_v22。
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from quantmind.line_a.p4 import x4v2  # noqa: E402
 
 V2 = Path("/home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v2")
 O = Path("/home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v21")
+V22 = Path("/home/lenovo/projects/quantmind/data/line_a_v2/p4/x4_v22")
 
 
 def load_labels(p: Path) -> dict:
@@ -48,8 +50,15 @@ def preds_for(pairs: pd.DataFrame, mdir: Path, thr: np.ndarray) -> pd.Series:
 
 
 def main() -> None:
-    lt = load_labels(V2 / "distill_train_g2.jsonl") | load_labels(O / "distill_train_add.jsonl")
-    lc = load_labels(V2 / "distill_calib_g2.jsonl") | load_labels(O / "distill_calib_add.jsonl")
+    ver = sys.argv[1] if len(sys.argv) > 1 else "v21"
+    if ver == "v22":
+        lt = load_labels(V22 / "distill_train.jsonl") | load_labels(V22 / "distill_train_add.jsonl")
+        lc = load_labels(V22 / "distill_calib.jsonl") | load_labels(V22 / "distill_calib_add.jsonl")
+        res_dir = V22
+    else:
+        lt = load_labels(V2 / "distill_train_g2.jsonl") | load_labels(O / "distill_train_add.jsonl")
+        lc = load_labels(V2 / "distill_calib_g2.jsonl") | load_labels(O / "distill_calib_add.jsonl")
+        res_dir = O
     train = pd.concat([labeled(pd.read_parquet(V2 / "train.parquet")[["announcementId", "title"]], lt),
                        labeled(pd.read_parquet(O / "train_add.parquet")[["announcementId", "title"]], lt)],
                       ignore_index=True).drop_duplicates("announcementId")
@@ -57,9 +66,9 @@ def main() -> None:
                        labeled(pd.read_parquet(O / "calib_add.parquet")[["announcementId", "title"]], lc)],
                       ignore_index=True).drop_duplicates("announcementId")
     yt, yc = x4v2.label_matrix(train, pd.Series(lt)), x4v2.label_matrix(calib, pd.Series(lc))
-    res: dict = {"n_train": len(train), "n_calib": len(calib), "n_train_add": int(train["announcementId"].isin(
+    res: dict = {"version": ver, "n_train": len(train), "n_calib": len(calib), "n_train_add": int(train["announcementId"].isin(
         set(pd.read_parquet(O / "train_add.parquet")["announcementId"].astype(str))).sum())}
-    mdir = O / "macbert_multilabel_v21"
+    mdir = res_dir / f"macbert_multilabel_{ver}"
     if not (mdir / "x4v2_config.json").exists():
         x4v2.train_macbert(train["title"].tolist(), yt, mdir, log=lambda m: print(m, flush=True))
     thr21 = x4v2.thresholds(x4v2.predict_macbert(mdir, calib["title"].tolist()), yc)
@@ -89,7 +98,7 @@ def main() -> None:
         out[name] = {k: {"all": v["all"], "macro_f1": v["macro_f1"], "severe": v["severe"],
                          "by_type_f1": {t: round(x["f1"], 3) for t, x in v["by_type"].items() if x["n_pos"]}}
                      for k, v in sc.items()}
-        pairs.assign(**preds).to_parquet(O / f"predictions_{name}.parquet")
+        pairs.assign(**preds).to_parquet(res_dir / f"predictions_{name}.parquet")
     h, g = out["gold_hard"], out["gold_v2"]
     cond = {"hard_gain": round(h["M21"]["all"]["f1"] - h["M2"]["all"]["f1"], 4),
             "v2_drop": round(g["M2"]["all"]["f1"] - g["M21"]["all"]["f1"], 4),
@@ -97,7 +106,7 @@ def main() -> None:
     cond["adopt"] = bool(cond["hard_gain"] >= 0.03 and cond["v2_drop"] <= 0.005
                          and g["M21"]["severe"]["recall"] >= g["M2"]["severe"]["recall"])
     res |= {"score": out, "verdict": cond}
-    (O / "x4v21_score.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    (res_dir / f"x4{ver}_score.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(json.dumps({"n_train": res["n_train"], "verdict": cond,
                       "f1": {n: {k: round(v["all"]["f1"], 4) for k, v in s.items()} for n, s in out.items()},
                       "severe_recall": {n: {k: round(v["severe"]["recall"], 4) for k, v in s.items()}
