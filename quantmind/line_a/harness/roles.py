@@ -46,6 +46,23 @@ class RoleOutput(BaseModel):
     abstain_reason: str | None = None
 
 
+class StructuredEvidenceRef(BaseModel):
+    """只引用结构化记录（财报、预告、审计、质押）时的证据：没有 quote / page / para（T-051 v3.1）。"""
+    evidence_id: str
+    field: str | None = Field(None, description="引用的是记录里的哪个字段，例如 n_income_attr_p")
+    value: float | None = Field(None, description="一条声明引用多个字段时，逐条填写该字段对应的数值")
+    unit: str | None = Field(None, description="与 value 配套的单位")
+
+
+class StructuredClaim(ClaimDraft):
+    evidence: list[StructuredEvidenceRef] = Field(default_factory=list)
+
+
+class StructuredRoleOutput(RoleOutput):
+    """A1 的输出：工具全是结构化数据，证据只能用字段和数值，不能写引文（T-051 v3.1）。"""
+    claims: list[StructuredClaim]
+
+
 COMMON_RULES = """规则：
 1. 只用工具返回的数据。工具没给的，写成 open_question，不要猜。
 2. reported_fact 必须在 evidence 里给出 evidence_id 和字段名，value 填记录里的原值（Tushare 财报金额单位是元）。

@@ -29,6 +29,7 @@ from quantmind.line_a.harness.roles import (
     A6_SYSTEM,
     ReviewOutput,
     RoleOutput,
+    StructuredRoleOutput,
 )
 from quantmind.line_a.harness.tools_more import ResearchTools
 from quantmind.line_a.harness.verifier import verify
@@ -143,15 +144,24 @@ V3_NOTE = ("\n金额字段旁的 _display 是代码换算好的可读写法（�
            "value 和 unit 仍按原始字段填写。")
 
 
+# T-051（2026-10-24）：留出集 2 上 DeepSeek 的 v3 组召回 99.2%、有问题声明 0.0%，基线 98.7%、0.2%，按登记采用；
+# A1 默认打开 v3（可读金额 + 完整性检查）
+V3_ROLES = frozenset({"A1"})
+
+
 def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Path | None = None,
-              extra: str = "", single: bool | None = None, v3: bool = False) -> dict:
-    """v3：T-051 harness v3（可读金额 + A1 完整性检查）；判定之前默认关闭。"""
+              extra: str = "", single: bool | None = None, v3: bool | None = None,
+              structured_a1: bool = False) -> dict:
+    """v3：T-051 harness v3；None 表示按 V3_ROLES 决定。structured_a1：A1 用不带引文的证据 Schema（v3.1，判定之前默认关闭）。"""
+    v3 = role in V3_ROLES if v3 is None else v3
     if v3:
         dt.display_amounts = True
         extra = V3_NOTE + extra
     spec = role_spec(role, dt, ticker)
     if v3 and role == "A1":
         spec.completeness = lambda out, ev: a1_missing(out, ev, dt.as_of)
+    if structured_a1 and role == "A1":
+        spec.output_model = StructuredRoleOutput
     single = role in SINGLE_CALL_ROLES if single is None else single
     if single:
         task, pre = _single_call_task(spec, ticker, dt.as_of, extra)
