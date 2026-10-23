@@ -28,13 +28,16 @@ from typing import Any
 
 BJ = timezone(timedelta(hours=8))
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-# 本机后端（X7，T-041）：WSL 里 Ollama 的 OpenAI 兼容接口；不需要密钥，不出本机，费用记 0
-OLLAMA_URL = "http://127.0.0.1:11434/v1/chat/completions"
+# 本机后端（X7，T-041 / T-048）：WSL 里的 llama.cpp llama-server（OpenAI 兼容接口），加载 Qwen3.5-9B 的 GGUF；
+# 不需要密钥，不出本机，费用记 0。不用 Ollama：Ollama 0.30.6 跑 qwen3.5 时不执行 JSON Schema 约束（2026-10-23 实测）
+LOCAL_URL = os.environ.get("QM_LOCAL_LLM_URL", "http://127.0.0.1:8091/v1/chat/completions")
 # 元 / 百万 tokens：(缓存命中输入, 未命中输入, 输出)；来源 api-docs.deepseek.com 价格页（2026-10-21 查阅）
 PRICES = {"deepseek-flash": {"idle": (0.02, 1.0, 4.0), "peak": (0.04, 2.0, 8.0)},
           "deepseek-v4-pro": {"idle": (0.15, 4.5, 13.5), "peak": (0.30, 9.0, 27.0)}}
-# 兜底检查（结构上 Harness 本来就不把账户信息放进提示词）；只列不会出现在公开公告里的说法，避免误拦
-PRIVATE_PATTERNS = (r"账户规模", r"账户资金", r"资金账户", r"持仓市值", r"我的持仓", r"真实持仓", r"可用资金",
+# 兜底检查（结构上 Harness 本来就不把账户信息放进提示词）；只列不会出现在公开公告里的说法，避免误拦。
+# 2026-10-23（T-048）：去掉"账户资金""资金账户""持仓市值""可用资金"——上市公司公告里常见（募集资金账户、基金持仓市值），
+# 试跑中把两份公开公告误拦了；保留第一人称和专用标记
+PRIVATE_PATTERNS = (r"账户规模", r"我的持仓", r"真实持仓", r"我的账户", r"本人账户",
                     r"account[_ ]?size", r"my holdings", r"\[PRIVATE\]")
 
 
@@ -131,16 +134,16 @@ class LLM:
     timeout_s: float = 300.0
     max_retries: int = 4
     transport: Any = None                   # 测试注入：callable(url, headers, body) -> (status, json)
-    local: bool = False                     # True：本机 Ollama（OLLAMA_URL），不读密钥，费用记 0
+    local: bool = False                     # True：本机 llama-server（LOCAL_URL），不读密钥，费用记 0
     spent_rmb: float = 0.0
     _key: str | None = field(default=None, repr=False)
 
     def _post(self, body: dict) -> tuple[int, dict]:
         if self.transport is not None:
-            return self.transport(OLLAMA_URL if self.local else DEEPSEEK_URL, {}, body)
+            return self.transport(LOCAL_URL if self.local else DEEPSEEK_URL, {}, body)
         import httpx
         if self.local:
-            r = httpx.post(OLLAMA_URL, json=body, timeout=self.timeout_s)
+            r = httpx.post(LOCAL_URL, json=body, timeout=self.timeout_s)
             try:
                 return r.status_code, r.json()
             except ValueError:
@@ -163,16 +166,22 @@ class LLM:
             return r.status_code, {"error": {"message": r.text[:500]}}
 
     def chat(self, messages: list[dict], *, tools: list[dict] | None = None, json_mode: bool = False,
-             thinking: str | None = None, max_tokens: int = 4096, meta: dict | None = None) -> LLMResult:
-        """thinking：None = 关闭思考；"low" / "high" / "max" = 开启并设强度。"""
+             thinking: str | None = None, max_tokens: int = 4096, meta: dict | None = None,
+             schema: dict | None = None) -> LLMResult:
+        """thinking：None = 关闭思考；"low" / "high" / "max" = 开启并设强度。
+        schema：本机后端按 JSON Schema 约束解码（输出一定是合法 JSON 且符合结构）；DeepSeek 只支持 JSON 对象模式，
+        schema 在那里只作为"要求 JSON 输出"，结构由调用方校验（T-048）。"""
         assert_public(messages)
         body: dict = {"model": self.model, "messages": messages, "max_tokens": max_tokens, "stream": False}
         if tools:
             body["tools"] = tools
-        if json_mode:
+        if schema is not None and self.local:
+            body["response_format"] = {"type": "json_schema", "json_schema": {"name": "output", "schema": schema,
+                                                                               "strict": True}}
+        elif json_mode or schema is not None:
             body["response_format"] = {"type": "json_object"}
-        if self.local:                     # Ollama：思考用 reasoning_effort 控制（"none" 关闭）
-            body["reasoning_effort"] = thinking or "none"
+        if self.local:                     # llama-server：Qwen3.5 的思考开关走聊天模板参数
+            body["chat_template_kwargs"] = {"enable_thinking": bool(thinking)}
         elif thinking:
             body["thinking"] = {"type": "enabled"}
             body["reasoning_effort"] = thinking

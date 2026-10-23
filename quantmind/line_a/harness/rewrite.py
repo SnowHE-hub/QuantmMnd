@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import re
 
+from pydantic import BaseModel, field_validator
+
 from quantmind.line_a.harness.llm import LLM
 
 PH = re.compile(r"\{\{c:([A-Z]\d):([A-Za-z0-9_]+)\}\}")
@@ -137,6 +139,21 @@ def check_bindings(sk: dict, text: dict) -> list[str]:
     return errs
 
 
+class RewriteOut(BaseModel):
+    """转写输出的结构：四栏都是中文段落。模型偶尔把一栏写成段落列表，按顺序换行拼接（内容不变，只统一格式）。"""
+    facts: str = ""
+    inferences: str = ""
+    counter_and_limits: str = ""
+    to_verify: str = ""
+
+    @field_validator("facts", "inferences", "counter_and_limits", "to_verify", mode="before")
+    @classmethod
+    def _join(cls, v):
+        if isinstance(v, list):
+            return "\n".join(str(x) for x in v)
+        return "" if v is None else v
+
+
 def rewrite_messages(sk: dict) -> list[dict]:
     brief = {k: [{"ref": r, "text": sk["claims"][r]["text"], "has_value": sk["claims"][r]["value"] is not None}
                  for r in refs] for k, refs in sk["columns"].items()}
@@ -156,12 +173,15 @@ def rewrite(llm: LLM | None, sk: dict) -> dict:
     """返回 {"mode": "model" | "template", "sections": {...}, "errors": [...]}。"""
     if llm is None:
         return {"mode": "template", "sections": template_text(sk), "errors": ["no model"]}
-    msgs = rewrite_messages(sk)
+    from quantmind.line_a.harness.structured import chat_structured
     try:
-        r = llm.chat(msgs, json_mode=True, thinking=None, max_tokens=4000, meta={"stage": "f9_rewrite"})
-        text = json.loads(r.content)
-    except Exception as e:  # noqa: BLE001  转写失败退回模板（第 7.5 节）
+        text, rec = chat_structured(llm, rewrite_messages(sk), RewriteOut, thinking=None, max_tokens=4000,
+                                    meta={"stage": "f9_rewrite"})
+    except Exception as e:  # noqa: BLE001  网络或预算问题：退回模板（第 7.5 节）
         return {"mode": "template", "sections": template_text(sk), "errors": [f"model error: {type(e).__name__}"]}
+    if text is None:
+        return {"mode": "template", "sections": template_text(sk),
+                "errors": ["output not valid after repair: " + str(rec["attempts"][-1]["schema_error"])[:300]]}
     errs = check_rewrite(sk, text)
     if errs:
         return {"mode": "template", "sections": template_text(sk), "errors": errs[:20]}

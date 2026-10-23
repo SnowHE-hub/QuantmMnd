@@ -60,7 +60,8 @@ def role_spec(role: str, dt: ResearchTools, subject: str, *, thinking: str | Non
             _tool("locate_section", "在一份公告里按问题定位最相关的段落（BM25），返回段落证据编号和原文", dt.locate_section,
                   {**_ANN, "query": {"type": "string"}, "top_k": {"type": "integer", "minimum": 1, "maximum": 8}},
                   ("ann_id", "query"))]
-    big = {"max_steps": 8, "thinking": thinking, "max_tokens": 32000, "max_tool_calls": 8}
+    big = {"max_steps": 8, "thinking": thinking, "max_tokens": 32000, "max_tool_calls": 8,
+           "defaults": {"ticker": subject, "as_of": dt.as_of}}       # 编排器已知的字段，模型漏写时补上（T-048）
     if role == "A1":
         tools = [_tool("financial_snapshot", "按时点取最近若干期利润表、资产负债表、现金流量表与财务指标（金额单位：元）",
                        dt.financial_snapshot, {"periods": {"type": "integer", "minimum": 1, "maximum": 12}}),

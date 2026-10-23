@@ -71,7 +71,7 @@ def main() -> None:
     ap.add_argument("--mode", choices=["loop", "local", "single"], required=True)
     ap.add_argument("--lake", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--model", default="qwen3.5:9b-16k")
+    ap.add_argument("--model", default="qwen3.5-9b-q4km")
     ap.add_argument("--budget", type=float, default=8.0)
     ap.add_argument("--limit", type=int, default=0)
     a = ap.parse_args()
