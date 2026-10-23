@@ -30,9 +30,15 @@ PRICE_MIN, MV_MIN_WAN, RESUME_TD = 2.0, 100_000.0, 5
 
 
 def wide_at(path: Path, col: str, dates: pd.DatetimeIndex, lo: str) -> pd.DataFrame:
-    df = pd.read_parquet(path, columns=["ts_code", "trade_date", col])
+    """只读决策日及其前 10 个自然日的行（按列类型构造过滤条件），再向前填充到决策日。"""
+    import pyarrow.dataset as pds
+    dset = pds.dataset(str(path), format="parquet")
+    typ = str(dset.schema.field("trade_date").type)
+    want = sorted({d - pd.Timedelta(days=k) for d in dates for k in range(11)})
+    vals = [d if typ.startswith(("timestamp", "date")) else (int(d.strftime("%Y%m%d")) if typ.startswith("int")
+                                                            else d.strftime("%Y%m%d")) for d in want]
+    df = dset.to_table(columns=["ts_code", "trade_date", col], filter=pds.field("trade_date").isin(vals)).to_pandas()
     df["trade_date"] = pd.to_datetime(df["trade_date"].astype(str).str.replace("-", "").str.slice(0, 8))
-    df = df[df["trade_date"] >= pd.Timestamp(lo)]
     w = df.pivot_table(index="trade_date", columns="ts_code", values=col).sort_index()
     return w.reindex(w.index.union(dates)).ffill().reindex(dates)
 
