@@ -197,11 +197,23 @@ class LLM:
         if self.spent_rmb >= self.budget_rmb:
             raise BudgetExceededError(f"spent {self.spent_rmb:.4f} >= budget {self.budget_rmb}")
         t0, status, data = time.time(), 0, {}
-        for attempt in range(self.max_retries + 1):
-            status, data = self._post(body)
+        net_tries, attempt = 0, 0
+        while True:
+            try:
+                status, data = self._post(body)
+            except TLSInterceptionError:
+                raise                                   # 证书校验失败：密钥没有发出，不重试
+            except Exception as e:  # noqa: BLE001  手机热点偶尔断一下：连接被重置、读超时、对端断开，退避后重试
+                import httpx
+                if not isinstance(e, httpx.TransportError) or net_tries >= 6:
+                    raise
+                net_tries += 1
+                time.sleep(min(120, 5 * 2 ** (net_tries - 1)))
+                continue
             if status == 200:
                 break
-            if status in (429, 500, 502, 503, 504) and attempt < self.max_retries:
+            attempt += 1
+            if status in (429, 500, 502, 503, 504) and attempt <= self.max_retries:
                 time.sleep(min(60, 2 ** attempt * 2))
                 continue
             msg = (data.get("error") or {}).get("message", "") if isinstance(data, dict) else ""

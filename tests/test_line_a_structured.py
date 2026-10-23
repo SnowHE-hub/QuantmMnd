@@ -54,3 +54,25 @@ def test_rewrite_accepts_list_sections():
     from quantmind.line_a.harness.rewrite import RewriteOut
     r = RewriteOut.model_validate({"facts": ["第一段", "第二段"], "inferences": None})
     assert r.facts == "第一段\n第二段" and r.inferences == ""
+
+
+def test_llm_retries_transient_network_errors_but_not_tls(monkeypatch):
+    import httpx
+    import pytest
+
+    from quantmind.line_a.harness import llm as llm_mod
+    monkeypatch.setattr(llm_mod.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def flaky(url, headers, body):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise httpx.ConnectError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol")
+        return 200, {"choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}], "usage": {}, "model": "m"}
+    r = LLM(transport=flaky).chat([{"role": "user", "content": "hi"}])
+    assert r.content == "{}" and calls["n"] == 3
+
+    def tls(url, headers, body):
+        raise llm_mod.TLSInterceptionError("cert")
+    with pytest.raises(llm_mod.TLSInterceptionError):
+        LLM(transport=tls).chat([{"role": "user", "content": "hi"}])
