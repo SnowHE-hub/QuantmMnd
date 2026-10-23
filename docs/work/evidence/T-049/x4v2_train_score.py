@@ -5,7 +5,8 @@
 - M：MacBERT 多标签（hfl/chinese-macbert-base），阈值在校准集（2023 下半年，DeepSeek 标签）上按 F1 选。
 判定按 docs/work/tasks/T-049.md：总体 F1 比规则高 0.05 以上，且严重类型召回率不低于规则；满足的候选里，
 F1 与最好者相差 0.02 以内的选最便宜的（M < D）。
-用法：PYTHONPATH=. python docs/work/evidence/T-049/x4v2_train_score.py
+用法：PYTHONPATH=. python docs/work/evidence/T-049/x4v2_train_score.py [g2|v1]
+  g2：指南 v2 的标签（主结果）；v1：指南 v1 的标签（对照，不参与采用判定）。
 """
 from __future__ import annotations
 
@@ -34,14 +35,16 @@ def load_labels(p: Path) -> dict:
 
 
 def main() -> None:
+    g = sys.argv[1] if len(sys.argv) > 1 else "g2"
+    sfx = "_g2" if g == "g2" else ""
     train, calib = pd.read_parquet(O / "train.parquet"), pd.read_parquet(O / "calib.parquet")
-    lt, lc = load_labels(O / "distill_train.jsonl"), load_labels(O / "distill_calib.jsonl")
+    lt, lc = load_labels(O / f"distill_train{sfx}.jsonl"), load_labels(O / f"distill_calib{sfx}.jsonl")
     train = train[train["announcementId"].isin(lt)].reset_index(drop=True)
     calib = calib[calib["announcementId"].isin(lc)].reset_index(drop=True)
     yt, yc = x4v2.label_matrix(train, pd.Series(lt)), x4v2.label_matrix(calib, pd.Series(lc))
-    res: dict = {"n_train": len(train), "n_calib": len(calib),
+    res: dict = {"guide": g, "n_train": len(train), "n_calib": len(calib),
                  "train_pos_rate": dict(zip(x4v2.TYPE_KEYS, yt.mean(axis=0).round(4).tolist(), strict=True))}
-    mdir = O / "macbert_multilabel"
+    mdir = O / f"macbert_multilabel{sfx or '_v1'}"
     if not (mdir / "x4v2_config.json").exists():
         x4v2.train_macbert(train["title"].tolist(), yt, mdir, log=lambda m: print(m, flush=True))
     pc = x4v2.predict_macbert(mdir, calib["title"].tolist())
@@ -57,7 +60,7 @@ def main() -> None:
     ti = {t: i for i, t in enumerate(x4v2.TYPE_KEYS)}
     m_pred = pd.Series([bool(pm_map[t][ti[k]] >= thr[ti[k]]) for t, k in zip(pairs["title"], pairs["type"], strict=True)],
                        index=pairs.index)
-    d_lab = load_labels(O / "D_gold_predictions_DO_NOT_OPEN_BEFORE_LABELS.jsonl")
+    d_lab = load_labels(O / (f"D_gold_predictions{sfx}_DO_NOT_OPEN_BEFORE_LABELS.jsonl"))
     d_pred = pd.Series([k in (d_lab.get(aid) or []) for aid, k in zip(pairs["announcementId"], pairs["type"], strict=True)],
                        index=pairs.index)
     r_pred = pd.Series([classify_title(t).event_type == k for t, k in zip(pairs["title"], pairs["type"], strict=True)],
@@ -84,8 +87,8 @@ def main() -> None:
                       for k, v in sc.items()},
             "verdict": verdict, "adopted": pick, "rule_f1": round(rule["all"]["f1"], 4),
             "rule_severe_recall": round(rule["severe"]["recall"], 4)}
-    pairs.assign(R=r_pred, D=d_pred, M=m_pred).to_parquet(O / "gold_v2_predictions.parquet")
-    (O / "x4v2_score.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+    pairs.assign(R=r_pred, D=d_pred, M=m_pred).to_parquet(O / f"gold_v2_predictions_{g}.parquet")
+    (O / f"x4v2_score_{g}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     print(json.dumps({k: res[k] for k in ("n_train", "n_calib", "d_coverage", "rule_f1", "rule_severe_recall", "verdict",
                                           "adopted")}, ensure_ascii=False, indent=1))
 
