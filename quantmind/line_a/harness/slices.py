@@ -123,18 +123,17 @@ SINGLE_CALL_ROLES = frozenset({"A1"})
 
 def _single_call_task(spec: RoleSpec, ticker: str, as_of: str, extra: str) -> tuple[str, dict]:
     """代码先用默认参数调用角色的全部工具，结果作为数据一次性放进消息；返回 (任务文本, 证据)。"""
-    from quantmind.line_a.harness.loop import DATA_NOTICE, MAX_TOOL_CHARS, collect_evidence
+    from quantmind.line_a.harness.loop import DATA_NOTICE, collect_shown, fit_tool_body
     evidence: dict = {}
     blocks = []
     for t in spec.tools:
         try:
             out = t.fn(ticker=ticker)
-            collect_evidence(out, evidence)
         except Exception as e:  # noqa: BLE001  工具错误照样作为数据给模型
             out = {"error": f"{type(e).__name__}: {str(e)[:300]}"}
-        body = canonical(out)
-        blocks.append(f"[{t.name}] " + DATA_NOTICE + (body[:MAX_TOOL_CHARS] + "…[truncated]" if len(body) > MAX_TOOL_CHARS
-                                                      else body))
+        body = fit_tool_body(out)
+        collect_shown(body, out, evidence)
+        blocks.append(f"[{t.name}] " + DATA_NOTICE + body)
     task = (f"研究对象：{ticker}；as_of = {as_of}（只能使用这一天及之前已发布的信息）。下面已经给出全部工具的结果，"
             "不能再调用工具，请直接输出 JSON。" + extra + "\n\n" + "\n\n".join(blocks))
     return task, evidence

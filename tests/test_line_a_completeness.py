@@ -63,3 +63,16 @@ def test_completeness_bad_follow_up_keeps_first_output():
     seen: list = []
     rec = run_role(_llm([first, "not json at all"], seen), _spec(), "task", evidence=EV)
     assert rec.status == "ok" and len(rec.output["claims"]) == 2 and len(seen) == 2
+
+
+def test_fit_tool_body_structural_truncation():
+    from quantmind.line_a.harness.loop import collect_shown, fit_tool_body
+    out = {"tables": {"a": [{"evidence_id": f"a{i}", "x": "y" * 50} for i in range(10)],
+                      "income": [{"evidence_id": f"i{i}", "x": "y" * 50} for i in range(3)]}}
+    body = fit_tool_body(out, limit=600)
+    o = json.loads(body)                                  # 仍是合法 JSON
+    assert len(body) <= 600 and "_truncated" in o and len(o["tables"]["income"]) == 3
+    assert [r["evidence_id"] for r in o["tables"]["a"]] == [f"a{i}" for i in range(len(o["tables"]["a"]))]
+    ev: dict = {}
+    collect_shown(body, out, ev)
+    assert "i2" in ev and "a9" not in ev
