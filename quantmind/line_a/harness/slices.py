@@ -111,10 +111,42 @@ def _task(ticker: str, as_of: str, extra: str = "") -> str:
             + extra)
 
 
+# X8（T-041，2026-10-23）：A1 的输入是固定的四个结构化工具，单次调用不比工具循环差
+# （留出集召回 96.3% vs 95.4%，有问题声明 0.5% vs 2.1%，费用约一半），所以 A1 默认单次调用；其他角色仍用工具循环。
+SINGLE_CALL_ROLES = frozenset({"A1"})
+
+
+def _single_call_task(spec: RoleSpec, ticker: str, as_of: str, extra: str) -> tuple[str, dict]:
+    """代码先用默认参数调用角色的全部工具，结果作为数据一次性放进消息；返回 (任务文本, 证据)。"""
+    from quantmind.line_a.harness.loop import DATA_NOTICE, MAX_TOOL_CHARS, collect_evidence
+    evidence: dict = {}
+    blocks = []
+    for t in spec.tools:
+        try:
+            out = t.fn(ticker=ticker)
+            collect_evidence(out, evidence)
+        except Exception as e:  # noqa: BLE001  工具错误照样作为数据给模型
+            out = {"error": f"{type(e).__name__}: {str(e)[:300]}"}
+        body = canonical(out)
+        blocks.append(f"[{t.name}] " + DATA_NOTICE + (body[:MAX_TOOL_CHARS] + "…[truncated]" if len(body) > MAX_TOOL_CHARS
+                                                      else body))
+    task = (f"研究对象：{ticker}；as_of = {as_of}（只能使用这一天及之前已发布的信息）。下面已经给出全部工具的结果，"
+            "不能再调用工具，请直接输出 JSON。" + extra + "\n\n" + "\n\n".join(blocks))
+    return task, evidence
+
+
 def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Path | None = None,
-              extra: str = "") -> dict:
+              extra: str = "", single: bool | None = None) -> dict:
     spec = role_spec(role, dt, ticker)
-    rec = run_role(llm, spec, _task(ticker, dt.as_of, extra), meta={"ticker": ticker, "as_of": dt.as_of})
+    single = role in SINGLE_CALL_ROLES if single is None else single
+    if single:
+        task, pre = _single_call_task(spec, ticker, dt.as_of, extra)
+        spec1 = RoleSpec(spec.name, spec.system, [], spec.output_model, max_steps=3, thinking=spec.thinking,
+                         max_tokens=spec.max_tokens, max_tool_calls=0, defaults=spec.defaults)
+        rec = run_role(llm, spec1, task, meta={"ticker": ticker, "as_of": dt.as_of, "mode": "single"})
+        rec.evidence.update(pre)
+    else:
+        rec = run_role(llm, spec, _task(ticker, dt.as_of, extra), meta={"ticker": ticker, "as_of": dt.as_of})
     rec.evidence.update(getattr(dt, "side_evidence", {}))     # 公告全文与逐段记录（覆盖工具里截短的版本）
     checks =[asdict(c) for c in verify(rec.output, rec.evidence)] if rec.output and "claims" in rec.output else []
     res = {"ticker": ticker, "as_of": dt.as_of, "role": role, "status": rec.status, "output": rec.output,

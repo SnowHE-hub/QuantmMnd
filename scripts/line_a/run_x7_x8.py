@@ -108,7 +108,7 @@ def main() -> None:
                 p.write_text(canonical(r), encoding="utf-8")
                 r["path"] = str(p)
             else:
-                r = slices.run_slice(llm, dt, c["ticker"], "A1", a.out / "runs")
+                r = slices.run_slice(llm, dt, c["ticker"], "A1", a.out / "runs", single=False)   # 登记的是工具循环
         except (BudgetExceededError, TLSInterceptionError) as e:
             print(f"stop: {type(e).__name__}: {e}", flush=True)
             break
