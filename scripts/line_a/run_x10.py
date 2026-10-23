@@ -125,7 +125,10 @@ def main() -> None:
                      '"n_income_attr_p": 数字或 null}')
                 out = llm.chat([{"role": "user", "content": q}], json_mode=True, thinking=None, max_tokens=300,
                                meta={"x10": "d2", "ticker": c["ticker"]})
-                ans = json.loads(out.content)
+                try:
+                    ans = json.loads(out.content)
+                except json.JSONDecodeError:
+                    ans = {"unparseable": out.content[:200]}      # 记为没有回答数字
                 rec = {"case_id": c["case_id"], "ticker": c["ticker"], "as_of": c["as_of"], "cost_rmb": out.cost_rmb,
                        "answer": ans}
                 for m in ("revenue", "n_income_attr_p"):
