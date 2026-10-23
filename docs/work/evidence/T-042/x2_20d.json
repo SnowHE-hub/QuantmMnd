@@ -1,0 +1,278 @@
+{
+ "horizon": "20d",
+ "n_test_asof": 224,
+ "adv_floor_rmb": 10000000.0,
+ "ext_eligible_per_date_median": 3521.5,
+ "pool_per_date_median": 1465.0,
+ "arms": {
+  "R": {
+   "own_benchmark": {
+    "ann_net_excess": 0.0770786891731835,
+    "information_ratio": 0.5261859699138043,
+    "max_relative_wealth_drawdown": 0.2913148590169523,
+    "max_drawdown_net": -0.37779182931935684,
+    "yearly_net_excess": {
+     "2022": 0.2534320145870177,
+     "2023": 0.03391232238301001,
+     "2024": 0.07179799603941706,
+     "2025": -0.06694884675451795,
+     "2026": 0.09488310715896109
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "common_benchmark": {
+    "ann_net_excess": 0.0770786891731835,
+    "information_ratio": 0.5261859699138043,
+    "max_relative_wealth_drawdown": 0.2913148590169523,
+    "max_drawdown_net": -0.37779182931935684,
+    "yearly_net_excess": {
+     "2022": 0.2534320145870177,
+     "2023": 0.03391232238301001,
+     "2024": 0.07179799603941706,
+     "2025": -0.06694884675451795,
+     "2026": 0.09488310715896109
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "turnover": {
+    "avg_oneway_per_rebalance": 0.620479428444584,
+    "annualized_oneway": 7.762593700540753,
+    "annualized_twoway": 15.525187401081507
+   },
+   "costs": {
+    "total_cost_nav_units": 0.1811814514373567,
+    "cost_drag_ann": 0.03260720142791995
+   },
+   "n_distinct_rejected_orders": 310,
+   "n_trades_filled": 26782,
+   "capacity": {
+    "100000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 289.0,
+     "cash_residual_share": 0.96841,
+     "max_participation": 2.0219017736855347e-06,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 5.5
+    },
+    "1000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 53.0,
+     "cash_residual_share": 0.31360263000000005,
+     "max_participation": 2.0219017736855344e-05,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 12.35
+    },
+    "10000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 1.0,
+     "cash_residual_share": 0.03227594599999989,
+     "max_participation": 0.00020219017736855348,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 2.9031721619999997
+    }
+   }
+  },
+  "E": {
+   "own_benchmark": {
+    "ann_net_excess": 0.09279596100652121,
+    "information_ratio": 0.7341664320404473,
+    "max_relative_wealth_drawdown": 0.2223121688060471,
+    "max_drawdown_net": -0.4339313126816724,
+    "yearly_net_excess": {
+     "2022": 0.1822806813843474,
+     "2023": 0.06166609164912318,
+     "2024": -0.028950287005947817,
+     "2025": 0.08670623160178548,
+     "2026": 0.06771667654953717
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "common_benchmark": {
+    "ann_net_excess": 0.22212211456715003,
+    "information_ratio": 1.1207650430188723,
+    "max_relative_wealth_drawdown": 0.28251894172197245,
+    "max_drawdown_net": -0.4339313126816724,
+    "yearly_net_excess": {
+     "2022": 0.3663935158929639,
+     "2023": 0.2861280911463848,
+     "2024": 0.04212519360952793,
+     "2025": 0.1884410807565684,
+     "2026": 0.13097361560239262
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "turnover": {
+    "avg_oneway_per_rebalance": 0.632886974008633,
+    "annualized_oneway": 7.917820015256941,
+    "annualized_twoway": 15.835640030513883
+   },
+   "costs": {
+    "total_cost_nav_units": 0.22824786475767456,
+    "cost_drag_ann": 0.026578293382312435
+   },
+   "n_distinct_rejected_orders": 291,
+   "n_trades_filled": 27037,
+   "capacity": {
+    "100000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 281.5,
+     "cash_residual_share": 0.94791,
+     "max_participation": 3.201811837855208e-05,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 9.25
+    },
+    "1000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 13.0,
+     "cash_residual_share": 0.16621010999999997,
+     "max_participation": 0.0003201811837855208,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 14.350000000000001
+    },
+    "10000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 0.0,
+     "cash_residual_share": 0.013308184999999972,
+     "max_participation": 0.0032018118378552085,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 2.960075445
+    }
+   }
+  },
+  "Q": {
+   "own_benchmark": {
+    "ann_net_excess": -0.019280694177977287,
+    "information_ratio": -0.12681519881602013,
+    "max_relative_wealth_drawdown": 0.2834713886770338,
+    "max_drawdown_net": -0.3732079386678343,
+    "yearly_net_excess": {
+     "2022": 0.1374532843477161,
+     "2023": -0.10882886487475407,
+     "2024": -0.021779343771098247,
+     "2025": -0.11907252453980377,
+     "2026": 0.05976350786991658
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "common_benchmark": {
+    "ann_net_excess": 0.11004545938265153,
+    "information_ratio": 0.7116050794243751,
+    "max_relative_wealth_drawdown": 0.2625243676957958,
+    "max_drawdown_net": -0.3732079386678343,
+    "yearly_net_excess": {
+     "2022": 0.3145852899702566,
+     "2023": 0.07958635951442927,
+     "2024": 0.049821010318992665,
+     "2025": -0.03660219242424467,
+     "2026": 0.12254926096352503
+    },
+    "research_gate_v2_pass": false,
+    "capital_gate_status": "NOT_APPROVED"
+   },
+   "turnover": {
+    "avg_oneway_per_rebalance": 0.6681784982988548,
+    "annualized_oneway": 8.35933951063248,
+    "annualized_twoway": 16.71867902126496
+   },
+   "costs": {
+    "total_cost_nav_units": 0.2078312832309776,
+    "cost_drag_ann": 0.03358719581610936
+   },
+   "n_distinct_rejected_orders": 314,
+   "n_trades_filled": 27622,
+   "capacity": {
+    "100000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 287.0,
+     "cash_residual_share": 0.96405,
+     "max_participation": 2.9478922978924027e-05,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 6.5
+    },
+    "1000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 40.0,
+     "cash_residual_share": 0.2745962599999999,
+     "max_participation": 0.0002947892297892402,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 13.0
+    },
+    "10000000": {
+     "n_targets": 300.0,
+     "n_unbuyable_one_lot": 1.0,
+     "cash_residual_share": 0.02820744900000005,
+     "max_participation": 0.0029478922978924023,
+     "n_over_participation": 0.0,
+     "over_share": 0.0,
+     "min_commission_drag_bp": 2.915377653
+    }
+   }
+  }
+ },
+ "reproduction": {
+  "t030": {
+   "ann_net_excess": 0.0770786891731835,
+   "max_relative_wealth_drawdown": 0.2913148590169523
+  },
+  "this_run": {
+   "ann_net_excess": 0.0770786891731835,
+   "max_relative_wealth_drawdown": 0.2913148590169523
+  },
+  "ok": true
+ },
+ "paired": {
+  "E-R": {
+   "n_days": 1127,
+   "ann_mean_diff": 0.13981386796393774,
+   "ci95": [
+    -0.023095109399788233,
+    0.26298284991178267
+   ],
+   "ci97_5": [
+    -0.043573182709541115,
+    0.28075136362752573
+   ],
+   "mrwd_diff": -0.008795917294976419,
+   "mrwd_diff_ci95": [
+    -0.10563150861978433,
+    0.27656597369692065
+   ],
+   "capacity_1m_ok": true,
+   "noninferior_suggested_1pp_2pp": false,
+   "superior": false
+  },
+  "Q-R": {
+   "n_days": 1127,
+   "ann_mean_diff": 0.03208388703159616,
+   "ci95": [
+    -0.0068017592845920506,
+    0.06701846761751006
+   ],
+   "ci97_5": [
+    -0.014155638416525564,
+    0.07126951839265804
+   ],
+   "mrwd_diff": -0.028790491321155187,
+   "mrwd_diff_ci95": [
+    -0.05510254859923034,
+    0.06929239591773875
+   ],
+   "capacity_1m_ok": true,
+   "noninferior_suggested_1pp_2pp": false,
+   "superior": false
+  }
+ }
+}
