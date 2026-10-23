@@ -123,5 +123,6 @@ def market_state(data_root: Path, as_of, *, prices_path: Path | None = None) -> 
     nb = nb[nb["trade_date"] <= d].sort_values("trade_date")
     out["northbound"] = {"status": "broken_series_audit_only", "note": "2024-08-19 起口径改变，只报告、不用于状态判断",
                          "last_date": str(nb["trade_date"].iloc[-1].date()) if len(nb) else None,
-                         "north_money": float(nb["north_money"].iloc[-1]) if len(nb) else None}
+                         "north_money": float(v) if len(nb) and (v := nb["north_money"].iloc[-1]) is not None
+                         and v == v else None}
     return out
