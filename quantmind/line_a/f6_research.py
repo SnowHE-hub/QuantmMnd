@@ -22,7 +22,10 @@ import pandas as pd
 
 from quantmind.line_a.atomic import atomic_write_json
 
-RULE_VERSION = "f6-select-v1-2026-10-23"
+# v2（2026-10-24，用户要求加入 63 日视角）：63 日用 ENS63 + Ridge63 的平均排名（与 20 日同法）；两个期限都靠前的先研究；
+# 其余名额 20 日与 63 日 1:1 交替（v1 是 2:1，且 63 日只看 Ridge63）
+RULE_VERSION = "f6-select-v2-2026-10-24"
+TOP_BOTH, CAP_BOTH = 50, 12           # 两个期限都在前 50 的，最多先选 12 只（两者高度相关，不设上限会占满名额）
 CFG = {"max_cases": 40, "budget_rmb": 15.0, "per_case_rmb": 1.5, "workers": 4, "fresh_tdays": 10,
        "a4_refresh_tdays": 5, "max_wall_s": 9000, "cap_holding_event": 15, "cap_event": 10, "n_sample": 2}
 ROLES = ("A1", "A2", "A3", "A4")
@@ -157,7 +160,7 @@ def _consensus(g: pd.DataFrame, cols: list[str]) -> pd.Series:
 
 def select(as_of, f4: pd.DataFrame, bypass: pd.DataFrame, holdings: set[str], hist: pd.DataFrame,
            days: pd.DatetimeIndex, cfg: dict = CFG) -> pd.DataFrame:
-    """返回 ticker、category（holding_event / event / top_20d / top_63d / sample）、fresh、last（{role: as_of}）。"""
+    """返回 ticker、category（holding_event / event / top_both / top_20d / top_63d / sample）、fresh、last（{role: as_of}）。"""
     last_any = hist.groupby("ticker")["as_of"].max().to_dict() if len(hist) else {}
 
     def fresh(t: str) -> bool:
@@ -173,10 +176,19 @@ def select(as_of, f4: pd.DataFrame, bypass: pd.DataFrame, holdings: set[str], hi
     g20 = f4[(f4["horizon"] == "20d") & (f4["domain"] == "research_pool")].copy()
     l20 = list(g20.assign(s=_consensus(g20, ["ens20", "ridge20"])).sort_values("s", ascending=False)["ticker"])
     g63 = f4[(f4["horizon"] == "63d") & (f4["domain"] == "research_pool")]
-    l63 = list(g63.sort_values("ridge63", ascending=False)["ticker"]) if "ridge63" in g63 else []
+    cols63 = [c for c in ("ens63", "ridge63") if c in g63]
+    l63 = list(g63.assign(s=_consensus(g63, cols63)).sort_values("s", ascending=False)["ticker"]) if cols63 else []
+    both = [t for t in l20[:TOP_BOTH] if t in set(l63[:TOP_BOTH])]          # 两个期限都在前 50
+    n_both = 0
+    for t in both:
+        if len(chosen) >= cfg["max_cases"] - cfg["n_sample"] or n_both >= cfg.get("cap_both", CAP_BOTH):
+            break
+        if t not in chosen and not fresh(t):
+            chosen[t] = "top_both"
+            n_both += 1
     i20 = i63 = 0
     while len(chosen) < cfg["max_cases"] - cfg["n_sample"] and (i20 < len(l20) or i63 < len(l63)):
-        for _ in range(2):
+        if True:
             while i20 < len(l20) and (l20[i20] in chosen or fresh(l20[i20])):
                 i20 += 1
             if i20 < len(l20) and len(chosen) < cfg["max_cases"] - cfg["n_sample"]:
@@ -336,7 +348,7 @@ def report(res: dict, names: dict[str, str] | None = None, rewrite_llm=None) -> 
          f"- 选择规则：`{st['rule_version']}`；选中 {st['n_selected']} 只，完成 {st['n_ok']} 个案例，"
          f"全部沿用 {st['n_reused_only']} 只；估算费用 ¥{st['cost_rmb']:.2f}；用时 {st['wall_s'] / 60:.0f} 分钟",
          f"- 运行状态：{st['state']}" + (f"（停止原因：{st['stopped']}）" if st["stopped"] else ""), ""]
-    cat = {"holding_event": "持仓 × 重大事件", "event": "重大事件", "top_20d": "20 日排名靠前", "top_63d": "63 日排名靠前",
+    cat = {"holding_event": "持仓 × 重大事件", "event": "重大事件", "top_both": "20 日与 63 日都靠前", "top_20d": "20 日排名靠前", "top_63d": "63 日排名靠前",
            "sample": "抽查样本"}
     def js(v) -> dict:
         return json.loads(v) if isinstance(v, str) and v else {}

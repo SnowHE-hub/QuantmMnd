@@ -126,7 +126,7 @@ def test_select_order_caps_fresh_and_plan(tmp_path):
     assert sel.loc["600101.SH", "category"] == "event" and sel.loc["600102.SH", "category"] == "event"
     assert bool(sel.loc["600102.SH", "fresh"]) and "600100.SH" not in sel.index       # 新鲜的排名候选跳过
     tops = [t for t, c in zip(sel.index, sel["category"], strict=True) if c.startswith("top")]
-    assert tops[:3] == ["600103.SH", "600104.SH", "600500.SH"]          # 20 日两只、63 日一只交替
+    assert tops[:3] == ["600103.SH", "600500.SH", "600104.SH"]          # v2：20 日与 63 日 1:1 交替
     assert (sel["category"] == "sample").sum() == 2 and len(sel) == 10
     plan = f6.plan_roles(sel.reset_index(), {"600102.SH": {"A2"}}).set_index("ticker")
     assert plan.loc["600102.SH", "roles_run"] == "A2" and plan.loc["600103.SH", "roles_run"] == "A1,A2,A3,A4"
