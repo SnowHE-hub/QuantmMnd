@@ -197,3 +197,14 @@ research_requests [ {ticker, roles[A1..A4], reason} ], questions_for_user [ … 
 - `/api/scores/{d}` 增加 `?ticker=`，返回带全市场排名 `rank` 的单行；`/api/dates` 增加 `brain`、`claims`。
 - 某一天没有某一步的产物时返回 404（不是 500）。
 - 测试：`tests/test_line_a_api_analytics.py`；前端 `npm run test:contract`、`npm run test:e2e`。
+
+## 附：模拟账户账本接口（2026-10-24，T-059，`quantmind/line_a/ledger.py`）
+| 接口 | 说明 |
+|---|---|
+| `GET /api/ledger/accounts` | 全部账户：T-052 全程模拟 6 个、正式跟踪 3 个、L9 影子账本 15 本；含汇总与核对结果 |
+| `GET /api/ledger/{account}` | meta（汇总、月度盈亏与胜率、调仓日、规则、核对）+ 每日序列（总资产、现金、市值、当日盈亏、已实现 / 未实现、分红、各项费用累计、基准、回撤）+ 完整回合 |
+| `GET /api/ledger/{account}/positions?date=` | 某天收盘后的持仓（股数、T+1 可用、成本、摊薄成本、收盘价、当日涨跌与盈亏、浮盈、市值、仓位、建仓日）和当天的成交 / 未成交 / 除权 |
+| `GET /api/ledger/{account}/trades?ticker=` | 交割单（逐项费用、发生金额、成交后现金、平仓盈亏、原因）、未成交委托（中文原因）、分红送转 |
+| `GET /api/ledger/{account}/ticker/{ticker}` | 未复权日 K + 这只股票的 B / S 成交、回合、分红 |
+- 数据每天由 `daily_shadow.sh` 第 7 步重建（正式三档 + 影子账本）；T-052 账户是固定历史：`python -m quantmind.line_a.ledger build --t052`。
+- 会计恒等式与 T-052 复现在 `meta.checks` 里；测试 `tests/test_line_a_ledger.py`。
