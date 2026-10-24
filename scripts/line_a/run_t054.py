@@ -2,8 +2,9 @@
 
 - R：DeepSeek，v3.1 单次调用（生产默认）；
 - S1：本机 9B，v3.1；S2：+ 紧凑证据视图；S3：+ 校验器反馈修复；S4：+ 代码预填事实表；
+- S5：+ 数字归代码（render：必须覆盖的事实与同比由代码写入，金额写法按记录改正，计算器按公式求值），去掉 prefill；
 - D2：2B 底座 + A1 适配器（本机 peft 服务，--model 指定），代码辅助用 --aids 指定。
-用法：python scripts/line_a/run_t054.py --arm R|S1|S2|S3|S4|D2 --set holdout4|dev --lake <lake> --out <dir>
+用法：python scripts/line_a/run_t054.py --arm R|S1|S2|S3|S4|S5|D2 --set holdout4|holdout5|dev --lake <lake> --out <dir>
 """
 from __future__ import annotations
 
@@ -17,9 +18,12 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 SETS = {"holdout4": (20261029, ["2023-07-10", "2024-07-10", "2025-03-10", "2026-01-12"]),
-        "dev": (20261031, ["2022-09-09", "2023-12-11", "2025-06-10"])}       # 蒸馏开发集时点，用来选 D2 的代码辅助
+        "dev": (20261031, ["2022-09-09", "2023-12-11", "2025-06-10"]),       # 蒸馏开发集时点，用来选 D2 的代码辅助
+        # 留出集 5（10-24 登记 S5 时新抽；S5 的设计看过留出集 4 上 S1–S3 的错误，所以不能再用留出集 4 判定）
+        "holdout5": (20261101, ["2023-10-18", "2024-12-16", "2025-07-15", "2026-09-21"])}
 ARMS = {"R": ("deepseek", frozenset()), "S1": ("local", frozenset()), "S2": ("local", frozenset({"compact"})),
-        "S3": ("local", frozenset({"compact", "repair"})), "S4": ("local", frozenset({"compact", "repair", "prefill"}))}
+        "S3": ("local", frozenset({"compact", "repair"})), "S4": ("local", frozenset({"compact", "repair", "prefill"})),
+        "S5": ("local", frozenset({"compact", "repair", "render"}))}
 
 
 def main() -> None:
@@ -86,8 +90,13 @@ def main() -> None:
             r = {"output": None, "checks": [], "status": f"error: {type(e).__name__}", "cost_rmb": 0.0,
                  "errors": [str(e)[:300]], "steps": []}
         s = score_a1(r["output"], r["checks"], gold_facts_a1(a.lake, c["ticker"], c["as_of"]), r["status"])
+        own = set((r.get("render") or {}).get("code_owned", []))
+        mc = [x for x in r["checks"] if x["local_id"] not in own]           # 只算模型自己写的声明（S5 判定用）
         rec = {"case_id": c["case_id"], "as_of": c["as_of"], "ticker": c["ticker"], "status": r["status"],
                "cost_rmb": r["cost_rmb"], "secs": round(time.time() - t0, 1), **s, "repair": r.get("repair"),
+               "n_model_claims": len(mc),
+               "model_problem_share": sum(x["status"] in ("mismatch", "missing_evidence") for x in mc) / max(1, len(mc)),
+               "render": {k: (len(v) if isinstance(v, list) else v) for k, v in (r.get("render") or {}).items()},
                "errors": r.get("errors", [])[:3], "path": r.get("path")}
         with res_path.open("a", encoding="utf-8") as f:
             f.write(canonical(rec) + "\n")
@@ -100,6 +109,9 @@ def main() -> None:
             "mean_verified_share": sum(r["verified_share"] for r in ok) / max(1, len(ok)),
             "mean_problem_share": sum(r["problem_share"] for r in ok) / max(1, len(ok)),
             "repair_used": sum(bool((r.get("repair") or {}).get("used")) for r in rows),
+            "mean_n_claims": sum(r.get("n_claims", 0) for r in ok) / max(1, len(ok)),
+            "mean_n_model_claims": sum(r.get("n_model_claims", 0) for r in ok) / max(1, len(ok)),
+            "mean_model_problem_share": sum(r.get("model_problem_share", r.get("problem_share", 0)) for r in ok) / max(1, len(ok)),
             "secs_mean": sum(r["secs"] for r in rows) / max(1, len(rows)), "cost_rmb_total": sum(r["cost_rmb"] for r in rows),
             "seed": seed, "as_ofs": as_ofs}
     (a.out / "summary.json").write_text(json.dumps(summ, ensure_ascii=False, indent=1), encoding="utf-8")

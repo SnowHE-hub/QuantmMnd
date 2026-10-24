@@ -3,11 +3,14 @@
 思路是"代码多做一点，模型少做一点"，不加长提示词：
 - compact：紧凑证据视图。只给 A1 需要的表、期数和字段，证据编号与字段名不变；
 - prefill：代码预填事实表。把"必须覆盖"的事实直接写成声明草稿（数值、单位、可读金额、证据编号、字段名都由代码给出）；
-- repair：校验器反馈修复。第一次输出后，把没通过校验的声明和原因发回去修一轮；修复后更差就退回。
+- repair：校验器反馈修复。第一次输出后，把没通过校验的声明和原因发回去修一轮；修复后更差就退回；
+- render（S5）：数字归代码。必须覆盖的事实和同比增速由代码写入，模型声明里的数值和金额写法按所引记录改正。
 """
 from __future__ import annotations
 
 import json
+import math
+import re
 
 import pandas as pd
 
@@ -106,6 +109,199 @@ def repair_task(task: str, output: dict, checks: list[dict]) -> str | None:
             + "\n\n代码校验发现下面这些声明有问题：\n" + "\n".join(lines)
             + "\n请修正这些声明：数值必须等于记录里该字段的原值，单位按 _units；计算声明写清 formula 和 inputs；"
               "确实无法核对的删掉。其余声明保持不变，输出完整的 JSON 对象。")
+
+
+_AMT = re.compile(r"(-?\d+(?:\.\d+)?)\s*(亿元|万元|亿|万|元)")
+_SCALE = {"亿元": 1e8, "亿": 1e8, "万元": 1e4, "万": 1e4, "元": 1.0}
+_RU = {"元": 1.0, "万元": 1e4, "亿元": 1e8}
+RENDER_NOTE = ("\n营业收入、归母净利润（最新期与上年同期）、它们的同比增速、最近的业绩预告类型和年报审计意见，"
+               "代码会直接写进结果（编号 k1、k2……，可以在 inputs 里引用）。你不用再写这些，也不要自己算同比增速；"
+               "请把篇幅用在其他事实（现金流与利润的关系、负债与流动性、预告与实际的差异、质押）和推断上。"
+               "computed 的数值由代码按 formula 计算，每条 computed 只算一个数。\n")
+
+
+def _fmt_amount(v: float) -> str:
+    return f"{v / 1e8:.2f}亿元" if abs(v) >= 1e8 else (f"{v / 1e4:.2f}万元" if abs(v) >= 1e4 else f"{v:.2f}元")
+
+
+def _fix_amounts(text: str, cands: list[float]) -> tuple[str, int]:
+    """正文里的金额写法由代码按所引记录重写：与某个记录值相差 0.5% 以内，或正好差 10 的整数次方（单位换算错）。"""
+    n = 0
+
+    def sub(m):
+        nonlocal n
+        x = float(m.group(1)) * _SCALE[m.group(2)]
+        for cv in cands:
+            if not cv or not x or (x > 0) != (cv > 0):
+                continue
+            r = abs(x / cv)
+            k = round(math.log10(r))
+            if abs(k) <= 4 and abs(r / 10 ** k - 1) <= 5e-3:
+                new = _fmt_amount(cv)
+                if new != m.group(0).replace(" ", ""):
+                    n += 1
+                return new
+        return m.group(0)
+    return _AMT.sub(sub, text), n
+
+
+def code_facts_a1(evidence: dict[str, dict], as_of: str) -> list[dict]:
+    """必须覆盖的事实 + 收入、归母净利润的同比增速，全部由代码写成声明（编号 k1、k2……）。"""
+    facts = [d | {"local_id": f"k{i + 1}"} for i, d in enumerate(prefill_a1(evidence, as_of))]
+    by = {(d["metric"], d["period"]): d for d in facts if d.get("value") is not None}
+    for f, name in (("revenue", "营业收入"), ("n_income_attr_p", "归母净利润")):
+        cur = [d for (m, p), d in by.items() if m == f]
+        if len(cur) < 2:
+            continue
+        a, b = sorted(cur, key=lambda d: d["period"], reverse=True)[:2]
+        if int(a["period"][:4]) - int(b["period"][:4]) != 1 or not b["value"]:
+            continue
+        g = (a["value"] - b["value"]) / abs(b["value"]) * 100
+        facts.append({"local_id": f"k{len(facts) + 1}", "claim_type": "computed",
+                      "text": f"{a['period'][:4]}年{a['period'][4:6]}月{a['period'][6:]}日止{name}同比变化{g:.2f}%",
+                      "period": a["period"], "metric": f"{f}_yoy", "value": round(g, 4), "unit": "%",
+                      "formula": f"({a['local_id']}-{b['local_id']})/abs({b['local_id']})*100",
+                      "inputs": [a["local_id"], b["local_id"]], "evidence": []})
+    return facts
+
+
+def render_a1(output: dict, evidence: dict[str, dict], as_of: str) -> tuple[dict, dict]:
+    """S5（T-054）：数字归代码。
+    1. 模型的 reported_fact：value 改成所引记录的原值，正文里的金额按记录重写（只改相差 0.5% 以内或正好差 10^k 的写法）；
+    2. 必须覆盖的事实和同比增速由代码写入（k1…），模型写了同一个事实（同一证据编号 + 字段）就保留模型那条；
+    3. 模型自己算的同比（单位 %、两个输入正好是代码那两条事实）换成代码的结果，local_id 不变；
+    其余计算、推断原样保留，照常校验。返回 (新输出, 处理记录)。"""
+    out = json.loads(json.dumps(output))
+    claims = out.get("claims", [])
+    info = {"value_fixed": 0, "text_fixed": 0, "code_added": [], "yoy_replaced": [], "code_owned": []}
+    for c in claims:
+        if c.get("claim_type") != "reported_fact":
+            continue
+        cands = []
+        refs = c.get("evidence") or []
+        for r in refs:
+            rec = evidence.get(r.get("evidence_id")) or {}
+            raw, f = rec.get(r.get("field")) if r.get("field") else None, r.get("field")
+            if not isinstance(raw, (int, float)) or isinstance(raw, bool):
+                continue
+            ru = (rec.get("_units") or {}).get(f, "元")
+            if ru in _RU:
+                cands.append(float(raw) * _RU[ru])
+            if r.get("value") is not None:
+                if r["value"] != raw or r.get("unit") != ru:
+                    info["value_fixed"] += 1
+                r["value"], r["unit"] = raw, ru
+            elif len(refs) == 1:
+                if c.get("value") != raw or c.get("unit") != ru:
+                    info["value_fixed"] += 1
+                c["value"], c["unit"] = raw, ru
+        if cands:
+            c["text"], n = _fix_amounts(c.get("text", ""), cands)
+            info["text_fixed"] += n
+    # 已有的事实：(证据编号, 字段) → 模型声明的 local_id
+    have = {}
+    for c in claims:
+        if c.get("claim_type") == "reported_fact" and len(c.get("evidence") or []) == 1:
+            r = c["evidence"][0]
+            have.setdefault((r.get("evidence_id"), r.get("field")), c["local_id"])
+    used = {c["local_id"] for c in claims}
+    alias = {}
+    for k in code_facts_a1(evidence, as_of):
+        k, orig = dict(k), k["local_id"]
+        while k["local_id"] in used:
+            k["local_id"] += "c"
+        if k["claim_type"] == "reported_fact":
+            key = (k["evidence"][0]["evidence_id"], k["evidence"][0]["field"])
+            if key in have:
+                alias[orig] = have[key]
+                continue
+            alias[orig] = k["local_id"]
+        else:
+            ins = [alias.get(i) for i in k["inputs"]]
+            if None in ins:
+                continue
+            k["inputs"] = ins
+            k["formula"] = f"({ins[0]}-{ins[1]})/abs({ins[1]})*100"
+            twin = next((c for c in claims if c.get("claim_type") == "computed" and c.get("unit") == "%"
+                         and sorted(c.get("inputs") or []) == sorted(ins)), None)
+            if twin is not None:
+                twin.update({x: k[x] for x in ("text", "value", "unit", "formula", "inputs")})
+                info["yoy_replaced"].append(twin["local_id"])
+                info["code_owned"].append(twin["local_id"])
+                continue
+        used.add(k["local_id"])
+        k.pop("period", None)
+        k.pop("metric", None)
+        claims.append(k)
+        info["code_added"].append(k["local_id"])
+        info["code_owned"].append(k["local_id"])
+    _calculate(claims, set(info["code_owned"]), info)
+    out["claims"] = claims
+    return out, info
+
+
+_PCT = re.compile(r"(增长|增加|上升|提升|下降|减少|降低|下滑)?(约|了)?\s*(-?\d+(?:\.\d+)?)\s*%")
+_UP, _DOWN = ("增长", "增加", "上升", "提升"), ("下降", "减少", "降低", "下滑")
+
+
+def _period(c: dict) -> tuple[str, str] | None:
+    """单证据 reported_fact 的 (字段, 报告期)，报告期取自证据编号 tushare:<表>:<代码>:<报告期>:<公告日>。"""
+    refs = c.get("evidence") or []
+    if c.get("claim_type") != "reported_fact" or len(refs) != 1:
+        return None
+    parts = str(refs[0].get("evidence_id", "")).split(":")
+    return (refs[0].get("field"), parts[3]) if len(parts) >= 5 and refs[0].get("field") else None
+
+
+def _calculate(claims: list[dict], skip: set[str], info: dict) -> None:
+    """计算器：模型写公式，代码求值并把结果写回正文（只在正文里恰好有一个同类数字时改写；有几个就不动，照常校验）。
+    同比：单位 %、两个输入是同一字段相隔一年的两期 → 公式统一成 (新-旧)/abs(旧)*100，防止把比值当增速。"""
+    from quantmind.line_a.harness.verifier import UNIT, _clean_formula, _eval
+    by = {c["local_id"]: c for c in claims}
+    info.setdefault("calc_fixed", [])
+    for c in claims:
+        if c.get("claim_type") != "computed" or c["local_id"] in skip or not c.get("formula"):
+            continue
+        ins = [by.get(i) for i in c.get("inputs") or []]
+        if not ins or None in ins or any(x.get("value") is None for x in ins):
+            continue
+        unit = c.get("unit") or ""
+        if unit in ("", "百分比", "pct") and len(_PCT.findall(c.get("text", ""))) == 1 and not _AMT.search(c.get("text", "")):
+            unit = c["unit"] = "%"                        # 没写单位，但正文里只有一个百分数
+        if unit == "%" and len(ins) == 2:
+            p = [_period(x) for x in ins]
+            if None not in p and p[0][0] == p[1][0] and p[0][1][4:] == p[1][1][4:] and \
+                    abs(int(p[0][1][:4]) - int(p[1][1][:4])) == 1:
+                new, old = (ins[0], ins[1]) if p[0][1] > p[1][1] else (ins[1], ins[0])
+                c["formula"] = f"({new['local_id']}-{old['local_id']})/abs({old['local_id']})*100"
+        try:
+            val = _eval(_clean_formula(c["formula"]), {x["local_id"]: float(x["value"]) for x in ins})
+        except (ValueError, ZeroDivisionError, SyntaxError, KeyError, TypeError):
+            continue
+        text = c.get("text", "")
+        if unit == "%":
+            toks = list(_PCT.finditer(text))
+            if len(toks) != 1:
+                continue
+            m = toks[0]
+            if m.group(1):
+                word = (_UP if val >= 0 else _DOWN)[0] if m.group(1) in _UP + _DOWN else m.group(1)
+                if (m.group(1) in _UP) == (val >= 0):
+                    word = m.group(1)
+                rep = f"{word}{m.group(2) or ''}{abs(val):.2f}%"
+            else:
+                rep = f"{val:.2f}%"
+        elif unit in UNIT and unit in ("元", "万元", "亿元"):
+            toks = list(_AMT.finditer(text))
+            if len(toks) != 1:
+                continue
+            m, rep = toks[0], _fmt_amount(val * UNIT[unit])
+        else:
+            continue
+        if c.get("value") is None or abs(float(c["value"]) - val) > 1e-9 * max(1.0, abs(val)) or rep != m.group(0):
+            info["calc_fixed"].append(c["local_id"])
+        c["text"] = text[:m.start()] + rep + text[m.end():]
+        c["value"] = round(val, 6)
 
 
 def score_checks(checks: list[dict]) -> tuple[int, int]:

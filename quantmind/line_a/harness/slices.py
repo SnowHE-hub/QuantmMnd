@@ -163,7 +163,7 @@ def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Pat
               extra: str = "", single: bool | None = None, v3: bool | None = None,
               structured_a1: bool | None = None, aids: frozenset = frozenset(), raw_out: dict | None = None) -> dict:
     """v3：T-051 harness v3；structured_a1：A1 用不带引文的证据 Schema（v3.1）。None 表示按 V3_ROLES / STRUCTURED_ROLES。
-    aids：T-054 的小模型代码辅助，{"compact", "prefill", "repair"} 的子集，只用于 A1 单次调用。"""
+    aids：T-054 的小模型代码辅助，{"compact", "prefill", "repair", "render"} 的子集，只用于 A1 单次调用。"""
     from quantmind.line_a.harness import small_aids
     v3 = role in V3_ROLES if v3 is None else v3
     structured_a1 = role in STRUCTURED_ROLES if structured_a1 is None else structured_a1
@@ -176,21 +176,28 @@ def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Pat
     if structured_a1 and role == "A1":
         spec.output_model = StructuredRoleOutput
     single = role in SINGLE_CALL_ROLES if single is None else single
-    repair_info = None
+    repair_info = render_info = None
     if single:
         task, pre = _single_call_task(spec, ticker, dt.as_of, extra, compact="compact" in aids, raw_out=raw_out)
+        render = "render" in aids and role == "A1"
         if "prefill" in aids and role == "A1":
             task += small_aids.PREFILL_NOTE + json.dumps(small_aids.prefill_a1(pre, dt.as_of), ensure_ascii=False)
+        if render:
+            task += small_aids.RENDER_NOTE + json.dumps(small_aids.code_facts_a1(pre, dt.as_of), ensure_ascii=False)
         spec1 = RoleSpec(spec.name, spec.system, [], spec.output_model, max_steps=4, thinking=spec.thinking,
                          max_tokens=spec.max_tokens, max_tool_calls=0, defaults=spec.defaults,
-                         completeness=spec.completeness)
+                         completeness=None if render else spec.completeness)   # render：必须覆盖的事实由代码写入
         rec = run_role(llm, spec1, task, meta={"ticker": ticker, "as_of": dt.as_of, "mode": "single"}, evidence=pre)
+        if render and rec.output and "claims" in rec.output:
+            rec.output, render_info = small_aids.render_a1(rec.output, rec.evidence, dt.as_of)
         if "repair" in aids and rec.output and "claims" in rec.output:
             first = [asdict(c) for c in verify(rec.output, rec.evidence)]
             t2 = small_aids.repair_task(task, rec.output, first)
             if t2 is not None:
                 rec2 = run_role(llm, spec1, t2, meta={"ticker": ticker, "as_of": dt.as_of, "mode": "repair"}, evidence=pre)
                 rec.cost_rmb += rec2.cost_rmb
+                if render and rec2.output and "claims" in rec2.output:
+                    rec2.output, info2 = small_aids.render_a1(rec2.output, rec2.evidence, dt.as_of)
                 second = [asdict(c) for c in verify(rec2.output, rec2.evidence)] if rec2.output else []
                 s1, s2 = small_aids.score_checks(first), small_aids.score_checks(second)
                 better = rec2.status == "ok" and (s2[0] < s1[0] or (s2[0] == s1[0] and s2[1] > s1[1]))
@@ -198,6 +205,8 @@ def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Pat
                 rec.steps += [{**st, "repair": True} for st in rec2.steps]
                 if better:
                     rec.output = rec2.output
+                    if render and rec2.output and "claims" in rec2.output:
+                        render_info = info2
     else:
         rec = run_role(llm, spec, _task(ticker, dt.as_of, extra), meta={"ticker": ticker, "as_of": dt.as_of})
     rec.evidence.update(getattr(dt, "side_evidence", {}))     # 公告全文与逐段记录（覆盖工具里截短的版本）
@@ -205,6 +214,8 @@ def run_slice(llm: LLM, dt: ResearchTools, ticker: str, role: str, out_root: Pat
     res = {"ticker": ticker, "as_of": dt.as_of, "role": role, "status": rec.status, "output": rec.output,
            "checks": checks, "steps": rec.steps, "errors": rec.errors, "cost_rmb": rec.cost_rmb,
            "evidence": rec.evidence, "model": llm.model, "aids": sorted(aids), "repair": repair_info}
+    if render_info is not None:
+        res["render"] = render_info
     if out_root is not None:
         key = rec.steps[0]["request_hash"][:12] if rec.steps else "none"
         p = Path(out_root) / dt.as_of / ticker / f"{role}_{key}.json"
