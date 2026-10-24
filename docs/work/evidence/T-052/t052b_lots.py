@@ -13,7 +13,10 @@ from sim_grid import SMALL, ALL  # noqa: E402
 
 from quantmind.line_a.sim_account import AccountSimulator, Market, SimConfig  # noqa: E402
 
+import os
 WIN = {"W6": pd.Timestamp("2026-04-23"), "W3": pd.Timestamp("2026-07-23")}
+if os.environ.get("T052B_LONG"):                                  # v2：2022-01 起的完整研究期
+    WIN = {"L5": pd.Timestamp("2022-01-01")}
 END = pd.Timestamp("2026-10-23")
 VARIANTS = {"floor+skip": ("floor", False), "floor+next": ("floor", True), "nearest+skip": ("nearest", False),
             "nearest+next": ("nearest", True)}
@@ -41,7 +44,8 @@ def main() -> None:
                                  "bench": s["bench_pool_ew_return"], "n_cannot_afford": s["n_cannot_afford_one_lot"]})
                     print(json.dumps(rows[-1]), flush=True)
     df = pd.DataFrame(rows)
-    out = sd.ROOT / "data/line_a_v2/t052_sim/t052b_lots.parquet"
+    tag = "_long" if os.environ.get("T052B_LONG") else ""
+    out = sd.ROOT / f"data/line_a_v2/t052_sim/t052b_lots{tag}.parquet"
     df.to_parquet(out)
     base = df[df["variant"] == "floor+skip"].set_index(["aum", "window", "offset"])
     res = {}
@@ -49,13 +53,15 @@ def main() -> None:
         x = df[df["variant"] == v].set_index(["aum", "window", "offset"])
         d = x["total_return"] - base["total_return"]
         res[v] = {str(int(a)): {"avg_cash": float(x.loc[a, "avg_cash"].mean()), "cash_drop_pp": float((base.loc[a, "avg_cash"] - x.loc[a, "avg_cash"]).mean() * 100),
-                                "ret_diff_median_pp": float(d.loc[a].median() * 100), "ret_diff_min_pp": float(d.loc[a].min() * 100),
+                                "ret_diff_median_pp": float(d.loc[a].median() * 100),
+                                "ann_ret_diff_median_pp": float(((1 + x.loc[a, "total_return"]) ** (252 / 1150) - (1 + base.loc[a, "total_return"]) ** (252 / 1150)).median() * 100), "ret_diff_min_pp": float(d.loc[a].min() * 100),
                                 "cost_increase_pp": float((x.loc[a, "cost_share"] - base.loc[a, "cost_share"]).mean() * 100)}
                   for a in (1e5, 1e6)}
         r5 = res[v]["100000"]
-        res[v]["adopt"] = bool(v != "floor+skip" and r5["cash_drop_pp"] >= 10 and r5["ret_diff_median_pp"] >= -0.5
+        key = "ann_ret_diff_median_pp" if tag else "ret_diff_median_pp"
+        res[v]["adopt"] = bool(v != "floor+skip" and r5["cash_drop_pp"] >= 10 and r5[key] >= -0.5
                                and r5["cost_increase_pp"] <= 0.5)
-    (sd.ROOT / "data/line_a_v2/t052_sim/t052b_result.json").write_text(json.dumps(res, ensure_ascii=False, indent=1),
+    (sd.ROOT / f"data/line_a_v2/t052_sim/t052b_result{tag}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1),
                                                                        encoding="utf-8")
     print(json.dumps(res, ensure_ascii=False, indent=1))
 
