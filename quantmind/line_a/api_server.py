@@ -323,6 +323,92 @@ def forward_ic(horizon: int = Query(5, ge=1, le=60), model: str = Query("ens_20d
     return _an(A.forward_ic, horizon, model)
 
 
+# ------------------------------------------------------------------ 模拟账户账本（quantmind/line_a/ledger.py 生成，这里只读）
+LEDGER = OUT / "ledger"
+ACC = re.compile(r"^[\w.\-+]+$")
+
+
+def _ledger_dir(account: str) -> Path:
+    if not ACC.match(account) or not (LEDGER / account / "meta.json").exists():
+        raise HTTPException(404, f"no ledger {account}")
+    return LEDGER / account
+
+
+def _pq(d: Path, name: str) -> pd.DataFrame:
+    p = d / f"{name}.parquet"
+    return pd.read_parquet(p) if p.exists() else pd.DataFrame()
+
+
+def _on_day(f: pd.DataFrame, day: pd.Timestamp, col: str = "date") -> pd.DataFrame:
+    return f[pd.to_datetime(f[col]) == day] if len(f) and col in f else f.iloc[0:0]
+
+
+@app.get("/api/ledger/accounts")
+def ledger_accounts() -> list[dict]:
+    from quantmind.line_a.ledger import accounts
+    return accounts()
+
+
+@app.get("/api/ledger/{account}")
+def ledger(account: str) -> dict:
+    """账户总览：meta（汇总、月度、核对结果、规则）、每日序列、完整回合。"""
+    d = _ledger_dir(account)
+    return {"meta": _json(d / "meta.json"), "daily": _jsonable(_pq(d, "daily")), "round_trips": _jsonable(_pq(d, "round_trips"))}
+
+
+@app.get("/api/ledger/{account}/positions")
+def ledger_positions(account: str, date: str | None = None) -> dict:
+    """某一天收盘后的持仓（默认最后一天）和当天的成交 / 未成交 / 除权。"""
+    if date and not DATE.match(date):
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+    d = _ledger_dir(account)
+    daily = _pq(d, "daily")
+    if not len(daily):
+        raise HTTPException(404, "empty ledger")
+    dates = pd.to_datetime(daily["date"])
+    want = pd.Timestamp(date) if date else dates.max()
+    day = dates[dates <= want].max() if (dates <= want).any() else dates.min()
+    row = _jsonable(daily[dates == day])[0]
+    pos = _pq(d, "positions")
+    tg = _pq(d, "targets")
+    if not len(pos) and len(tg):                          # 影子账本：只有目标权重
+        a = pd.to_datetime(tg["as_of"])
+        w = tg[a == a[a <= day].max()] if (a <= day).any() else tg.iloc[0:0]
+        return {"date": str(day.date()), "positions": _jsonable(w), "trades": [], "rejects": [], "actions": [],
+                "day": row, "weights_only": True}
+    p = _on_day(pos, day)
+    return {"date": str(day.date()), "positions": _jsonable(p.sort_values("value", ascending=False) if len(p) else p),
+            "trades": _jsonable(_on_day(_pq(d, "trades"), day)), "rejects": _jsonable(_on_day(_pq(d, "rejects"), day)),
+            "actions": _jsonable(_on_day(_pq(d, "actions"), day)), "day": row, "weights_only": False}
+
+
+@app.get("/api/ledger/{account}/trades")
+def ledger_trades(account: str, ticker: str | None = None, limit: int = Query(2000, ge=1, le=20000)) -> dict:
+    """交割单：成交、未成交、除权，按时间倒序。"""
+    d = _ledger_dir(account)
+    fs = [_pq(d, k) for k in ("trades", "rejects", "actions")]
+    if ticker:
+        if not TICK.match(ticker):
+            raise HTTPException(400, "bad ticker")
+        fs = [f[f["ticker"] == ticker] if len(f) else f for f in fs]
+    fs = [f.sort_values("date", ascending=False).head(limit) if len(f) else f for f in fs]
+    return {"trades": _jsonable(fs[0]), "rejects": _jsonable(fs[1]), "actions": _jsonable(fs[2])}
+
+
+@app.get("/api/ledger/{account}/ticker/{ticker}")
+def ledger_ticker(account: str, ticker: str) -> dict:
+    """个股复盘：账户期间的未复权日 K（成交价是未复权开盘价，K 线用同一口径）+ 这只股票的买卖点、回合与除权。"""
+    if not TICK.match(ticker):
+        raise HTTPException(400, "bad ticker")
+    d = _ledger_dir(account)
+    meta = _json(d / "meta.json")
+    start = (pd.Timestamp(meta["start"]) - pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+    end = (pd.Timestamp(meta["end"]) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    pick = lambda f: _jsonable(f[f["ticker"] == ticker]) if len(f) else []  # noqa: E731
+    return {"prices": prices(ticker, start, end), "trades": pick(_pq(d, "trades")), "round_trips": pick(_pq(d, "round_trips")),
+            "actions": pick(_pq(d, "actions")), "note": "K 线未复权（与成交价同一口径）；除权日的跳空来自分红送转，不是亏损"}
+
+
 @app.get("/api/rules/execution")
 def rules_execution() -> dict:
     from quantmind.line_a import api_analytics as A

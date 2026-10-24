@@ -82,3 +82,5 @@ done
 soft_step research $G -u -m quantmind.line_a.pipeline research --as-of "$END" --data-root "$R"
 # 6 正式荐股日报（用户 2026-10-24 批准）：正式计划 → Agent 大脑 → 日报（复制到 Windows 的 formal_reports 目录）
 soft_step formal $G -u -m quantmind.line_a.formal --as-of "$END" --data-root "$R" --with-brain
+# 7 模拟账户账本（正式三档 + L9 影子账本，给前端；T-052 的账户是固定历史，不每天重跑）
+soft_step ledger $G -u -m quantmind.line_a.ledger build --formal --shadow --as-of "$END"

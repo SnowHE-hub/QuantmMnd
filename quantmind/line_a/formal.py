@@ -54,7 +54,9 @@ def _names(runs: Path, d: pd.Timestamp) -> dict:
     return f1["name"].to_dict() if "name" in f1 else {}
 
 
-def build(data_root: Path, out_root: Path, as_of: str, cfg: dict | None = None) -> dict:
+def build(data_root: Path, out_root: Path, as_of: str, cfg: dict | None = None, sim_cls=AccountSimulator,
+          keep: dict | None = None) -> dict:
+    """sim_cls / keep：账本（ledger.py）用带记录钩子的模拟器重放同一套规则，并取回每一档的模拟器和结果。"""
     cfg = cfg or load_cfg()
     as_of_t = pd.Timestamp(as_of)
     runs = out_root / "runs"
@@ -101,8 +103,10 @@ def build(data_root: Path, out_root: Path, as_of: str, cfg: dict | None = None) 
         c = SimConfig(aum=float(t["aum"]), top_n=int(t["top_n"]), rebalance_step=1, buffer_mult=t.get("buffer_mult"),
                       exec_price=ex["price"], commission_rate=ex["commission_rate"], min_commission=ex["min_commission"],
                       transfer_rate=ex["transfer_rate"], participation=ex["participation"], boards=frozenset(t["boards"]))
-        sim = AccountSimulator(sc, market, c, start=start, end=as_of_t, amihud=amihud, dividends=dv, st_intervals=st)
+        sim = sim_cls(sc, market, c, start=start, end=as_of_t, amihud=amihud, dividends=dv, st_intervals=st)
         r = sim.run()
+        if keep is not None:
+            keep[key] = (sim, r)
         h = r["holdings"]
         last = h[h["date"] == h["date"].max()] if len(h) else h
         orders = []
