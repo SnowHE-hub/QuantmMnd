@@ -8,6 +8,7 @@
 #   3 日任务：(LAST_END, END] 内每个交易日跑 M、F0–F5c、F9（已成功的任务键直接复用）
 #   4 账本：截至 END 的前瞻账本与容量情景
 #   5 影子研究（T-040）：END 当天的 F6 研究、F7 验收、F9 研究报告
+#   6 正式荐股日报（T-057）：三档纸面账户的持仓与明日委托、Agent 大脑的提示（T-056）
 # 巨潮公告（第 1 步里）和影子研究（第 5 步）是软步骤：失败只记录，不阻断量化部分，也不影响 ALL DONE。
 # 不删除任何旧的影子数据根（保留策略需要用户批准）；每个重任务都在 MemoryMax 受限的 systemd 用户单元里由调用方运行。
 set -u
@@ -79,3 +80,5 @@ for i in $(seq 1 48); do
   sleep 600
 done
 soft_step research $G -u -m quantmind.line_a.pipeline research --as-of "$END" --data-root "$R"
+# 6 正式荐股日报（用户 2026-10-24 批准）：正式计划 → Agent 大脑 → 日报（复制到 Windows 的 formal_reports 目录）
+soft_step formal $G -u -m quantmind.line_a.formal --as-of "$END" --data-root "$R" --with-brain

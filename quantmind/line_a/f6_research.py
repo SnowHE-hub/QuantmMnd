@@ -159,7 +159,7 @@ def _consensus(g: pd.DataFrame, cols: list[str]) -> pd.Series:
 
 
 def select(as_of, f4: pd.DataFrame, bypass: pd.DataFrame, holdings: set[str], hist: pd.DataFrame,
-           days: pd.DatetimeIndex, cfg: dict = CFG) -> pd.DataFrame:
+           days: pd.DatetimeIndex, cfg: dict = CFG, brain_requests: list[str] | tuple = ()) -> pd.DataFrame:
     """返回 ticker、category（holding_event / event / top_both / top_20d / top_63d / sample）、fresh、last（{role: as_of}）。"""
     last_any = hist.groupby("ticker")["as_of"].max().to_dict() if len(hist) else {}
 
@@ -170,6 +170,8 @@ def select(as_of, f4: pd.DataFrame, bypass: pd.DataFrame, holdings: set[str], hi
     chosen: dict[str, str] = {}
     for t in [t for t in major["ticker"] if t in holdings][:cfg["cap_holding_event"]]:
         chosen.setdefault(t, "holding_event")
+    for t in list(brain_requests)[:5]:                     # Agent 大脑上一次提出的研究请求（T-056），不看新鲜度
+        chosen.setdefault(t, "brain_request")
     in_f4 = set(f4["ticker"])
     for t in [t for t in major["ticker"] if t in in_f4 and t not in chosen][:cfg["cap_event"]]:
         chosen.setdefault(t, "event")
@@ -235,7 +237,8 @@ def run_research(data_root: Path, out_root: Path, as_of, f4: pd.DataFrame, bypas
     day.mkdir(parents=True, exist_ok=True)
     days = open_days(lake)
     hist = history(out_root, as_of)
-    sel = select(as_of, f4, bypass, holdings, hist, days, cfg)
+    from quantmind.line_a.brain import latest_requests
+    sel = select(as_of, f4, bypass, holdings, hist, days, cfg, brain_requests=latest_requests(out_root, str(pd.Timestamp(as_of).date())))
     last = {t: json.loads(x) for t, x in zip(sel["ticker"], sel["last"], strict=True) if json.loads(x)}
     plan = plan_roles(sel, triggers(lake, as_of, last, days))
     plan.to_parquet(day / "f6_plan.parquet")
@@ -348,7 +351,7 @@ def report(res: dict, names: dict[str, str] | None = None, rewrite_llm=None) -> 
          f"- 选择规则：`{st['rule_version']}`；选中 {st['n_selected']} 只，完成 {st['n_ok']} 个案例，"
          f"全部沿用 {st['n_reused_only']} 只；估算费用 ¥{st['cost_rmb']:.2f}；用时 {st['wall_s'] / 60:.0f} 分钟",
          f"- 运行状态：{st['state']}" + (f"（停止原因：{st['stopped']}）" if st["stopped"] else ""), ""]
-    cat = {"holding_event": "持仓 × 重大事件", "event": "重大事件", "top_both": "20 日与 63 日都靠前", "top_20d": "20 日排名靠前", "top_63d": "63 日排名靠前",
+    cat = {"holding_event": "持仓 × 重大事件", "event": "重大事件", "top_both": "20 日与 63 日都靠前", "brain_request": "大脑请求", "top_20d": "20 日排名靠前", "top_63d": "63 日排名靠前",
            "sample": "抽查样本"}
     def js(v) -> dict:
         return json.loads(v) if isinstance(v, str) and v else {}
