@@ -65,6 +65,7 @@ class SimConfig:
     min_recent_bar_td: int = 10
     delist_writeoff_td: int = 20
     dividend_tax: bool = True
+    weight_fn: object = None                 # (决策日, 目标列表) → {股票: 权重}；None = 等权（T-055 X3 v2 的逆波动加权）
 
 
 def lot_shares(value: float, price: float, board: str, *, integer: bool = True) -> float:
@@ -254,6 +255,8 @@ class AccountSimulator:
         px = self.adjc_ffill if c.mode == "adj" else self.close_ffill
         equity = self._value(d)
         per = equity / max(c.top_n, 1)
+        wts = c.weight_fn(d, target) if c.weight_fn is not None else None
+        tv = {t: equity * wts.get(t, 0.0) for t in target} if wts else {t: per for t in target}
         later = [r for r in self.rebal if r > d]
         expiry = later[0] if later else None
         self.pending = [o for o in self.pending if not (o["side"] == "buy" and o["ticker"] not in target)
@@ -264,12 +267,12 @@ class AccountSimulator:
             if o["side"] == "buy":
                 t = o["ticker"]
                 cur = self.pos[t].shares * float(px.at[d, t]) if t in self.pos else 0.0
-                o.update(expiry=expiry, rank=target.index(t), value=max(per - cur, 0.0), decided=d)
+                o.update(expiry=expiry, rank=target.index(t), value=max(tv[t] - cur, 0.0), decided=d)
         for t in sorted(set(target) | set(self.pos)):
             cur = self.pos[t].shares * float(px.at[d, t]) if t in self.pos else 0.0
-            want = per if t in target else 0.0
+            want = tv[t] if t in target else 0.0
             delta = want - cur
-            if t in target and t in self.pos and abs(delta) <= c.drift_band * per:
+            if t in target and t in self.pos and abs(delta) <= c.drift_band * tv[t]:
                 continue
             if abs(delta) < 1e-6 * equity:
                 continue

@@ -1,0 +1,243 @@
+"""quantmind.line_a.api_server — 给个人展示前端用的只读 REST 接口（FastAPI，只监听 127.0.0.1）.
+
+只读：所有接口都是 GET，只读文件，不触发任何计算、下载或模型调用；不返回密钥和账户信息。
+启动：PYTHONPATH=. python -m quantmind.line_a.api_server --port 8780   （文档：http://127.0.0.1:8780/docs）
+接口与数据的说明见 docs/handoff/frontend_handoff.md。
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import re
+from pathlib import Path
+
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+
+ROOT = Path("/home/lenovo/projects/quantmind")
+OUT = ROOT / "data/line_a_v2"
+REPO = Path(__file__).resolve().parents[2]
+DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+app = FastAPI(title="QuantMind 只读接口", version="1.0",
+              description="主线 A v2 的每日产物、正式荐股日报、Agent 大脑意见、账本、研究与实验结果。全部只读。")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+
+
+def _jsonable(df: pd.DataFrame) -> list[dict]:
+    return json.loads(df.to_json(orient="records", force_ascii=False, date_format="iso"))
+
+
+def _date(d: str, kind: str = "runs") -> str:
+    if d == "latest":
+        base = OUT / kind if kind != "research" else OUT / "research/daily"
+        ds = sorted(p.name for p in base.iterdir() if p.is_dir() and DATE.match(p.name))
+        if not ds:
+            raise HTTPException(404, f"no {kind} dates")
+        return ds[-1]
+    if not DATE.match(d):
+        raise HTTPException(400, "date must be YYYY-MM-DD or latest")
+    return d
+
+
+def _day_outputs(d: str) -> dict:
+    runs = sorted((OUT / "runs" / d).glob("day_*.json"), key=lambda p: p.stat().st_mtime)
+    if not runs:
+        raise HTTPException(404, f"no daily run for {d}")
+    return json.loads(runs[-1].read_text(encoding="utf-8"))["outputs"]
+
+
+def _json(p: Path):
+    if not p.exists():
+        raise HTTPException(404, str(p.name))
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+@app.get("/api/health")
+def health() -> dict:
+    return {"ok": True, "data_root": str(ROOT), "latest_run": _date("latest")}
+
+
+@app.get("/api/dates")
+def dates() -> dict:
+    def ls(p: Path) -> list[str]:
+        return sorted(x.name for x in p.iterdir() if x.is_dir() and DATE.match(x.name)) if p.exists() else []
+    return {"runs": ls(OUT / "runs"), "books": ls(OUT / "books"), "research": ls(OUT / "research/daily"),
+            "formal": ls(OUT / "formal")}
+
+
+@app.get("/api/formal/{d}")
+def formal(d: str) -> dict:
+    return _json(OUT / "formal" / _date(d, "formal") / "report.json")
+
+
+@app.get("/api/formal/{d}/markdown", response_class=PlainTextResponse)
+def formal_md(d: str) -> str:
+    p = OUT / "formal" / _date(d, "formal") / "report.md"
+    if not p.exists():
+        raise HTTPException(404, "report.md")
+    return p.read_text(encoding="utf-8")
+
+
+@app.get("/api/brain/{d}")
+def brain(d: str) -> dict:
+    d = _date(d, "research")
+    memo = _json(OUT / "research/daily" / d / "brain_memo.json")
+    run = OUT / "research/daily" / d / "brain_run.json"
+    meta = {k: v for k, v in json.loads(run.read_text(encoding="utf-8")).items() if k != "steps"} if run.exists() else {}
+    return {"memo": memo, "run": meta}
+
+
+@app.get("/api/market/{d}")
+def market(d: str) -> dict:
+    d = _date(d)
+    fs = sorted(glob.glob(str(OUT / "runs" / d / "m_market_*.json")))
+    if not fs:
+        raise HTTPException(404, "m_market")
+    return json.loads(Path(fs[-1]).read_text(encoding="utf-8"))
+
+
+@app.get("/api/candidates/{d}")
+def candidates(d: str, horizon: str = Query("20d", pattern="^(20d|63d)$"), top: int = Query(50, ge=1, le=500)) -> list[dict]:
+    c = pd.read_parquet(_day_outputs(_date(d))["f4"])
+    return _jsonable(c[c["horizon"] == horizon].head(top))
+
+
+@app.get("/api/scores/{d}")
+def scores(d: str, model: str = Query("ens_20d", pattern="^(ens_20d|ens_63d|ridge_20d|ridge_63d)$"),
+           top: int = Query(100, ge=1, le=6000)) -> list[dict]:
+    d = _date(d)
+    fs = sorted(glob.glob(str(OUT / "runs" / d / f"f3_{model}_*.parquet")), key=lambda f: Path(f).stat().st_mtime)
+    if not fs:
+        raise HTTPException(404, f"f3_{model}")
+    s = pd.read_parquet(fs[-1])
+    col = "ENS" if "ENS" in s else "score"
+    return _jsonable(s.sort_values(col, ascending=False).head(top))
+
+
+@app.get("/api/bypass/{d}")
+def bypass(d: str, importance: str | None = Query(None, pattern="^(major|watch)$")) -> list[dict]:
+    b = pd.read_parquet(_day_outputs(_date(d))["bypass"])
+    if importance:
+        b = b[b["importance"] == importance]
+    return _jsonable(b)
+
+
+@app.get("/api/risk_cards/{d}")
+def risk_cards(d: str, ticker: str | None = None) -> list[dict]:
+    o = _day_outputs(_date(d))
+    if "f5c" not in o:
+        raise HTTPException(404, "f5c")
+    k = pd.read_parquet(o["f5c"])
+    return _jsonable(k[k["ticker"] == ticker] if ticker else k)
+
+
+@app.get("/api/research/{d}")
+def research(d: str) -> dict:
+    d = _date(d, "research")
+    day = OUT / "research/daily" / d
+    md = day / "f9_research.md"
+    return {"status": _json(day / "status.json") if (day / "status.json").exists() else None,
+            "summaries": _json(day / "f9_summaries.json") if (day / "f9_summaries.json").exists() else [],
+            "cases": _jsonable(pd.read_parquet(day / "f6_cases.parquet")) if (day / "f6_cases.parquet").exists() else [],
+            "report_markdown": md.read_text(encoding="utf-8") if md.exists() else None}
+
+
+@app.get("/api/research/{d}/{ticker}")
+def research_ticker(d: str, ticker: str) -> dict:
+    day = OUT / "research/daily" / _date(d, "research")
+    cl = pd.read_parquet(day / "f7_claims.parquet") if (day / "f7_claims.parquet").exists() else pd.DataFrame()
+    rf = pd.read_parquet(day / "f7_risk_flags.parquet") if (day / "f7_risk_flags.parquet").exists() else pd.DataFrame()
+    return {"claims": _jsonable(cl[cl["ticker"] == ticker]) if len(cl) else [],
+            "risk_flags": _jsonable(rf[rf["ticker"] == ticker]) if len(rf) else []}
+
+
+@app.get("/api/books/{d}")
+def books(d: str) -> dict:
+    return _json(OUT / "books" / _date(d, "books") / "books_summary.json")
+
+
+@app.get("/api/books/{d}/{book}/{kind}")
+def book_detail(d: str, book: str, kind: str = "nav") -> list[dict]:
+    if kind not in ("nav", "targets", "capacity", "rejected") or not re.match(r"^[\w.\-+]+$", book):
+        raise HTTPException(400, "bad book or kind")
+    p = OUT / "books" / _date(d, "books") / f"{book}__{kind}.parquet"
+    if not p.exists():
+        raise HTTPException(404, p.name)
+    return _jsonable(pd.read_parquet(p))
+
+
+@app.get("/api/stock/{ticker}/prices")
+def prices(ticker: str, start: str = "2026-01-01", end: str | None = None) -> list[dict]:
+    import pyarrow.dataset as pds
+    fs = sorted(glob.glob(str(ROOT / "data/raw/alpha_prices_panel_v6_2*.parquet")))
+    if not fs:
+        raise HTTPException(404, "price panel")
+    cols = ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "pct_chg", "vol", "amount", "adj_factor"]
+    t = pds.dataset(fs[-1]).to_table(columns=cols, filter=(pds.field("ts_code") == ticker)).to_pandas()
+    t["trade_date"] = pd.to_datetime(t["trade_date"])
+    t = t[(t["trade_date"] >= pd.Timestamp(start)) & (t["trade_date"] <= pd.Timestamp(end or "2100-01-01"))]
+    return _jsonable(t.sort_values("trade_date"))
+
+
+@app.get("/api/stock/{ticker}/announcements")
+def announcements(ticker: str, as_of: str, lookback_days: int = Query(90, ge=7, le=730)) -> dict:
+    from quantmind.line_a.harness.tools_more import ResearchTools
+    return ResearchTools(ROOT / "data/lake", as_of.replace("-", "")).list_announcements(ticker, lookback_days=lookback_days)
+
+
+@app.get("/api/backtest/t052")
+def backtest_t052() -> dict:
+    d = OUT / "t052_sim"
+    return {"primary": _json(d / "primary.json"), "report_markdown": (d / "report.md").read_text(encoding="utf-8")
+            if (d / "report.md").exists() else None}
+
+
+@app.get("/api/backtest/t052/nav/{key}")
+def backtest_nav(key: str) -> list[dict]:
+    if not re.match(r"^[\w.\-+]+$", key):
+        raise HTTPException(400, "bad key")
+    p = OUT / "t052_sim/runs" / key / "nav.parquet"
+    if not p.exists():
+        raise HTTPException(404, key)
+    return _jsonable(pd.read_parquet(p).reset_index())
+
+
+@app.get("/api/experiments")
+def experiments() -> list[dict]:
+    rows = []
+    for f in sorted((REPO / "docs/work/tasks").glob("T-0*.md")):
+        txt = f.read_text(encoding="utf-8")
+        first = txt.splitlines()[0].lstrip("# ").strip() if txt else f.stem
+        verdicts = [ln.strip() for ln in txt.splitlines() if "判定" in ln and ("采用" in ln or "通过" in ln)][-3:]
+        rows.append({"id": f.stem, "title": first, "bytes": len(txt.encode()), "verdict_lines": verdicts})
+    return rows
+
+
+@app.get("/api/experiments/{tid}", response_class=PlainTextResponse)
+def experiment(tid: str) -> str:
+    if not re.match(r"^T-\d{3}[\w-]*$", tid):
+        raise HTTPException(400, "bad id")
+    p = REPO / "docs/work/tasks" / f"{tid}.md"
+    if not p.exists():
+        raise HTTPException(404, tid)
+    return p.read_text(encoding="utf-8")
+
+
+@app.get("/api/catalog")
+def catalog() -> dict:
+    return _json(OUT / "dsh_out/t55/data_catalog.json")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", type=int, default=8780)
+    a = ap.parse_args()
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="info")
+
+
+if __name__ == "__main__":
+    main()
