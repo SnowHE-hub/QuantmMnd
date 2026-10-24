@@ -20,6 +20,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
@@ -108,20 +109,33 @@ def assert_public(messages: list[dict]) -> None:
                 raise PrivateContentError(f"message contains a private-content marker ({pat}); not sent")
 
 
+_KEY_CACHE: dict[str, str] = {}
+_KEY_LOCK = threading.Lock()
+
+
 def read_key(name: str = "DEEPSEEK_API_KEY") -> str:
-    """环境变量优先；WSL 里没有时，从 Windows 的系统（Machine）与用户环境变量读取。返回值只留在内存里。"""
+    """环境变量优先；WSL 里没有时，从 Windows 的系统（Machine）与用户环境变量读取。返回值只留在内存里。
+    进程内缓存，多线程共用一次读取；PowerShell 偶尔启动慢或返回空（6 路并发时见过），最多重试 3 次。"""
     v = os.environ.get(name, "").strip()
     if v:
         return v
-    ps = "powershell.exe" if os.name == "nt" else "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
-    if os.name == "nt" or Path(ps).exists():
-        for scope in ("Machine", "User"):
-            r = subprocess.run([ps, "-NoProfile", "-NonInteractive", "-Command",
-                                f"[Environment]::GetEnvironmentVariable('{name}','{scope}')"],
-                               capture_output=True, text=True, timeout=30)
-            v = r.stdout.strip()
-            if v:
-                return v
+    with _KEY_LOCK:
+        if name in _KEY_CACHE:
+            return _KEY_CACHE[name]
+        ps = "powershell.exe" if os.name == "nt" else "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+        if os.name == "nt" or Path(ps).exists():
+            for _ in range(3):
+                for scope in ("Machine", "User"):
+                    try:
+                        r = subprocess.run([ps, "-NoProfile", "-NonInteractive", "-Command",
+                                            f"[Environment]::GetEnvironmentVariable('{name}','{scope}')"],
+                                           capture_output=True, text=True, timeout=30)
+                    except subprocess.TimeoutExpired:
+                        continue
+                    v = r.stdout.strip()
+                    if v:
+                        _KEY_CACHE[name] = v
+                        return v
     raise RuntimeError(f"{name} is not set")
 
 
