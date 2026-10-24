@@ -186,3 +186,7 @@ data/qlib_cn_daily_v6/
 scripts/**/_*.out
 scripts/**/_*status*.txt
 scripts/**/_commit_msg*.txt
+
+# 展示前端（React + Vite，运行副本在 D:\MCS_26S2课程资料\quantmindrontend）
+frontend/tsconfig.tsbuildinfo
+frontend/.claude/
