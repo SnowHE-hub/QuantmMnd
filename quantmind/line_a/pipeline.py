@@ -404,6 +404,14 @@ def run_books(data_root: Path, model_root: Path, out_root: Path, as_of: str, js:
                 hold |= set(last["ticker"])
             summary["books"][tag] = b["summary"]
     pd.DataFrame({"ticker": sorted(hold)}).to_parquet(od / "holdings_latest.parquet")
+    # 观察臂（T-055 X3 的逆波动加权 W，未通过非劣，只跟踪）：失败不影响参考臂和挑战臂
+    if "ens_native_20d" in scores:
+        try:
+            from quantmind.line_a.obs_arms import run_obs
+            pv = pd.read_parquet(prices_path, columns=[*cols, "vol"])
+            summary["observation"] = run_obs(scores["ens_native_20d"], pv, ami, od)
+        except Exception as e:  # noqa: BLE001
+            summary["observation"] = {"error": f"{type(e).__name__}: {str(e)[:200]}"}
     atomic_write_json(od / "books_summary.json", summary)
     return summary
 
