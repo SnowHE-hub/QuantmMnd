@@ -220,3 +220,42 @@ def test_verifier_v3_text_fields():
     ])
     st = {c.local_id: c.status for c in verify(out, ev)}
     assert st == {"c1": "verified", "c2": "mismatch", "c3": "verified", "c4": "verified"}
+
+
+def test_verifier_v31_enum_and_citation_correction():
+    ev = {"chain:abc": {"evidence_id": "chain:abc", "state": "plan", "event_type": "repurchase"},
+          "cninfo:ann:123": {"evidence_id": "cninfo:ann:123", "title": "关于回购股份方案的公告"},
+          "doc:123:p1:0": {"evidence_id": "doc:123:p1:0", "text": "本次回购股份价格不超过 20 元/股，资金总额 1 亿元。"}}
+    out = _out([
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "回购处于预案阶段",
+         "evidence": [{"evidence_id": "chain:abc", "field": "state"}]},
+        {"local_id": "c2", "claim_type": "reported_fact", "text": "回购已完成", "evidence": [{"evidence_id": "chain:abc", "field": "state"}]},
+        {"local_id": "c3", "claim_type": "reported_fact", "text": "回购价格上限 20 元",
+         "evidence": [{"evidence_id": "cninfo:ann:123", "quote": "本次回购股份价格不超过20元/股"}]},
+        {"local_id": "c4", "claim_type": "reported_fact", "text": "资金总额 2 亿元",
+         "evidence": [{"evidence_id": "cninfo:ann:123", "quote": "资金总额 2 亿元"}]},
+    ])
+    ck = {c.local_id: c for c in verify(out, ev)}
+    assert ck["c1"].status == "verified" and ck["c2"].status == "mismatch"
+    assert ck["c3"].status == "verified" and any("citation_corrected" in n for n in ck["c3"].notes)
+    assert ck["c4"].status == "mismatch"
+
+
+def test_verifier_v31_text_fields_relaxed_only_for_descriptive():
+    ev = {"tushare:fina_audit:600000.SH:20251231:20260420": {
+        "evidence_id": "tushare:fina_audit:600000.SH:20251231:20260420", "audit_result": "标准无保留意见",
+        "audit_agency": "立信中联会计师事务所", "updated": "2026-10-15T00:00:00+08:00"},
+        "tushare:report_rc:600000.SH:x": {"evidence_id": "tushare:report_rc:600000.SH:x", "n_orgs": 12, "np_median": 2.21e8,
+                                          "_units": {"np_median": "元"}}}
+    a = "tushare:fina_audit:600000.SH:20251231:20260420"
+    out = _out([
+        {"local_id": "c1", "claim_type": "reported_fact", "text": "审计机构为立信中联", "evidence": [{"evidence_id": a, "field": "audit_agency"}]},
+        {"local_id": "c2", "claim_type": "reported_fact", "text": "审计意见为保留意见", "evidence": [{"evidence_id": a, "field": "audit_result"}]},
+        {"local_id": "c3", "claim_type": "reported_fact", "text": "预测中位数 22100 万元，12 家机构", "value": 22100, "unit": "万元",
+         "evidence": [{"evidence_id": "tushare:report_rc:600000.SH:x", "field": "np_median", "value": 22100, "unit": "万元"},
+                      {"evidence_id": "tushare:report_rc:600000.SH:x", "field": "n_orgs", "value": 12}]},
+        {"local_id": "c4", "claim_type": "reported_fact", "text": "大股东持股 370,000 股",
+         "value": 370000, "unit": "股", "evidence": [{"evidence_id": a, "quote": "标准无保留意见"}]},
+    ])
+    st = {c.local_id: c.status for c in verify(out, ev)}
+    assert st["c1"] == "verified" and st["c2"] == "mismatch" and st["c3"] == "verified"

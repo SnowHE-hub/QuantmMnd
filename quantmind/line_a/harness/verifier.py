@@ -91,6 +91,14 @@ def _value_in_quote(v: float, unit: str | None, quote: str) -> bool:
         for s in (1.0, 1e4, 1e8, 1e-4, 1e-8):
             if _matches(v, s, n):
                 return True
+    # PDF 表格的单元格常被拼在一起（"370,0000.95%"），拆不出数来（v3.1）：数值的常见写法作为子串出现、且前面不是数字，也算找到
+    raw = _norm(quote)
+    for s in (1.0, 1e4, 1e8):
+        x = v / s
+        forms = {f"{x:,.0f}", f"{x:.0f}"} if abs(x - round(x)) < 1e-9 else {f"{x:,.2f}", f"{x:.2f}", f"{x:g}"}
+        for fm in forms:
+            if re.search(rf"(?<![\d.]){re.escape(fm)}", raw):
+                return True
     return False
 
 
@@ -124,10 +132,59 @@ def quote_in(q: str, text: str) -> bool:
     return bool(parts)
 
 
+# 事件链 stage / state 的英文代码与中文写法（v3.1，A2 跟进）：声明里写"预案""实施"就算写出了这个状态
+ENUM_ALIASES = {
+    "plan": ("预案", "计划", "拟", "草案", "方案", "预披露"), "progress": ("进展", "进度", "延期", "调整"),
+    "implemented": ("实施", "开始", "首次"), "completed": ("完成", "结束", "届满", "完毕"),
+    "terminated": ("终止", "取消", "放弃"), "withdrawn": ("撤回", "撤销"), "lifted": ("解除", "撤销", "恢复", "复牌"),
+    "correction": ("更正", "补充", "修订"),
+    "in": ("增持", "增加", "买入"), "de": ("减持", "减少", "卖出"),
+}
+ENUM_SKIP = {"single", "open", "closed", "unknown"}       # 没有阶段含义的代码：不要求正文写出
+
+
+def _enum_stated(raw: str, hay: str) -> bool | None:
+    """raw 是事件链的英文代码时，返回正文里是否写出了它（None 表示不是这类代码）。"""
+    k = raw.strip().lower()
+    if k in ENUM_SKIP or (k in ENUM_ALIASES and k in hay.lower()):     # 正文直接写了代码本身也算
+        return True
+    if k in ENUM_ALIASES:
+        return any(a in hay for a in ENUM_ALIASES[k])
+    parts = [p for p in re.split(r"[\\/、,，;；|]+", raw) if p.strip()]
+    if len(parts) > 1:                                                  # 多值字段（"总经理\总裁"）：写出其中之一即可
+        return any(_norm(p) in hay for p in parts)
+    return None
+
+
+def _doc_records(evidence: dict[str, dict], eid: str) -> list[tuple[str, dict]]:
+    """同一份公告的正文段落记录（cninfo:ann:<编号> 或 doc:<编号>:… → doc:<编号>:…）。"""
+    m = re.match(r"(?:cninfo:ann:|doc:)(\d+)", eid)
+    if not m:
+        return []
+    pre = f"doc:{m.group(1)}:"
+    return [(k, v) for k, v in evidence.items() if k.startswith(pre) and k != eid]
+
+
+# 分类型字段：取值必须原样写出（"保留意见"和"无保留意见"只差两个字，不能放宽）；其他文字字段允许简写（v3.1）
+CATEGORICAL_FIELDS = {"audit_result", "type", "stage", "state", "in_de", "div_proc", "change_type"}
+
+
+def _common_run(a: str, b: str) -> int:
+    """a 在 b 里能找到的最长连续片段长度。"""
+    best = 0
+    for i in range(len(a)):
+        for j in range(i + best + 1, len(a) + 1):
+            if a[i:j] in b:
+                best = j - i
+            else:
+                break
+    return best
+
+
 def _is_text_value(raw: str) -> bool:
-    """短的文字取值（"标准无保留意见"、"预增"）；纯数字串、日期和长段落不算。"""
+    """短的文字取值（"标准无保留意见"、"预增"）；纯数字串、日期时间（含时区）和长段落不算。"""
     t = raw.strip()
-    return 0 < len(t) <= 30 and not re.fullmatch(r"[\d.\-:T ]+|\d{6}\.(?:SH|SZ|BJ)", t)
+    return 0 < len(t) <= 30 and not re.fullmatch(r"[\d.\-:T +]+|\d{6}\.(?:SH|SZ|BJ)", t)
 
 
 def cu_of(r: dict, c: dict, own) -> str | None:
@@ -158,8 +215,16 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                     texts = "".join(str(x) for x in rec.values() if isinstance(x, str))
                     quote_ok = quote_in(q, texts)
                     if not quote_ok:
-                        ck.status = "mismatch"
-                        ck.notes.append("quote not found in the cited record")
+                        # 引用编号错位（v3.1，A2 跟进）：引文不在所引记录里，但逐字出现在同一份公告的正文段落里 →
+                        # 由代码改正引用，记备注；引文本身不对（例如跳着摘表格）仍判不一致
+                        alt = next((k for k, v in _doc_records(evidence, r["evidence_id"])
+                                    if quote_in(q, "".join(str(x) for x in v.values() if isinstance(x, str)))), None)
+                        if alt:
+                            quote_ok = True
+                            ck.notes.append(f"citation_corrected {r['evidence_id']} -> {alt}")
+                        else:
+                            ck.status = "mismatch"
+                            ck.notes.append("quote not found in the cited record")
                 f = r.get("field")
                 own = r.get("value")                     # 多值声明：每条证据自己的数值
                 v = own if own is not None else claim_v
@@ -168,7 +233,11 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                 if f and isinstance(raw, str) and _is_text_value(raw):
                     # 文字字段（v3，T-051）：审计意见、预告类型这类字段，记录里的文字要出现在声明正文或引文里；
                     # 不看 value（模型常写 1.0 占位）
-                    if _norm(raw) not in _norm(c.get("text", "") + (q or "")):
+                    hay = _norm(c.get("text", "") + (q or ""))
+                    stated = _enum_stated(raw, hay)
+                    if stated is None and f not in CATEGORICAL_FIELDS:
+                        stated = _common_run(_norm(raw), hay) >= min(len(_norm(raw)), 4)   # 描述性文字：允许简写
+                    if stated is False or (stated is None and _norm(raw) not in hay):
                         ck.status = "mismatch"
                         ck.notes.append(f"text field {f}={raw!r} not stated in claim text or quote")
                     elif own is None:
@@ -204,6 +273,9 @@ def verify(output: dict, evidence: dict[str, dict]) -> list[ClaimCheck]:
                     continue
                 cu = r.get("unit") if own is not None and r.get("unit") else (c.get("unit") or "")
                 ru = (rec.get("_units") or {}).get(f, "元" if cu in MONEY else cu)
+                if own is not None and not r.get("unit"):
+                    # 多值声明里逐条给的数值没写单位：按该字段自己的单位理解，不套用声明的单位（v3.1；例如 12 家机构不是 12 万元）
+                    cu = ru
                 ok = _matches(float(v), UNIT.get(cu, 1.0) / UNIT.get(ru, 1.0), float(raw))
                 if own is not None and not ok:
                     ck.status = "mismatch"
