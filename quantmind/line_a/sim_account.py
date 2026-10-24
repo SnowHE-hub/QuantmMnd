@@ -65,17 +65,25 @@ class SimConfig:
     min_recent_bar_td: int = 10
     delist_writeoff_td: int = 20
     dividend_tax: bool = True
+    lot_round: str = "floor"                 # floor：向下取整到申报单位；nearest：四舍五入（超出部分要有现金，T-052b）
+    fill_unaffordable: bool = False          # True：目标里买不起一手的顺延到下一位买得起的（T-052b）
     weight_fn: object = None                 # (决策日, 目标列表) → {股票: 权重}；None = 等权（T-055 X3 v2 的逆波动加权）
 
 
-def lot_shares(value: float, price: float, board: str, *, integer: bool = True) -> float:
-    """value 元最多能买的股数（按板块的最小申报单位取整）；integer = False 时不取整（研究口径）。"""
+def lot_shares(value: float, price: float, board: str, *, integer: bool = True, mode: str = "floor") -> float:
+    """value 元能买的股数（按板块的最小申报单位取整）；integer = False 时不取整（研究口径）。
+    mode = nearest：四舍五入到申报单位（不足一手但 ≥ 半手也买一手）。"""
     if not (price > 0) or value <= 0:
         return 0.0
     if not integer:
         return value / price
     lo, step = LOT.get(board, (100, 100))
-    n = math.floor(value / price + 1e-9)
+    x = value / price
+    if mode == "nearest":
+        if x < lo / 2:
+            return 0.0
+        return float(max(lo, lo + round(max(x - lo, 0.0) / step) * step))
+    n = math.floor(x + 1e-9)
     if n < lo:
         return 0.0
     return float(lo + ((n - lo) // step) * step)
@@ -249,6 +257,11 @@ class AccountSimulator:
             if c.buffer_mult:
                 top_buf = set(names[: int(math.ceil(n * c.buffer_mult))])
                 keep = [t for t in names if t in self.pos and t in top_buf][:n]
+            if c.fill_unaffordable and c.mode == "raw":
+                pxd = self.close_ffill.loc[:d].iloc[-1]
+                cap = self._value(d) / max(c.top_n, 1)
+                lo_of = {t: LOT.get(board_of(t), (100, 100))[0] for t in names}
+                names = [t for t in names if t in keep or (pd.notna(pxd.get(t)) and lo_of[t] * float(pxd[t]) <= cap * (1.5 if c.lot_round == "nearest" else 1.0))]
             fill = [t for t in names if t not in keep][: max(0, n - len(keep))]
             target += keep + fill
         self.bench_members = sorted(uni)
@@ -372,7 +385,8 @@ class AccountSimulator:
                 continue
             rate = c.commission_rate + c.transfer_rate + o["slip_bp"] / 1e4
             budget = min(o["value"], self.cash)
-            qty = lot_shares(budget / (1 + rate), price, board_of(t), integer=integer)
+            qty = lot_shares(budget / (1 + rate) if c.lot_round == "floor" else o["value"] / (1 + rate), price, board_of(t),
+                             integer=integer, mode=c.lot_round)
             if integer:                                     # 最低佣金也要够钱
                 while qty > 0 and qty * price + sum(self._fees(qty * price, "buy", d, o["slip_bp"]).values()) > self.cash:
                     lo, step = LOT.get(board_of(t), (100, 100))
