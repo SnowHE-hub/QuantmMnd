@@ -180,3 +180,20 @@ research_requests [ {ticker, roles[A1..A4], reason} ], questions_for_user [ … 
 | 影子 | 只记录、不形成交易指令 |
 | 纸面账户 | 按规则模拟成交的账户 |
 | 调仓 | 每 4 个周频网格点一次 |
+
+## 附：聚合接口（2026-10-24 前端审查后新增，`quantmind/line_a/api_analytics.py`）
+
+原来前端自己拼的计算（事后收益、红队命中率、模型共识、声明溯源、漏斗数量）统一由后端按系统口径计算，前端只渲染。审查报告见 `docs/frontend_handoff/forensic_audit_20261024.md`（D 盘）。
+
+| 接口 | 说明 |
+|---|---|
+| `GET /api/forward/{d}?tickers=a,b \| source=formal\|f4\|f3top&top=&horizons=1,5,10,20` | T+1 开盘复权入场、持有 h 日按收盘计；入场日停牌 / 开盘涨停记为无法成交；基准：研究池等权、沪深300、中证1000、中证2000；超额 = 个股 − 基准；未到期为 null |
+| `GET /api/redteam/{d}?source=&horizon=5&version=v1\|v2&top=` | 红队规则命中与事后表现：标记组 vs 未标记组（基准跑输率）、差值、分规则统计；`missing_inputs` 列出当天缺少的规则输入 |
+| `GET /api/consensus/{d}?ticker=&horizon=20d\|63d&universe=research_pool\|all` | 四个模型与 ENS 的截面百分位、分歧度（百分位标准差）与其分位、当天模型间 Spearman |
+| `GET /api/claim/{d}/{ticker}/{ref}` | F7 声明的真实核验记录：原声明、所引记录字段值、运行时与现在的校验结论和备注、按公式重算 |
+| `GET /api/funnel/{d}` | 每一层当天的真实数量与明细 |
+| `GET /api/forward_ic?horizon=5&model=ens_20d` | 每个运行日的事后 Rank IC 与前 10% 超额 |
+| `GET /api/rules/execution` | 佣金、过户费、印花税、各板块最小申报单位与步长、各档设置 |
+- `/api/scores/{d}` 增加 `?ticker=`，返回带全市场排名 `rank` 的单行；`/api/dates` 增加 `brain`、`claims`。
+- 某一天没有某一步的产物时返回 404（不是 500）。
+- 测试：`tests/test_line_a_api_analytics.py`；前端 `npm run test:contract`、`npm run test:e2e`。
