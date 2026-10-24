@@ -61,6 +61,7 @@ def main() -> None:
         def slow_spec(*args, **kw):
             s = base_spec(*args, **kw)
             s.wall_clock_s, s.thinking = 1800.0, None
+            s.max_tokens = 8192          # 本机输出上限（T-054 变更：补充轮会退化成重复输出、写满 32K，A1 正常输出约 3K）
             return s
         slices.role_spec = slow_spec
     else:
