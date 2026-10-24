@@ -102,6 +102,7 @@ quantmind/             核心库
   models/ regime/ portfolio/ risk/ selection/ agents/ kb/
 scripts/               日更 daily_update.py、回测、数据管道 data_pipeline/
 app/                   Streamlit 面板（app/main.py + app/pages/）与 FastAPI 后端
+frontend/              个人展示前端（React + Vite），读 quantmind/line_a/api_server.py 的只读接口
 tests/                 单元测试（CI 只跑离线部分）
 docs/work/             任务卡 tasks/、报告 reports/、证据脚本与结果 evidence/、验收与评审 acceptance/ reviews/
 ```
@@ -112,7 +113,8 @@ docs/work/             任务卡 tasks/、报告 reports/、证据脚本与结�
   - `/api/forward`、`/api/redteam`：T+1 开盘复权入场的事后收益、相对研究池等权与指数的超额；红队规则与基准跑输率比较；
   - `/api/consensus`：四个模型的截面百分位与分歧度；`/api/claim`：F7 声明的真实核验记录；`/api/funnel`：每层真实数量；
   - `/api/ledger/*`：按股数逐笔记账的模拟账户（持仓、T+1 可用、成本、交割单与逐项税费、已实现 / 未实现盈亏、盈亏日历），会计恒等式逐日核对，T-052 账户与存档净值逐日一致（[`T-059`](docs/work/tasks/T-059.md)）。
-- 接口与数据说明：[`docs/handoff/frontend_handoff.md`](docs/handoff/frontend_handoff.md)。个人展示前端（React + Vite）不在这个仓库里。
+- 接口与数据说明：[`docs/handoff/frontend_handoff.md`](docs/handoff/frontend_handoff.md)；前端审查报告：[`docs/handoff/forensic_audit_20261024.md`](docs/handoff/forensic_audit_20261024.md)。
+- 个人展示前端在 [`frontend/`](frontend/)（React + Vite，Windows 上运行：`cd frontend && npm install && npm run dev`，需要先在 WSL 里启动只读接口）。测试：`npm run test:contract`（接口契约与数值）、`npm run test:e2e`（Edge 无头浏览器，逐项对照接口数值）。
 
 ## 分支
 
