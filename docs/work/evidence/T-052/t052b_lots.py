@@ -23,7 +23,7 @@ VARIANTS = {"floor+skip": ("floor", False), "floor+next": ("floor", True), "near
 
 
 def main() -> None:
-    start = WIN["W6"]
+    start = min(WIN.values())
     px = sd.prices(start)
     mk = Market(px, start, END)
     sc, _ = sd.ens_scores("20d", start)
